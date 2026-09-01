@@ -131,7 +131,6 @@ const userSchema = new Schema<IUserDocument>(
       index: true,
     },
     subscriptionExpiry: { type: Date },
-    stripeSubscriptionId: { type: String, unique: true, sparse: true, index: true },
     membershipProvider: {
       type: String,
       enum: Object.values(MembershipProvider),
@@ -187,7 +186,6 @@ const userSchema = new Schema<IUserDocument>(
         delete ret.stripeCustomerId;
         delete ret.stripeCustomerIdHash;
         delete ret.stripeConnectedAccountId;
-        delete ret.stripeSubscriptionId;
         delete ret.platformSubscriptionId;
         delete ret.purchaseToken;
         return ret;
@@ -209,7 +207,6 @@ const userSchema = new Schema<IUserDocument>(
         delete ret.stripeCustomerId;
         delete ret.stripeCustomerIdHash;
         delete ret.stripeConnectedAccountId;
-        delete ret.stripeSubscriptionId;
         delete ret.platformSubscriptionId;
         delete ret.purchaseToken;
         return ret;

@@ -45,7 +45,6 @@ export enum VerificationChannel {
 }
 
 export enum MembershipProvider {
-  STRIPE = "stripe",
   GOOGLE_PLAY = "google_play",
   APPLE_STORE = "apple_store",
 }
@@ -104,11 +103,10 @@ export interface IUser {
   stripeConnectedAccountId?: string;
   stripeConnectStatus: "verified" | "unverified";
   
-  // Membership & Subscriptions
+  // Membership & Subscriptions (Native Google Play & Apple Store IAP)
   membershipTier: MembershipTier;
   subscriptionStatus?: SubscriptionStatus;
   subscriptionExpiry?: Date;
-  stripeSubscriptionId?: string;
   membershipProvider?: MembershipProvider;
   platformSubscriptionId?: string;
   purchaseToken?: string;

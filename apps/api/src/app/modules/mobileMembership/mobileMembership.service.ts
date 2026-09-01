@@ -119,9 +119,6 @@ const verifyGooglePurchase = async (userId: string, productId: string, token: st
     user.autoRenewEnabled = autoRenewing;
     user.membershipStartedAt = user.membershipStartedAt || now;
     user.lastBillingDate = now;
-    
-    // Clear legacy Stripe values to prevent provider state conflicts
-    user.stripeSubscriptionId = undefined;
     user.gracePeriodUntil = undefined;
     
     await user.save({ session });
@@ -328,9 +325,6 @@ const verifyApplePurchase = async (userId: string, receiptData: string): Promise
     user.autoRenewEnabled = autoRenewing;
     user.membershipStartedAt = user.membershipStartedAt || now;
     user.lastBillingDate = now;
-
-    // Clear legacy Stripe values
-    user.stripeSubscriptionId = undefined;
     user.gracePeriodUntil = undefined;
 
     await user.save({ session });
@@ -400,8 +394,8 @@ const syncMobileSubscriptionStatus = async (userId: string) => {
       throw new AppError(httpStatus.NOT_FOUND, "User not found");
     }
 
-    // If Stripe or no provider, skip remote verification sync
-    if (!user.membershipProvider || user.membershipProvider === MembershipProvider.STRIPE) {
+    // If no provider, skip remote verification sync
+    if (!user.membershipProvider) {
       await session.commitTransaction();
       return {
         message: "No mobile subscription provider found for this account.",

@@ -12,11 +12,10 @@ const createSubscription = catchAsync(async (req: Request, res: Response) => {
   sendResponse(res, {
     success: true,
     statusCode: httpStatus.OK,
-    message: result.isUpdate ? "Subscription update initiated successfully" : "Subscription session created successfully",
+    message: "Subscription created successfully",
     data: result,
   });
 });
-
 
 const cancelSubscription = catchAsync(async (req: Request, res: Response) => {
   const user = req.user as JwtPayload;
