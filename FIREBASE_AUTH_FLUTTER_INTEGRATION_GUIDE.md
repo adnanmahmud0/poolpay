@@ -31,6 +31,24 @@ This guide provides instructions for the Flutter mobile application developer (`
 
 ---
 
+## 🔑 Project Credentials & Configuration Cheat Sheet
+
+| Parameter | Value | Description |
+| :--- | :--- | :--- |
+| **Firebase Project ID** | `poolpay-e80df` | Firebase Project identifier |
+| **Firebase Project Number** | `242742534531` | Google Cloud project number |
+| **Google Web Client ID** | `242742534531-aqo3sktplktf2otg7t9vl2u7u3u7ak4e.apps.googleusercontent.com` | `serverClientId` for Flutter `GoogleSignIn` |
+| **Firebase Auth Domain** | `poolpay-e80df.firebaseapp.com` | Firebase auth callback domain |
+| **Facebook App ID** | `2409763292844238` | Meta / Facebook App ID |
+| **Facebook App Secret** | `f9fa43b3fe22b6faa1d444fb6d2b78d6` | Meta / Facebook App Secret |
+| **Android Package Name** | `com.poolpay.rosca` | Android `applicationId` / `namespace` |
+| **iOS Bundle Identifier** | `com.poolpay.app` | iOS `PRODUCT_BUNDLE_IDENTIFIER` |
+| **Backend API (Dev / Local)**| `http://localhost:5000` *(or `http://10.0.2.2:5000` for Android Emulator)* | Local backend URL |
+| **Backend API (Production)** | `https://api.poolpay.space` | Live production backend URL |
+| **Auth API Endpoint** | `POST /api/v1/auth/firebase-login` | Unified endpoint for Google & Facebook |
+
+---
+
 ## 1️⃣ Firebase Console Prerequisites (Android & iOS)
 
 * **Firebase Project ID**: `poolpay-e80df`
