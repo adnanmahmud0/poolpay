@@ -43,8 +43,9 @@ This guide provides instructions for the Flutter mobile application developer (`
 | **Facebook App Secret** | `f9fa43b3fe22b6faa1d444fb6d2b78d6` | Meta / Facebook App Secret |
 | **Android Package Name** | `com.poolpay.rosca` | Android `applicationId` / `namespace` |
 | **iOS Bundle Identifier** | `com.poolpay.app` | iOS `PRODUCT_BUNDLE_IDENTIFIER` |
+| **Backend API (Live Server)** | `https://adnan5000.binarybards.online` | Active live backend URL |
 | **Backend API (Dev / Local)**| `http://localhost:5000` *(or `http://10.0.2.2:5000` for Android Emulator)* | Local backend URL |
-| **Backend API (Production)** | `https://api.poolpay.space` | Live production backend URL |
+| **Backend API (Production)** | `https://api.poolpay.space` | Production backend URL |
 | **Auth API Endpoint** | `POST /api/v1/auth/firebase-login` | Unified endpoint for Google & Facebook |
 
 ---
@@ -89,9 +90,11 @@ Run `flutter pub get`.
 
 ## 3️⃣ Backend API Specifications
 
-### Endpoint:
-* **URL**: `POST {{BASE_URL}}/api/v1/auth/firebase-login`
-  *(Aliases: `POST {{BASE_URL}}/api/v1/auth/google` and `POST {{BASE_URL}}/api/v1/auth/facebook`)*
+### Endpoints:
+* **Live Server**: `POST https://adnan5000.binarybards.online/api/v1/auth/firebase-login`
+* **Local Dev**: `POST http://localhost:5000/api/v1/auth/firebase-login` *(Android Emulator: `http://10.0.2.2:5000`)*
+* **Production**: `POST https://api.poolpay.space/api/v1/auth/firebase-login`
+  *(Aliases: `/api/v1/auth/google` and `/api/v1/auth/facebook`)*
 * **Headers**: `Content-Type: application/json`
 
 ### Request Body:
