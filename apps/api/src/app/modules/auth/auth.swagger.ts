@@ -40,6 +40,32 @@
 
 /**
  * @swagger
+ * /auth/firebase-login:
+ *   post:
+ *     summary: Social Login with Firebase ID Token (Google or Facebook)
+ *     tags: [Auth]
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - idToken
+ *             properties:
+ *               idToken:
+ *                 type: string
+ *                 description: Firebase ID Token obtained from Firebase Client SDK (Google/Facebook sign-in)
+ *               isDashboardLogin:
+ *                 type: boolean
+ *                 description: Optional flag if logging into admin dashboard
+ *     responses:
+ *       200:
+ *         description: Login successful, returns JWT accessToken, refreshToken, and user profile
+ */
+
+/**
+ * @swagger
  * /auth/login:
  *   post:
  *     summary: Login with identifier (email or phone) and password

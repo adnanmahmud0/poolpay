@@ -28,6 +28,27 @@ router.post(
 );
 
 router.post(
+  "/firebase-login",
+  authLimiter,
+  validateRequest(AuthValidation.firebaseLoginSchema),
+  AuthControllers.firebaseLogin
+);
+
+router.post(
+  "/google",
+  authLimiter,
+  validateRequest(AuthValidation.firebaseLoginSchema),
+  AuthControllers.firebaseLogin
+);
+
+router.post(
+  "/facebook",
+  authLimiter,
+  validateRequest(AuthValidation.firebaseLoginSchema),
+  AuthControllers.firebaseLogin
+);
+
+router.post(
   "/verify-2fa",
   authLimiter,
   validateRequest(AuthValidation.verify2FAValidationSchema),

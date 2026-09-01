@@ -17,6 +17,7 @@ export enum AuthProvider {
   EMAIL = "email",
   GOOGLE = "google",
   FACEBOOK = "facebook",
+  FIREBASE = "firebase",
 }
 
 export enum KYCStatus {
@@ -59,6 +60,7 @@ export interface IUser {
   password?: string;
   googleId?: string;
   facebookId?: string;
+  firebaseUid?: string;
   agreeToTerms: boolean;
   agreeToForfeitOnRemoval: boolean;
   agreeToSms: boolean;

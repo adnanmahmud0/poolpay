@@ -11,7 +11,7 @@ const userSchema = new Schema<IUserDocument>(
     email: { 
       type: String, 
       required: function(this: IUserDocument) {
-        return !this.googleId && !this.facebookId;
+        return !this.googleId && !this.facebookId && !this.firebaseUid;
       }, 
       unique: true, 
       sparse: true, 
@@ -20,7 +20,7 @@ const userSchema = new Schema<IUserDocument>(
     phone: {
       type: String,
       required: function(this: IUserDocument) {
-        return !this.googleId && !this.facebookId;
+        return !this.googleId && !this.facebookId && !this.firebaseUid;
       },
       get: decrypt,
       set: encrypt,
@@ -28,10 +28,11 @@ const userSchema = new Schema<IUserDocument>(
     password: { type: String, select: false },
     googleId: { type: String, unique: true, sparse: true, index: true },
     facebookId: { type: String, unique: true, sparse: true, index: true },
+    firebaseUid: { type: String, unique: true, sparse: true, index: true },
     agreeToTerms: { 
       type: Boolean, 
       required: function(this: IUserDocument) {
-        return !this.googleId && !this.facebookId;
+        return !this.googleId && !this.facebookId && !this.firebaseUid;
       },
       default: true 
     },

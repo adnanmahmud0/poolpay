@@ -359,11 +359,29 @@ const facebookCallbackController = catchAsync(
   }
 );
 
+const firebaseLogin = catchAsync(async (req: Request, res: Response) => {
+  const { idToken, isDashboardLogin } = req.body;
+  const result = await AuthServices.firebaseSocialLogin(idToken, isDashboardLogin);
+
+  setAuthCookie(res, {
+    accessToken: result.accessToken as string,
+    refreshToken: result.refreshToken as string,
+  });
+
+  sendResponse(res, {
+    success: true,
+    statusCode: httpStatus.OK,
+    message: "User Logged In Successfully with Firebase!",
+    data: result,
+  });
+});
+
 export const AuthControllers = {
   register,
   verifyEmail,
   resendVerificationCode,
   credentialsLogin,
+  firebaseLogin,
   verify2FA,
   getNewAccessToken,
   logout,
