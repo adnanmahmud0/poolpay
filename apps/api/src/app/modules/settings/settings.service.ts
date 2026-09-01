@@ -14,8 +14,6 @@ const getSettings = async () => {
       lateFeePercent: 5,
       gracePeriodDays: 3,
       maxRetryCount: 3,
-      regularMembershipPriceId: envVars.STRIPE.REGULAR_PRICE_ID,
-      vipMembershipPriceId: envVars.STRIPE.VIP_PRICE_ID,
     });
   }
   return settings;

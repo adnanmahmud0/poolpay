@@ -29,14 +29,6 @@ const envSchema = z.object({
   SUPER_ADMIN_PASSWORD: z.string(),
   ENCRYPTION_KEY: z.string().default("your-secret-32-character-key-here-1234"),
 
-  GOOGLE_CLIENT_SECRET: z.string().optional(),
-  GOOGLE_CLIENT_ID: z.string().optional(),
-  GOOGLE_CALLBACK_URL: z.string().optional(),
-
-  FACEBOOK_CLIENT_SECRET: z.string().optional(),
-  FACEBOOK_CLIENT_ID: z.string().optional(),
-  FACEBOOK_CALLBACK_URL: z.string().optional(),
-
   EXPRESS_SESSION_SECRET: z.string().default("secret"),
   FRONTEND_URL: z.string().url().default("http://localhost:3000"),
   BACKEND_URL: z.string().url().default("http://localhost:5000"),
@@ -81,8 +73,6 @@ const envSchema = z.object({
   STRIPE_SECRET_KEY: z.string().optional(),
   STRIPE_WEBHOOK_SECRET: z.string().optional(),
   STRIPE_CONNECT_WEBHOOK_SECRET: z.string().optional(),
-  STRIPE_REGULAR_PRICE_ID: z.string().optional(),
-  STRIPE_VIP_PRICE_ID: z.string().optional(),
 
   // Firebase
   FIREBASE_SERVICE_ACCOUNT_BASE64: z.string().optional(),
@@ -218,8 +208,6 @@ export const envVars = {
     SMS_ENABLED: String(parsedEnv.data.SMS_ENABLED).toLowerCase().trim() === "true",
   },
   STRIPE: {
-    REGULAR_PRICE_ID: parsedEnv.data.STRIPE_REGULAR_PRICE_ID,
-    VIP_PRICE_ID: parsedEnv.data.STRIPE_VIP_PRICE_ID,
     CONNECT_WEBHOOK_SECRET: parsedEnv.data.STRIPE_CONNECT_WEBHOOK_SECRET,
   },
   RATE_LIMITER_ENABLED: String(parsedEnv.data.RATE_LIMITER_ENABLED).toLowerCase().trim() === "true",
