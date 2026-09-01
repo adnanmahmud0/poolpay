@@ -1,0 +1,42 @@
+name: Production CI/CD Deployment
+
+on:
+  push:
+    branches:
+      - main
+
+jobs:
+  deploy:
+    name: Build & Deploy to EC2
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Deploy to EC2 via SSH
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: ${{ secrets.EC2_HOST }}
+          username: ${{ secrets.EC2_USER || 'ubuntu' }}
+          key: ${{ secrets.EC2_SSH_KEY }}
+          port: ${{ secrets.EC2_PORT || 22 }}
+          script: |
+            set -e
+            echo "🚀 Starting PoolPay Production Deployment..."
+            
+            # Navigate to project root
+            cd /home/ubuntu/poolpay
+            
+            # Pull latest changes from main branch
+            git fetch origin main
+            git reset --hard origin/main
+            
+            # Build and restart containers using Docker Compose
+            docker compose -f docker-compose.prod.yml build --no-cache api web
+            docker compose -f docker-compose.prod.yml up -d --remove-orphans
+            
+            # Clean up dangling images
+            docker image prune -f
+            
+            echo "✅ Deployment completed successfully!"
