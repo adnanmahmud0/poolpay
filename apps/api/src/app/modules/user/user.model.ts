@@ -10,18 +10,14 @@ const userSchema = new Schema<IUserDocument>(
     lastName: { type: String, required: true },
     email: { 
       type: String, 
-      required: function(this: IUserDocument) {
-        return !this.googleId && !this.facebookId && !this.firebaseUid;
-      }, 
+      required: true, 
       unique: true, 
       sparse: true, 
       index: true 
     },
     phone: {
       type: String,
-      required: function(this: IUserDocument) {
-        return !this.googleId && !this.facebookId && !this.firebaseUid;
-      },
+      required: true,
       get: decrypt,
       set: encrypt,
     },
@@ -31,9 +27,7 @@ const userSchema = new Schema<IUserDocument>(
     firebaseUid: { type: String, unique: true, sparse: true, index: true },
     agreeToTerms: { 
       type: Boolean, 
-      required: function(this: IUserDocument) {
-        return !this.googleId && !this.facebookId && !this.firebaseUid;
-      },
+      required: true,
       default: true 
     },
     agreeToForfeitOnRemoval: {
@@ -224,10 +218,10 @@ const userSchema = new Schema<IUserDocument>(
   }
 );
 
-// Schema-level validation for at least one identifier
+// Schema-level validation for required identifier
 userSchema.pre("validate", function (next) {
-  if (!this.email && !this.phone && !this.googleId && !this.facebookId) {
-    return next(new Error("At least one identifier (email, phone, googleId, or facebookId) is required."));
+  if (!this.email && !this.phone) {
+    return next(new Error("Email and phone number are required."));
   }
   next();
 });

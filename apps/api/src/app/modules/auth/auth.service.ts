@@ -17,7 +17,6 @@ import { sendSMS } from "../../utils/sendSMS";
 import { AuditLog, AuditAction, EntityType } from "../auditLog/auditLog.model";
 import { emitRealTimeNotification, enqueuePushNotification } from "../../utils/notification.utils";
 import { Notification, NotificationType } from "../notification/notification.model";
-import { getFirebaseAuth } from "../../config/firebase.config";
 
 const checkPhoneConflict = (user: IUser) => {
   if (user && user.phoneConflict) {
@@ -331,7 +330,7 @@ const credentialsLogin = async (payload: ILoginPayload): Promise<ILoginResponse>
   if (!isUserExist.password) {
     throw new AppError(
       httpStatus.BAD_REQUEST,
-      "This account was created using social login. Please login with Google or set a password first."
+      "No password is set for this account. Please use Set Password or contact support."
     );
   }
 
@@ -556,7 +555,7 @@ const resetPassword = async (
   if (!user.password) {
     throw new AppError(
       httpStatus.BAD_REQUEST,
-      "This account was created using social login and has no password set. Please login with Google/Facebook or set a password first."
+      "No password is set for this account. Please use Set Password instead."
     );
   }
 
@@ -638,7 +637,7 @@ const forgotPassword = async (identifier: string) => {
   if (!isUserExist.password) {
     throw new AppError(
       httpStatus.BAD_REQUEST,
-      "This account was created using social login and has no password set. Please login with Google or Facebook."
+      "No password is set for this account. Please use Set Password instead."
     );
   }
 
@@ -681,167 +680,11 @@ const forgotPassword = async (identifier: string) => {
   });
 };
 
-const firebaseSocialLogin = async (
-  idToken: string,
-  isDashboardLogin?: boolean
-): Promise<ILoginResponse> => {
-  // 1. Verify token with Firebase Admin
-  let decodedToken;
-  try {
-    const auth = getFirebaseAuth();
-    decodedToken = await auth.verifyIdToken(idToken);
-  } catch (error: any) {
-    throw new AppError(
-      httpStatus.UNAUTHORIZED,
-      `Invalid or expired Firebase ID token: ${error.message || "Authentication failed"}`
-    );
-  }
-
-  const { uid, email, name, picture, email_verified } = decodedToken;
-  const signInProvider = decodedToken.firebase?.sign_in_provider || "google.com";
-
-  // Determine provider enum
-  let providerEnum = AuthProvider.FIREBASE;
-  if (signInProvider.includes("google")) {
-    providerEnum = AuthProvider.GOOGLE;
-  } else if (signInProvider.includes("facebook")) {
-    providerEnum = AuthProvider.FACEBOOK;
-  }
-
-  // 2. Check if social login is globally enabled
-  const settings = await Settings.findOne();
-  if (settings && !settings.isSocialLoginEnabled) {
-    throw new AppError(
-      httpStatus.FORBIDDEN,
-      "Social login is currently disabled by admin."
-    );
-  }
-
-  // 3. Search for existing user
-  const queryConditions: any[] = [{ firebaseUid: uid }];
-  if (signInProvider.includes("google")) {
-    queryConditions.push({ googleId: uid });
-  }
-  if (signInProvider.includes("facebook")) {
-    queryConditions.push({ facebookId: uid });
-  }
-  if (email) {
-    queryConditions.push({ email });
-  }
-
-  let user = await User.findOne({ $or: queryConditions });
-
-  if (user) {
-    // Check block status
-    if (user.status === UserStatus.BLOCKED) {
-      throw new AppError(httpStatus.FORBIDDEN, "Your account has been blocked.");
-    }
-    if (user.status === UserStatus.PENDING) {
-      // For social login with verified email, automatically activate
-      user.status = UserStatus.ACTIVE;
-    }
-
-    // Dashboard Access Control
-    if (isDashboardLogin) {
-      if (user.role !== Role.ADMIN && user.role !== Role.SUPER_ADMIN) {
-        throw new AppError(
-          httpStatus.FORBIDDEN,
-          "Access Denied: Only administrators can access the dashboard."
-        );
-      }
-    }
-
-    let updated = false;
-    if (!user.firebaseUid) {
-      user.firebaseUid = uid;
-      updated = true;
-    }
-    if (signInProvider.includes("google") && !user.googleId) {
-      user.googleId = uid;
-      updated = true;
-    }
-    if (signInProvider.includes("facebook") && !user.facebookId) {
-      user.facebookId = uid;
-      updated = true;
-    }
-    if (!user.authProviders.includes(providerEnum)) {
-      user.authProviders.push(providerEnum);
-      updated = true;
-    }
-    if (!user.isVerified && email_verified) {
-      user.isVerified = true;
-      updated = true;
-    }
-    if (!user.profileImage && picture) {
-      user.profileImage = picture;
-      updated = true;
-    }
-
-    if (updated) {
-      await user.save();
-    }
-  } else {
-    // 4. Create new user
-    if (isDashboardLogin) {
-      throw new AppError(
-        httpStatus.FORBIDDEN,
-        "Access Denied: Only administrators can access the dashboard."
-      );
-    }
-
-    // Check registration enabled
-    if (settings && !settings.isUserRegistrationEnabled) {
-      throw new AppError(
-        httpStatus.FORBIDDEN,
-        "User registration is currently disabled by admin."
-      );
-    }
-
-    const nameParts = (name || "User").trim().split(" ");
-    const firstName = nameParts[0] || "User";
-    const lastName = nameParts.slice(1).join(" ") || " ";
-
-    user = await User.create({
-      firebaseUid: uid,
-      googleId: signInProvider.includes("google") ? uid : undefined,
-      facebookId: signInProvider.includes("facebook") ? uid : undefined,
-      email: email || `${uid}@firebase.user`,
-      firstName,
-      lastName,
-      profileImage: picture,
-      role: Role.USER,
-      status: UserStatus.ACTIVE,
-      authProviders: [providerEnum],
-      isVerified: email_verified ?? true,
-      agreeToTerms: true,
-      agreeToForfeitOnRemoval: true,
-      agreeToSms: false,
-    });
-  }
-
-  await logActivity(
-    user._id,
-    "USER_SOCIAL_LOGIN",
-    `User logged in via Firebase (${signInProvider}): ${user.email}`
-  );
-
-  const userTokens = createUserTokens(user);
-  const userObject = user.toObject();
-  const { password: _, ...userWithoutPassword } = userObject;
-
-  return {
-    requires2FA: false,
-    ...userTokens,
-    user: userWithoutPassword,
-  };
-};
-
 export const AuthServices = {
   register,
   verifyEmail,
   resendVerificationCode,
   credentialsLogin,
-  firebaseSocialLogin,
   verify2FA,
   getNewAccessToken,
   changePassword,

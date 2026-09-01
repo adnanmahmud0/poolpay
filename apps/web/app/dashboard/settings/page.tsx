@@ -231,12 +231,6 @@ export default function SettingsPage() {
             onToggle={() => toggleSetting('isUserRegistrationEnabled')} 
           />
           <ToggleGroup 
-            title="Social Login" 
-            description="Allow users to login with social accounts" 
-            enabled={Boolean(settings?.isSocialLoginEnabled)} 
-            onToggle={() => toggleSetting('isSocialLoginEnabled')} 
-          />
-          <ToggleGroup 
             title="Two-Factor Authentication" 
             description="Enable 2FA security for user accounts" 
             enabled={Boolean(settings?.isTwoFactorAuthenticationEnabled)} 

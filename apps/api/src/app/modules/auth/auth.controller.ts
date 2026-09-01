@@ -8,11 +8,9 @@ import { catchAsync } from "../../utils/catchAsync";
 import { sendResponse } from "../../utils/sendResponse";
 import { setAuthCookie } from "../../utils/setCookie";
 import { createUserTokens } from "../../utils/userTokens";
-import { sendMobileRedirect } from "../../utils/mobileRedirect";
 import { HydratedDocument } from "mongoose";
 import { AuthServices } from "./auth.service";
 import { IUser, Role } from "../user/user.interface";
-import { getSocialAuthErrorPageHTML } from "../../utils/legalPages";
 
 const register = catchAsync(async (req: Request, res: Response) => {
   const result = await AuthServices.register(req.body);
@@ -257,131 +255,11 @@ const forgotPassword = catchAsync(
   }
 );
 
-const googleCallbackController = catchAsync(
-  async (req: Request, res: Response) => {
-    let redirectTo = "/";
-
-    if (req.query.state) {
-      let stateStr = req.query.state as string;
-      try {
-        stateStr = stateStr.replace(/-/g, "+").replace(/_/g, "/");
-        while (stateStr.length % 4) {
-          stateStr += "=";
-        }
-        const decoded = Buffer.from(stateStr, "base64").toString("utf-8");
-        const parsed = JSON.parse(decoded);
-        redirectTo = parsed.redirect || "/";
-      } catch (_e) {
-        redirectTo = stateStr;
-      }
-    }
-
-    if (redirectTo.startsWith("/")) {
-      redirectTo = redirectTo.slice(1);
-    }
-
-    const user = req.user;
-
-    if (!user) {
-      throw new AppError(httpStatus.NOT_FOUND, "User Not Found");
-    }
-
-    // Platform detection for social login (Google/Facebook strictly allowed on mobile app only)
-    const isMobileApp = /^[a-z][a-z0-9+.-]*:\/\//.test(redirectTo);
-    
-    if (!isMobileApp) {
-      const errorHTML = getSocialAuthErrorPageHTML(
-        "Google login is only allowed on the mobile app.",
-        envVars.FRONTEND_URL
-      );
-      res.setHeader("Content-Type", "text/html");
-      res.status(httpStatus.FORBIDDEN).send(errorHTML);
-      return;
-    }
-
-    const tokenInfo = createUserTokens(user);
-    const { accessToken, refreshToken } = tokenInfo;
-
-    const separator = redirectTo.includes("?") ? "&" : "?";
-    const finalRedirectUrl = `${redirectTo}${separator}accessToken=${accessToken}&refreshToken=${refreshToken}`;
-    sendMobileRedirect(res, finalRedirectUrl);
-  }
-);
-
-const facebookCallbackController = catchAsync(
-  async (req: Request, res: Response) => {
-    let redirectTo = "/";
-
-    if (req.query.state) {
-      let stateStr = req.query.state as string;
-      try {
-        stateStr = stateStr.replace(/-/g, "+").replace(/_/g, "/");
-        while (stateStr.length % 4) {
-          stateStr += "=";
-        }
-        const decoded = Buffer.from(stateStr, "base64").toString("utf-8");
-        const parsed = JSON.parse(decoded);
-        redirectTo = parsed.redirect || "/";
-      } catch (_e) {
-        redirectTo = stateStr;
-      }
-    }
-
-    if (redirectTo.startsWith("/")) {
-      redirectTo = redirectTo.slice(1);
-    }
-
-    const user = req.user;
-
-    if (!user) {
-      throw new AppError(httpStatus.NOT_FOUND, "User Not Found");
-    }
-
-    // Platform detection for social login (Google/Facebook strictly allowed on mobile app only)
-    const isMobileApp = /^[a-z][a-z0-9+.-]*:\/\//.test(redirectTo);
-    
-    if (!isMobileApp) {
-      const errorHTML = getSocialAuthErrorPageHTML(
-        "Facebook login is only allowed on the mobile app.",
-        envVars.FRONTEND_URL
-      );
-      res.setHeader("Content-Type", "text/html");
-      res.status(httpStatus.FORBIDDEN).send(errorHTML);
-      return;
-    }
-
-    const tokenInfo = createUserTokens(user);
-    const { accessToken, refreshToken } = tokenInfo;
-
-    const separator = redirectTo.includes("?") ? "&" : "?";
-    const finalRedirectUrl = `${redirectTo}${separator}accessToken=${accessToken}&refreshToken=${refreshToken}`;
-    sendMobileRedirect(res, finalRedirectUrl);
-  }
-);
-
-const firebaseLogin = catchAsync(async (req: Request, res: Response) => {
-  const { idToken, isDashboardLogin } = req.body;
-  const result = await AuthServices.firebaseSocialLogin(idToken, isDashboardLogin);
-
-  setAuthCookie(res, {
-    accessToken: result.accessToken as string,
-    refreshToken: result.refreshToken as string,
-  });
-
-  sendResponse(res, {
-    success: true,
-    statusCode: httpStatus.OK,
-    message: "User Logged In Successfully with Firebase!",
-    data: result,
-  });
-});
-
 export const AuthControllers = {
   register,
   verifyEmail,
   resendVerificationCode,
   credentialsLogin,
-  firebaseLogin,
   verify2FA,
   getNewAccessToken,
   logout,
@@ -389,6 +267,4 @@ export const AuthControllers = {
   resetPassword,
   setPassword,
   forgotPassword,
-  googleCallbackController,
-  facebookCallbackController,
 };

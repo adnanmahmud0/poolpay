@@ -94,17 +94,9 @@ const setPasswordSchema = z.object({
   }),
 });
 
-const firebaseLoginSchema = z.object({
-  body: z.object({
-    idToken: z.string({ required_error: "Firebase ID token is required" }).min(1, "Firebase ID token is required"),
-    isDashboardLogin: z.boolean().optional(),
-  }),
-});
-
 export const AuthValidation = {
   registerValidationSchema,
   loginValidationSchema,
-  firebaseLoginSchema,
   verify2FAValidationSchema,
   changePasswordValidationSchema,
   forgotPasswordValidationSchema,
