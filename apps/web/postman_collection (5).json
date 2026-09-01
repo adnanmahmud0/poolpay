@@ -1,0 +1,1189 @@
+{
+	"info": {
+		"_postman_id": "61a9eabf-de54-4fc8-907f-33d6a9ae5903",
+		"name": "POOLPAY App - Complete API A to Z",
+		"description": "Comprehensive API collection for the POOLPAY Backend, including User flows, Group management, Transactions, and Super Admin Dashboard.",
+		"schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+	},
+	"item": [
+		{
+			"name": "01. Authentication",
+			"item": [
+				{
+					"name": "Register User",
+					"request": {
+						"method": "POST",
+						"url": "{{baseUrl}}/api/v1/auth/register",
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"firstName\": \"John\",\n    \"lastName\": \"Doe\",\n    \"email\": \"john@example.com\",\n    \"phone\": \"01712345678\",\n    \"password\": \"StrongPass123!\",\n    \"agreeToTerms\": true,\n    \"profileImage\": \"(optional) URL string\",\n    \"occupation\": \"(optional) string\",\n    \"address\": \"(optional) string\"\n}",
+							"options": { "raw": { "language": "json" } }
+						}
+					}
+				},
+				{
+					"name": "Verify Email",
+					"request": {
+						"method": "POST",
+						"url": "{{baseUrl}}/api/v1/auth/verify-email",
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"identifier\": \"john@example.com\",\n    \"code\": \"123456\"\n}",
+							"options": { "raw": { "language": "json" } }
+						},
+						"description": "Verifies account using the code sent to both Email and SMS."
+					}
+				},
+				{
+					"name": "Resend Verification Code",
+					"request": {
+						"method": "POST",
+						"url": "{{baseUrl}}/api/v1/auth/resend-verification-code",
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"email\": \"john@example.com\"\n}",
+							"options": { "raw": { "language": "json" } }
+						},
+						"description": "Resends verification code to both Email and SMS."
+					}
+				},
+				{
+					"name": "Login",
+					"event": [{
+						"listen": "test",
+						"script": {
+							"exec": [
+								"var jsonData = pm.response.json();",
+								"if (jsonData.success) {",
+								"    pm.environment.set(\"accessToken\", jsonData.data.accessToken);",
+								"    pm.environment.set(\"refreshToken\", jsonData.data.refreshToken);",
+								"    pm.environment.set(\"userId\", jsonData.data.user._id);",
+								"    ",
+								"    // Automatically set adminToken if the user is an admin",
+								"    var role = jsonData.data.user.role;",
+								"    if (role === 'admin' || role === 'super_admin') {",
+								"        pm.environment.set(\"adminToken\", jsonData.data.accessToken);",
+								"    }",
+								"}"
+							]
+						}
+					}],
+					"request": {
+						"method": "POST",
+						"url": "{{baseUrl}}/api/v1/auth/login",
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"identifier\": \"john@example.com\",\n    \"password\": \"StrongPass123!\"\n}",
+							"options": { "raw": { "language": "json" } }
+						}
+					}
+				},
+				{
+					"name": "Login to Admin Dashboard",
+					"request": {
+						"method": "POST",
+						"url": "{{baseUrl}}/api/v1/auth/login",
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"identifier\": \"admin@poolpay.com\",\n    \"password\": \"AdminStrongPass123!\",\n    \"isDashboardLogin\": true\n}",
+							"options": { "raw": { "language": "json" } }
+						}
+					}
+				},
+				{
+					"name": "Refresh Token",
+					"request": {
+						"method": "POST",
+						"url": "{{baseUrl}}/api/v1/auth/refresh-token",
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"refreshToken\": \"{{refreshToken}}\"\n}",
+							"options": { "raw": { "language": "json" } }
+						}
+					}
+				},
+				{
+					"name": "Forgot Password",
+					"request": {
+						"method": "POST",
+						"url": "{{baseUrl}}/api/v1/auth/forgot-password",
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"identifier\": \"john@example.com\"\n}",
+							"options": { "raw": { "language": "json" } }
+						},
+						"description": "Initiates password reset. Code is sent to both Email and SMS."
+					}
+				},
+				{
+					"name": "Reset Password",
+					"request": {
+						"method": "POST",
+						"url": "{{baseUrl}}/api/v1/auth/reset-password",
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"identifier\": \"john@example.com\",\n    \"code\": \"123456\",\n    \"newPassword\": \"NewStrongPass123!\"\n}",
+							"options": { "raw": { "language": "json" } }
+						}
+					}
+				},
+				{
+					"name": "Change Password",
+					"request": {
+						"method": "POST",
+						"header": [{ "key": "Authorization", "value": "Bearer {{accessToken}}" }],
+						"url": "{{baseUrl}}/api/v1/auth/change-password",
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"oldPassword\": \"StrongPass123!\",\n    \"newPassword\": \"NewStrongPass123!\"\n}",
+							"options": { "raw": { "language": "json" } }
+						}
+					}
+				},
+				{
+					"name": "Verify 2FA",
+					"request": {
+						"method": "POST",
+						"url": "{{baseUrl}}/api/v1/auth/verify-2fa",
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"identifier\": \"john@example.com\",\n    \"code\": \"123456\"\n}",
+							"options": { "raw": { "language": "json" } }
+						},
+						"description": "Verifies 2FA code sent to both Email and SMS."
+					}
+				},
+				{
+					"name": "Google Login (Initiate)",
+					"request": {
+						"method": "GET",
+						"url": {
+							"raw": "{{baseUrl}}/api/v1/auth/google?state=poolpay://auth",
+							"host": ["{{baseUrl}}"],
+							"path": ["api", "v1", "auth", "google"],
+							"query": [
+								{
+									"key": "state",
+									"value": "poolpay://auth",
+									"description": "Custom scheme to redirect back to Flutter app"
+								}
+							]
+						},
+						"description": "Open this URL in a browser/webview to start Google OAuth. The state parameter ensures it redirects back to the mobile app."
+					}
+				},
+				{
+					"name": "Facebook Login (Initiate)",
+					"request": {
+						"method": "GET",
+						"url": {
+							"raw": "{{baseUrl}}/api/v1/auth/facebook?state=poolpay://auth",
+							"host": ["{{baseUrl}}"],
+							"path": ["api", "v1", "auth", "facebook"],
+							"query": [
+								{
+									"key": "state",
+									"value": "poolpay://auth",
+									"description": "Custom scheme to redirect back to Flutter app"
+								}
+							]
+						},
+						"description": "Open this URL in a browser/webview to start Facebook OAuth. The state parameter ensures it redirects back to the mobile app."
+					}
+				},
+				{
+					"name": "Set Password (for Social Login users)",
+					"request": {
+						"method": "POST",
+						"header": [{ "key": "Authorization", "value": "Bearer {{accessToken}}" }],
+						"url": "{{baseUrl}}/api/v1/auth/set-password",
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"newPassword\": \"StrongPass123!\"\n}",
+							"options": { "raw": { "language": "json" } }
+						}
+					}
+				}
+			]
+		},
+		{
+			"name": "02. User Profile",
+			"item": [
+				{
+					"name": "Get My Profile",
+					"request": {
+						"method": "GET",
+						"header": [{ "key": "Authorization", "value": "Bearer {{accessToken}}" }],
+						"url": "{{baseUrl}}/api/v1/user/me"
+					}
+				},
+				{
+					"name": "Update Profile",
+					"request": {
+						"method": "PATCH",
+						"header": [{ "key": "Authorization", "value": "Bearer {{accessToken}}" }],
+						"url": "{{baseUrl}}/api/v1/user/{{userId}}",
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"firstName\": \"John\",\n    \"lastName\": \"Updated\",\n    \"occupation\": \"Software Engineer\",\n    \"address\": \"New York, USA\",\n    \"phone\": \"01700000000\",\n    \"profileImage\": \"http://example.com/image.jpg\"\n}",
+							"options": { "raw": { "language": "json" } }
+						}
+					}
+				},
+				{
+					"name": "Upload Profile Image",
+					"request": {
+						"method": "POST",
+						"header": [{ "key": "Authorization", "value": "Bearer {{accessToken}}" }],
+						"url": "{{baseUrl}}/api/v1/user/upload-profile-image",
+						"body": {
+							"mode": "formdata",
+							"formdata": [
+								{ "key": "image", "type": "file", "src": [] }
+							]
+						}
+					}
+				},
+				{
+					"name": "Get Auth & Platform Status",
+					"request": {
+						"method": "GET",
+						"header": [{ "key": "Authorization", "value": "Bearer {{accessToken}}" }],
+						"url": "{{baseUrl}}/api/v1/settings/auth-status",
+						"description": "Used by frontend to check if 2FA is enabled globally and get platform name."
+					}
+				},
+				{
+					"name": "My Financial Stats & History",
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{accessToken}}"
+							}
+						],
+						"url": "{{baseUrl}}/api/v1/user/my-stats",
+						"description": "Returns user's financial overview: totalPayout, totalSavings, totalActiveGroups, group-wise breakdown, and full turn history."
+					}
+				}
+			]
+		},
+		{
+			"name": "03. Group Management",
+			"item": [
+				{
+					"name": "Create Group",
+					"request": {
+						"method": "POST",
+						"header": [{ "key": "Authorization", "value": "Bearer {{accessToken}}" }],
+						"url": "{{baseUrl}}/api/v1/groups",
+						"description": "Create a new group. Regular users must have Stripe Connect verified and at least one payment method. Admins/SuperAdmins can skip this if no startDate is provided.",
+						"body": {
+							"mode": "formdata",
+							"formdata": [
+								{ "key": "name", "value": "Savings Group Alpha", "type": "text" },
+								{ "key": "description", "value": "(optional) saving for dream car", "type": "text" },
+								{ "key": "contributionAmount", "value": "1000", "type": "text" },
+								{ "key": "contributionFrequency", "value": "monthly", "type": "text" },
+								{ "key": "totalMembers", "value": "5", "type": "text" },
+								{ "key": "totalCycles", "value": "2", "type": "text" },
+								{ "key": "startDate", "value": "2024-12-01", "type": "text" },
+								{ "key": "groupPhoto", "type": "file", "src": [], "description": "(optional) Group photo image" }
+							]
+						}
+					}
+				},
+				{
+					"name": "Get Group Details",
+					"request": {
+						"method": "GET",
+						"header": [{ "key": "Authorization", "value": "Bearer {{accessToken}}" }],
+						"url": "{{baseUrl}}/api/v1/groups/{{groupId}}"
+					}
+				},
+				{
+					"name": "Search Group by Invite Code",
+					"request": {
+						"method": "GET",
+						"header": [{ "key": "Authorization", "value": "Bearer {{accessToken}}" }],
+						"url": "{{baseUrl}}/api/v1/groups/invite/{{inviteCode}}"
+					}
+				},
+				{
+					"name": "Join Group",
+					"request": {
+						"method": "POST",
+						"header": [{ "key": "Authorization", "value": "Bearer {{accessToken}}" }],
+						"url": "{{baseUrl}}/api/v1/group-members/join",
+						"description": "Join an existing group using an invite code. All users (including Admins) must have Stripe Connect verified and at least one active payment method.",
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"inviteCode\": \"INV-ABCXYZ\"\n}",
+							"options": { "raw": { "language": "json" } }
+						}
+					}
+				},
+				{
+					"name": "Get My Joined Groups",
+					"request": {
+						"method": "GET",
+						"header": [{ "key": "Authorization", "value": "Bearer {{accessToken}}" }],
+						"url": "{{baseUrl}}/api/v1/group-members/my-groups"
+					}
+				},
+				{
+					"name": "Get Group Members",
+					"request": {
+						"method": "GET",
+						"header": [{ "key": "Authorization", "value": "Bearer {{accessToken}}" }],
+						"url": "{{baseUrl}}/api/v1/group-members/{{groupId}}"
+					}
+				},
+				{
+					"name": "Start Group (Activate)",
+					"request": {
+						"method": "POST",
+						"header": [{ "key": "Authorization", "value": "Bearer {{accessToken}}" }],
+						"url": "{{baseUrl}}/api/v1/groups/{{groupId}}/start",
+						"description": "Only the group creator or Admin can start the group. This generates the payout turns and sets the status to ACTIVE. IMPORTANT: Every active member must have a verified Stripe account and at least one payment method or this will fail."
+					}
+				},
+				{
+					"name": "Delete Group (Soft Delete)",
+					"request": {
+						"method": "DELETE",
+						"header": [{ "key": "Authorization", "value": "Bearer {{accessToken}}" }],
+						"url": "{{baseUrl}}/api/v1/groups/{{groupId}}",
+						"description": "Only the group creator can delete the group. This marks the group as isDeleted and notifies members."
+					}
+				},
+				{
+					"name": "Mark Member Notice (Admin)",
+					"request": {
+						"method": "PATCH",
+						"header": [{ "key": "Authorization", "value": "Bearer {{accessToken}}" }],
+						"url": "{{baseUrl}}/api/v1/group-members/{{memberId}}/notice",
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"noticeStatus\": \"NOTICE\"\n}",
+							"options": { "raw": { "language": "json" } }
+						}
+					}
+				},
+				{
+					"name": "Remove Member from Group (Admin)",
+					"request": {
+						"method": "PATCH",
+						"header": [{ "key": "Authorization", "value": "Bearer {{accessToken}}" }],
+						"url": "{{baseUrl}}/api/v1/group-members/{{memberId}}/remove",
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"removalNote\": \"Violation of community rules\"\n}",
+							"options": { "raw": { "language": "json" } }
+						}
+					}
+				}
+			]
+		},
+		{
+			"name": "04. Payments & Transactions",
+			"item": [
+				{
+					"name": "Get All Transactions",
+					"request": {
+						"method": "GET",
+						"header": [{ "key": "Authorization", "value": "Bearer {{accessToken}}" }],
+						"url": "{{baseUrl}}/api/v1/transactions"
+					}
+				},
+				{
+					"name": "Get My Payments (Personal History)",
+					"request": {
+						"method": "GET",
+						"header": [{ "key": "Authorization", "value": "Bearer {{accessToken}}" }],
+						"url": "{{baseUrl}}/api/v1/payments/my-payments?status=paid",
+						"description": "Returns the list of scheduled and completed group payments for the logged-in user. Supports filtering by status: pending, paid, failed, late. If no status is provided, it returns all records."
+					}
+				},
+				{
+					"name": "Create Setup Intent (Stripe)",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{accessToken}}"
+							}
+						],
+						"url": "{{baseUrl}}/api/v1/payment-methods/create-setup-intent",
+						"description": "Generates a SetupIntent client_secret for the frontend to securely collect card or US bank account details. Use the returned client_secret with Stripe SDK."
+					}
+				},
+				{
+					"name": "Add Payment Method (Stripe)",
+					"request": {
+						"method": "POST",
+						"header": [{ "key": "Authorization", "value": "Bearer {{accessToken}}" }],
+						"url": "{{baseUrl}}/api/v1/payment-methods",
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"paymentMethodId\": \"pm_card_visa\",\n    \"type\": \"card\",\n    \"isDefault\": true,\n    \"autoPayEnabled\": true\n}",
+							"options": { "raw": { "language": "json" } }
+						}
+					}
+				},
+				{
+					"name": "Get My Payment Methods",
+					"request": {
+						"method": "GET",
+						"header": [{ "key": "Authorization", "value": "Bearer {{accessToken}}" }],
+						"url": "{{baseUrl}}/api/v1/payment-methods"
+					}
+				},
+				{
+					"name": "Set Default Payment Method",
+					"request": {
+						"method": "PATCH",
+						"header": [{ "key": "Authorization", "value": "Bearer {{accessToken}}" }],
+						"url": "{{baseUrl}}/api/v1/payment-methods/{{paymentMethodId}}/default"
+					}
+				},
+				{
+					"name": "Toggle Auto-Pay",
+					"request": {
+						"method": "PATCH",
+						"header": [{ "key": "Authorization", "value": "Bearer {{accessToken}}" }],
+						"url": "{{baseUrl}}/api/v1/payment-methods/{{paymentMethodId}}/autopay",
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"autoPayEnabled\": false\n}",
+							"options": { "raw": { "language": "json" } }
+						}
+					}
+				},
+				{
+					"name": "Delete Payment Method",
+					"request": {
+						"method": "DELETE",
+						"header": [{ "key": "Authorization", "value": "Bearer {{accessToken}}" }],
+						"url": "{{baseUrl}}/api/v1/payment-methods/{{paymentMethodId}}"
+					}
+				}
+			]
+		},
+		{
+			"name": "11. Stripe Connect (Payouts)",
+			"item": [
+				{
+					"name": "Create Onboarding Link",
+					"request": {
+						"method": "POST",
+						"header": [{ "key": "Authorization", "value": "Bearer {{accessToken}}" }],
+						"url": "{{baseUrl}}/api/v1/stripe/connect/account-link",
+						"description": "Generates a URL for the user to complete Stripe Connect Express onboarding. Redirect user to this URL. For mobile apps, pass custom deep link URLs in the body.",
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"returnUrl\": \"poolpay://stripe-connect/return\",\n    \"refreshUrl\": \"poolpay://stripe-connect/refresh\"\n}",
+							"options": { "raw": { "language": "json" } }
+						}
+					}
+				},
+				{
+					"name": "Check Connect Status",
+					"request": {
+						"method": "GET",
+						"header": [{ "key": "Authorization", "value": "Bearer {{accessToken}}" }],
+						"url": "{{baseUrl}}/api/v1/stripe/connect/status",
+						"description": "Checks if the user has completed onboarding and is ready for payouts. Returns details about missing requirements (currently_due) and errors if any."
+					}
+				},
+				{
+					"name": "Create Login Link (Dashboard)",
+					"request": {
+						"method": "GET",
+						"header": [{ "key": "Authorization", "value": "Bearer {{accessToken}}" }],
+						"url": "{{baseUrl}}/api/v1/stripe/connect/login-link",
+						"description": "Generates a login link for the user to access their Stripe Express Dashboard."
+					}
+				},
+				{
+					"name": "Unlink Account",
+					"request": {
+						"method": "DELETE",
+						"header": [{ "key": "Authorization", "value": "Bearer {{accessToken}}" }],
+						"url": "{{baseUrl}}/api/v1/stripe/connect/unlink",
+						"description": "Disconnects the user's Stripe account from the platform."
+					}
+				}
+			]
+		},
+		{
+			"name": "05. Chat & Messages",
+			"item": [
+				{
+					"name": "Get Group Messages",
+					"request": {
+						"method": "GET",
+						"header": [{ "key": "Authorization", "value": "Bearer {{accessToken}}" }],
+						"url": "{{baseUrl}}/api/v1/chat/group/{{groupId}}/messages"
+					}
+				},
+				{
+					"name": "Send Group Message",
+					"request": {
+						"method": "POST",
+						"header": [{ "key": "Authorization", "value": "Bearer {{accessToken}}" }],
+						"url": "{{baseUrl}}/api/v1/chat/group/{{groupId}}/messages",
+						"body": {
+							"mode": "formdata",
+							"formdata": [
+								{ "key": "message", "value": "Hello team!", "type": "text" },
+								{ "key": "messageType", "value": "text", "type": "text", "description": "(optional) text | image | video | media" },
+								{ "key": "images", "type": "file", "src": [], "description": "(optional) multiple image files" },
+								{ "key": "videos", "type": "file", "src": [], "description": "(optional) multiple video files" }
+							]
+						}
+					}
+				}
+			]
+		},
+		{
+			"name": "06. Admin Dashboard",
+			"item": [
+				{
+					"name": "Summary Stats",
+					"request": {
+						"method": "GET",
+						"header": [{ "key": "Authorization", "value": "Bearer {{adminToken}}" }],
+						"url": "{{baseUrl}}/api/v1/admin/dashboard/summary"
+					}
+				},
+				{
+					"name": "Revenue Chart",
+					"request": {
+						"method": "GET",
+						"header": [{ "key": "Authorization", "value": "Bearer {{adminToken}}" }],
+						"url": "{{baseUrl}}/api/v1/admin/dashboard/revenue-chart"
+					}
+				},
+				{
+					"name": "User Growth",
+					"request": {
+						"method": "GET",
+						"header": [{ "key": "Authorization", "value": "Bearer {{adminToken}}" }],
+						"url": "{{baseUrl}}/api/v1/admin/dashboard/user-growth"
+					}
+				},
+				{
+					"name": "Recent Activities",
+					"request": {
+						"method": "GET",
+						"header": [{ "key": "Authorization", "value": "Bearer {{adminToken}}" }],
+						"url": "{{baseUrl}}/api/v1/admin/dashboard/recent-activities"
+					}
+				},
+				{
+					"name": "Performance Analytics",
+					"request": {
+						"method": "GET",
+						"header": [{ "key": "Authorization", "value": "Bearer {{adminToken}}" }],
+						"url": "{{baseUrl}}/api/v1/admin/reports/performance"
+					}
+				},
+				{
+					"name": "Performance Overview (Reports)",
+					"request": {
+						"method": "GET",
+						"header": [{ "key": "Authorization", "value": "Bearer {{adminToken}}" }],
+						"url": "{{baseUrl}}/api/v1/admin/reports/performance-overview"
+					}
+				},
+				{
+					"name": "Pending Actions",
+					"request": {
+						"method": "GET",
+						"header": [{ "key": "Authorization", "value": "Bearer {{adminToken}}" }],
+						"url": "{{baseUrl}}/api/v1/admin/pending-actions"
+					}
+				}
+			]
+		},
+		{
+			"name": "07. Admin User Management",
+			"item": [
+				{
+					"name": "Get All Users",
+					"request": {
+						"method": "GET",
+						"header": [{ "key": "Authorization", "value": "Bearer {{adminToken}}" }],
+						"url": "{{baseUrl}}/api/v1/admin/users?page=1&limit=10&status=active&search=john"
+					}
+				},
+				{
+					"name": "Export Users to XLSX",
+					"request": {
+						"method": "GET",
+						"header": [{ "key": "Authorization", "value": "Bearer {{adminToken}}" }],
+						"url": "{{baseUrl}}/api/v1/admin/users/export?page=1&limit=10"
+					}
+				},
+				{
+					"name": "Get User Stats",
+					"request": {
+						"method": "GET",
+						"header": [{ "key": "Authorization", "value": "Bearer {{adminToken}}" }],
+						"url": "{{baseUrl}}/api/v1/admin/users/stats"
+					}
+				},
+				{
+					"name": "Update User Status",
+					"request": {
+						"method": "PATCH",
+						"header": [{ "key": "Authorization", "value": "Bearer {{adminToken}}" }],
+						"url": "{{baseUrl}}/api/v1/admin/users/{{userId}}/status",
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"status\": \"suspended\"\n}",
+							"options": { "raw": { "language": "json" } }
+						}
+					}
+				},
+				{
+					"name": "Get User by ID (Admin)",
+					"request": {
+						"method": "GET",
+						"header": [{ "key": "Authorization", "value": "Bearer {{adminToken}}" }],
+						"url": "{{baseUrl}}/api/v1/admin/users/{{userId}}"
+					}
+				},
+				{
+					"name": "Suspend User (Legacy)",
+					"request": {
+						"method": "PATCH",
+						"header": [{ "key": "Authorization", "value": "Bearer {{adminToken}}" }],
+						"url": "{{baseUrl}}/api/v1/user/{{userId}}/suspend",
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"reason\": \"Compliance violation\"\n}",
+							"options": { "raw": { "language": "json" } }
+						}
+					}
+				}
+			]
+		},
+		{
+			"name": "08. Admin Group & Funds",
+			"item": [
+				{
+					"name": "Get All Groups",
+					"request": {
+						"method": "GET",
+						"header": [{ "key": "Authorization", "value": "Bearer {{adminToken}}" }],
+						"url": "{{baseUrl}}/api/v1/admin/groups"
+					}
+				},
+				{
+					"name": "Get Group Stats",
+					"request": {
+						"method": "GET",
+						"header": [{ "key": "Authorization", "value": "Bearer {{adminToken}}" }],
+						"url": "{{baseUrl}}/api/v1/admin/groups/stats"
+					}
+				},
+				{
+					"name": "Get Group by ID (Admin)",
+					"request": {
+						"method": "GET",
+						"header": [{ "key": "Authorization", "value": "Bearer {{adminToken}}" }],
+						"url": "{{baseUrl}}/api/v1/admin/groups/{{groupId}}"
+					}
+				},
+				{
+					"name": "Update Group Status (Admin)",
+					"request": {
+						"method": "PATCH",
+						"header": [{ "key": "Authorization", "value": "Bearer {{adminToken}}" }],
+						"url": "{{baseUrl}}/api/v1/admin/groups/{{groupId}}/status",
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"status\": \"active\"\n}",
+							"options": { "raw": { "language": "json" } }
+						}
+					}
+				},
+				{
+					"name": "Funds Summary",
+					"request": {
+						"method": "GET",
+						"header": [{ "key": "Authorization", "value": "Bearer {{adminToken}}" }],
+						"url": "{{baseUrl}}/api/v1/admin/funds/summary"
+					}
+				},
+				{
+					"name": "Group Fund Details",
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{adminToken}}"
+							}
+						],
+						"url": "{{baseUrl}}/api/v1/admin/funds/group-details?page=1&limit=10"
+					}
+				},
+				{
+					"name": "Financial Report",
+					"request": {
+						"method": "GET",
+						"header": [{ "key": "Authorization", "value": "Bearer {{adminToken}}" }],
+						"url": "{{baseUrl}}/api/v1/admin/reports/financial"
+					}
+				},
+				{
+					"name": "Revenue Detailed Stats",
+					"request": {
+						"method": "GET",
+						"header": [{ "key": "Authorization", "value": "Bearer {{adminToken}}" }],
+						"url": "{{baseUrl}}/api/v1/revenue?page=1&limit=10"
+					}
+				},
+				{
+					"name": "Revenue Analytics (New Metrics)",
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{adminToken}}"
+							}
+						],
+						"url": "{{baseUrl}}/api/v1/revenue/metrics",
+						"description": "Comprehensive revenue, commission, and redistribution surplus analytics for admins."
+					}
+				},
+				{
+					"name": "Redistribution Bonuses",
+					"item": [
+						{
+							"name": "Get Failed Adjustments",
+							"request": {
+								"method": "GET",
+								"header": [{ "key": "Authorization", "value": "Bearer {{adminToken}}" }],
+								"url": "{{baseUrl}}/api/v1/admin/adjustments?status=failed"
+							}
+						},
+						{
+							"name": "Retry Bonus Transfer",
+							"request": {
+								"method": "POST",
+								"header": [{ "key": "Authorization", "value": "Bearer {{adminToken}}" }],
+								"url": "{{baseUrl}}/api/v1/admin/adjustments/{{adjustmentId}}/retry"
+							}
+						}
+					]
+				},
+				{
+					"name": "Payout Management",
+					"item": [
+						{
+							"name": "Get All Payouts",
+							"request": {
+								"method": "GET",
+								"header": [{ "key": "Authorization", "value": "Bearer {{adminToken}}" }],
+								"url": "{{baseUrl}}/api/v1/admin/payouts?page=1&limit=10"
+							}
+						},
+						{
+							"name": "Retry Payout (Super Admin)",
+							"request": {
+								"method": "POST",
+								"header": [{ "key": "Authorization", "value": "Bearer {{adminToken}}" }],
+								"url": "{{baseUrl}}/api/v1/admin/payouts/{{payoutId}}/retry"
+							}
+						}
+					]
+				},
+				{
+					"name": "Payment Management",
+					"item": [
+						{
+							"name": "Get All Payments",
+							"request": {
+								"method": "GET",
+								"header": [{ "key": "Authorization", "value": "Bearer {{adminToken}}" }],
+								"url": "{{baseUrl}}/api/v1/admin/payments?page=1&limit=10"
+							}
+						},
+						{
+							"name": "Export Payments to XLSX",
+							"request": {
+								"method": "GET",
+								"header": [{ "key": "Authorization", "value": "Bearer {{adminToken}}" }],
+								"url": "{{baseUrl}}/api/v1/admin/payments/export?page=1&limit=10"
+							}
+						}
+					]
+				}
+			]
+		},
+		{
+			"name": "09. Admin Settings & Logs",
+			"item": [
+				{
+					"name": "Get Platform Settings",
+					"request": {
+						"method": "GET",
+						"header": [{ "key": "Authorization", "value": "Bearer {{adminToken}}" }],
+						"url": "{{baseUrl}}/api/v1/admin/settings"
+					}
+				},
+				{
+					"name": "Update Platform Settings",
+					"request": {
+						"method": "PATCH",
+						"header": [{ "key": "Authorization", "value": "Bearer {{adminToken}}" }],
+						"url": "{{baseUrl}}/api/v1/admin/settings",
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"transactionFeePercent\": 3,\n    \"lateFeePercent\": 3,\n    \"gracePeriodDays\": 5,\n    \"maxRetryCount\": 3,\n    \"supportEmail\": \"admin@poolpay.com\"\n}",
+							"options": { "raw": { "language": "json" } }
+						}
+					}
+				},
+				{
+					"name": "Update Global Settings (Super Admin)",
+					"request": {
+						"method": "PATCH",
+						"header": [{ "key": "Authorization", "value": "Bearer {{adminToken}}" }],
+						"url": "{{baseUrl}}/api/v1/settings/update",
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"platformName\": \"ROSCA Platform\",\n    \"transactionFeePercent\": 5,\n    \"lateFeePercent\": 3,\n    \"gracePeriodDays\": 3,\n    \"maxRetryCount\": 3,\n    \"minContribution\": 50,\n    \"maxContribution\": 10000,\n    \"supportEmail\": \"support@poolpay.com\",\n    \"isUserRegistrationEnabled\": true,\n    \"isSocialLoginEnabled\": true,\n    \"isTwoFactorAuthenticationEnabled\": true,\n    \"isEmailNotificationEnabled\": true,\n    \"isPushNotificationEnabled\": true\n}",
+							"options": { "raw": { "language": "json" } }
+						}
+					}
+				},
+				{
+					"name": "Activity Logs",
+					"request": {
+						"method": "GET",
+						"header": [{ "key": "Authorization", "value": "Bearer {{adminToken}}" }],
+						"url": "{{baseUrl}}/api/v1/admin/activity-logs"
+					}
+				}
+			]
+		},
+		{
+			"name": "10. Notifications",
+			"item": [
+				{
+					"name": "Get My Notifications",
+					"request": {
+						"method": "GET",
+						"header": [{ "key": "Authorization", "value": "Bearer {{accessToken}}" }],
+						"url": "{{baseUrl}}/api/v1/notifications?page=1&limit=10"
+					}
+				},
+				{
+					"name": "Mark All as Read",
+					"request": {
+						"method": "PATCH",
+						"header": [{ "key": "Authorization", "value": "Bearer {{accessToken}}" }],
+						"url": "{{baseUrl}}/api/v1/notifications/mark-all-read"
+					}
+				},
+				{
+					"name": "Mark Specific as Read",
+					"request": {
+						"method": "PATCH",
+						"header": [{ "key": "Authorization", "value": "Bearer {{accessToken}}" }],
+						"url": "{{baseUrl}}/api/v1/notifications/{{notificationId}}/read"
+					}
+				}
+			]
+		},
+		{
+			"name": "12. Real-time Events (Socket.io)",
+			"description": "Documentation for Socket.io events. Note: Use Postman's 'Socket.io' request type to test these. All events are emitted to the base URL: {{baseUrl}}",
+			"item": [
+				{
+					"name": "Emit: joinGroupRoom",
+					"request": {
+						"method": "POST",
+						"url": {
+							"raw": "Event: joinGroupRoom",
+							"host": ["Event"],
+							"path": ["joinGroupRoom"]
+						},
+						"description": "Event Name: joinGroupRoom\nPayload Type: string (groupId)\n\nDescription: Call this as soon as a user enters a group chat room to subscribe to real-time updates for that group."
+					}
+				},
+				{
+					"name": "Emit: leaveGroupRoom",
+					"request": {
+						"method": "POST",
+						"url": {
+							"raw": "Event: leaveGroupRoom",
+							"host": ["Event"],
+							"path": ["leaveGroupRoom"]
+						},
+						"description": "Event Name: leaveGroupRoom\nPayload Type: string (groupId)\n\nDescription: Call this when a user leaves the chat screen to stop receiving real-time updates."
+					}
+				},
+				{
+					"name": "Emit: sendMessage",
+					"request": {
+						"method": "POST",
+						"url": {
+							"raw": "Event: sendMessage",
+							"host": ["Event"],
+							"path": ["sendMessage"]
+						},
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"groupId\": \"{{groupId}}\",\n    \"senderId\": \"{{userId}}\",\n    \"message\": \"Hello team!\",\n    \"messageType\": \"text\"\n}",
+							"options": { "raw": { "language": "json" } }
+						},
+						"description": "Event Name: sendMessage\nPayload Type: Object\n\nDescription: Sends a message to the group. The server saves this to the database and then emits 'receiveMessage' to all members in the room."
+					}
+				},
+				{
+					"name": "Listen: receiveMessage",
+					"request": {
+						"method": "GET",
+						"url": {
+							"raw": "Event: receiveMessage",
+							"host": ["Event"],
+							"path": ["receiveMessage"]
+						},
+						"description": "Event Name: receiveMessage\nResponse Payload: Object (ChatMessage document)\n\nDescription: The client should listen for this event to receive new messages in real-time."
+					}
+				},
+				{
+					"name": "Emit/Listen: typing indicator",
+					"request": {
+						"method": "POST",
+						"url": {
+							"raw": "Event: typing / stopTyping",
+							"host": ["Event"],
+							"path": ["typing"]
+						},
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"groupId\": \"{{groupId}}\",\n    \"senderId\": \"{{userId}}\"\n}",
+							"options": { "raw": { "language": "json" } }
+						},
+						"description": "Event Names: 'typing' and 'stopTyping'\nPayload: { groupId, senderId }\n\nDescription: Used to show/hide the 'User is typing...' indicator in the chat UI."
+					}
+				}
+			]
+		},
+		{
+			"name": "13. Debug & Mock Data",
+			"item": [
+				{
+					"name": "Seed Mock Data",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{adminToken}}"
+							}
+						],
+						"url": "{{baseUrl}}/api/v1/admin/debug/seed-mock-data",
+						"description": "Seeds the database with mock users, groups, revenue, and notifications for dashboard visualization. Requires Super Admin privileges."
+					}
+				},
+				{
+					"name": "Clear All Mock Data",
+					"request": {
+						"method": "DELETE",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{adminToken}}"
+							}
+						],
+						"url": "{{baseUrl}}/api/v1/admin/debug/clear-mock-data",
+						"description": "Clears all mock data from the database, including legacy mock data without the isMock flag. Requires Super Admin privileges."
+					}
+				},
+				{
+					"name": "Test Push Notification (To All)",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{adminToken}}"
+							}
+						],
+						"url": "{{baseUrl}}/api/v1/admin/debug/test-push-notification",
+						"description": "Sends a test push notification to all users who have an FCM token. Use for testing deep linking and delivery."
+					}
+				}
+			]
+		},
+		{
+			"name": "14. Membership System",
+			"item": [
+				{
+					"name": "Get Membership Status",
+					"request": {
+						"method": "GET",
+						"header": [{ "key": "Authorization", "value": "Bearer {{accessToken}}" }],
+						"url": "{{baseUrl}}/api/v1/membership/status"
+					}
+				},
+				{
+					"name": "Subscribe to Regular/VIP",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{accessToken}}"
+							}
+						],
+						"url": "{{baseUrl}}/api/v1/membership/subscribe",
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"targetTier\": \"regular\"\n}",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"description": "Creates a Stripe subscription directly and returns a pi_ (PaymentIntent) clientSecret for the mobile Payment Sheet."
+					}
+				},
+				{
+					"name": "Upgrade/Downgrade Membership",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{accessToken}}"
+							}
+						],
+						"url": "{{baseUrl}}/api/v1/membership/subscribe",
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"targetTier\": \"vip\"\n}",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"description": "Uses the same /subscribe endpoint. Backend automatically detects if it is an update and applies proration rules. Returns clientSecret if needed."
+					}
+				},
+				{
+					"name": "Toggle Auto-Renew",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{accessToken}}"
+							}
+						],
+						"url": "{{baseUrl}}/api/v1/membership/toggle-auto-renew",
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"autoRenew\": false\n}",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						}
+					}
+				},
+				{
+					"name": "Cancel Subscription (End of Period)",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{accessToken}}"
+							}
+						],
+						"url": "{{baseUrl}}/api/v1/membership/cancel",
+						"description": "Sets the current subscription to cancel at the end of the billing period."
+					}
+				}
+			]
+		},
+		{
+			"name": "15. Advertisement System",
+			"item": [
+				{
+					"name": "Get Active Advertisements (Public)",
+					"request": {
+						"method": "GET",
+						"url": "{{baseUrl}}/api/v1/advertisements/active",
+						"description": "Returns a list of currently active ads filtered by schedule and sorted by priority."
+					}
+				},
+				{
+					"name": "Create Advertisement (Admin)",
+					"request": {
+						"method": "POST",
+						"header": [{ "key": "Authorization", "value": "Bearer {{adminToken}}" }],
+						"url": "{{baseUrl}}/api/v1/advertisements",
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"title\": \"Summer Promo\",\n    \"description\": \"Save 50% on fees!\",\n    \"imageUrl\": \"https://example.com/ad.jpg\",\n    \"redirectUrl\": \"https://poolpay.com/promo\",\n    \"priority\": 1,\n    \"startDate\": \"2024-06-01\",\n    \"endDate\": \"2024-08-31\",\n    \"isActive\": true\n}",
+							"options": { "raw": { "language": "json" } }
+						}
+					}
+				},
+				{
+					"name": "Get All Ads (Admin)",
+					"request": {
+						"method": "GET",
+						"header": [{ "key": "Authorization", "value": "Bearer {{adminToken}}" }],
+						"url": "{{baseUrl}}/api/v1/advertisements"
+					}
+				}
+			]
+		},
+		{
+			"name": "16. System Audit Logs",
+			"item": [
+				{
+					"name": "Get Audit Logs (Admin)",
+					"request": {
+						"method": "GET",
+						"header": [{ "key": "Authorization", "value": "Bearer {{adminToken}}" }],
+						"url": "{{baseUrl}}/api/v1/admin/audit-logs?page=1&limit=20&action=RECOVERY_REQUIRED",
+						"description": "Search system-wide audit logs. Critical for tracking recovery states and membership transitions."
+					}
+				}
+			]
+		}
+	],
+	"variable": [
+		{ "key": "baseUrl", "value": "http://localhost:5000" },
+		{ "key": "accessToken", "value": "" },
+		{ "key": "refreshToken", "value": "" },
+		{ "key": "adminToken", "value": "" },
+		{ "key": "userId", "value": "" },
+		{ "key": "groupId", "value": "" },
+		{ "key": "inviteCode", "value": "" },
+		{ "key": "paymentMethodId", "value": "" },
+		{ "key": "transactionId", "value": "" },
+		{ "key": "notificationId", "value": "" },
+		{ "key": "payoutId", "value": "" },
+		{ "key": "memberId", "value": "" },
+		{ "key": "adjustmentId", "value": "" }
+	]
+}

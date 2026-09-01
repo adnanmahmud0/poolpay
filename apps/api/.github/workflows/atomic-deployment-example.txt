@@ -1,0 +1,109 @@
+name: Node.js Atomic CI/CD Pipeline
+
+on:
+  push:
+    branches: [ "main", "master" ]
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  # Atomic deployment is 100% safe to cancel anytime, so we can turn this ON for all branches!
+  cancel-in-progress: true
+
+jobs:
+  build:
+    name: Build (CI)
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v4
+
+    - name: Setup pnpm
+      uses: pnpm/action-setup@v3
+      with:
+        version: 10.33.0
+
+    - name: Setup Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: '22.22.3'
+        cache: 'pnpm'
+
+    - name: Install dependencies
+      run: pnpm install --frozen-lockfile
+
+    - name: Run ESLint
+      run: pnpm run lint
+
+    - name: Build Project
+      run: pnpm run build
+
+  deploy:
+    name: Atomic Deploy to AWS EC2 (CD)
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    needs: build 
+    if: github.ref == 'refs/heads/main' || github.ref == 'refs/heads/master'
+    
+    steps:
+    - name: Atomic Deploy to AWS via SSH
+      uses: appleboy/ssh-action@v1.0.3
+      with:
+        host: ${{ secrets.AWS_HOST }}
+        username: ${{ secrets.AWS_USERNAME }}
+        key: ${{ secrets.AWS_PRIVATE_KEY }}
+        port: 22
+        script_stop: true 
+        script: |
+          # ==========================================
+          # ATOMIC DEPLOYMENT SCRIPT
+          # ==========================================
+          
+          # 1. Define Variables
+          BASE_DIR="/home/ubuntu/apps"
+          APP_NAME="poolpay-api"
+          RELEASES_DIR="$BASE_DIR/${APP_NAME}-releases"
+          SHARED_DIR="$BASE_DIR/${APP_NAME}-shared"
+          CURRENT_DIR="$BASE_DIR/${APP_NAME}"
+          
+          # Use GitHub commit ID to create a unique folder name
+          NEW_RELEASE_DIR="$RELEASES_DIR/${{ github.sha }}"
+          
+          # 2. Create required directories if they don't exist
+          mkdir -p $RELEASES_DIR
+          mkdir -p $SHARED_DIR/uploads
+          
+          # 3. Clone the new code into the completely isolated temporary folder
+          echo "🚀 Cloning new release into $NEW_RELEASE_DIR..."
+          git clone https://x-access-token:${{ secrets.GITHUB_TOKEN }}@github.com/${{ github.repository }}.git $NEW_RELEASE_DIR
+          cd $NEW_RELEASE_DIR
+          
+          # 4. Copy the .env file and link the uploads folder from the shared folder
+          # ⚠️ IMPORTANT: You MUST manually create the .env file inside /home/ubuntu/apps/poolpay-api-shared/ once!
+          echo "📂 Copying shared environment variables..."
+          cp $SHARED_DIR/.env $NEW_RELEASE_DIR/.env || echo "Warning: No .env found in shared directory"
+          
+          echo "🔗 Linking shared uploads folder..."
+          # If you have an uploads folder for user images, it MUST be linked so they don't get deleted
+          rm -rf $NEW_RELEASE_DIR/uploads
+          ln -sfn $SHARED_DIR/uploads $NEW_RELEASE_DIR/uploads
+          
+          # 5. Install dependencies and Build inside the NEW folder
+          echo "📦 Installing packages and building..."
+          pnpm install --frozen-lockfile
+          pnpm run build
+          
+          # 6. Swap the Symlink (This is the MAGIC step - Zero Downtime & 100% Safe)
+          # Only runs if step 5 is fully successful. It replaces the live folder with the new one.
+          echo "🔄 Swapping symlink to new release..."
+          ln -sfn $NEW_RELEASE_DIR $CURRENT_DIR
+          
+          # 7. Clean up old releases (Keep only the latest 3 to save Hard Disk space)
+          echo "🧹 Cleaning up old releases..."
+          cd $RELEASES_DIR
+          ls -t | tail -n +4 | xargs -r rm -rf
+          
+          # 8. Reload PM2
+          echo "⚡ Reloading PM2..."
+          pm2 reload poolpay-api

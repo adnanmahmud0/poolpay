@@ -1,0 +1,106 @@
+name: Node.js CI/CD Pipeline
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  # If it's the main branch, DO NOT cancel in the middle of a deployment (safety first).
+  # For other branches (like PRs), it's safe to cancel to save time.
+  cancel-in-progress: ${{ github.ref != 'refs/heads/main' }}
+
+on:
+  push:
+    branches: [ "main", "master" ]
+  pull_request:
+    branches: [ "main", "master" ]
+
+jobs:
+  build:
+    name: Build (CI)
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v4
+
+    - name: Setup pnpm
+      uses: pnpm/action-setup@v3
+      with:
+        version: 10.33.0 # Matches your local pnpm version
+
+    - name: Setup Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: '22.22.3' # Matches your VPS Node.js version
+        cache: 'pnpm'
+
+    - name: Install dependencies
+      run: pnpm install --frozen-lockfile
+
+    - name: Run ESLint
+      run: pnpm run lint
+
+
+    - name: Build Project
+      run: pnpm run build
+
+  deploy:
+    name: Deploy to AWS EC2 (CD)
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    needs: build # This ensures deployment only happens if CI passes
+    if: github.ref == 'refs/heads/main' || github.ref == 'refs/heads/master'
+    
+    steps:
+    - name: Deploy to AWS via SSH
+      uses: appleboy/ssh-action@v1.0.3
+      with:
+        host: ${{ secrets.AWS_HOST }}
+        username: ${{ secrets.AWS_USERNAME }}
+        key: ${{ secrets.AWS_PRIVATE_KEY }}
+        port: 22
+        script_stop: false # Set to false to prevent premature exits
+        script: |
+          # Load environment variables
+          source ~/.bashrc || source ~/.profile || true
+          export PATH=$PATH:$HOME/.local/share/pnpm
+          
+          echo "📂 Going to project directory..."
+          cd /home/ubuntu/apps/poolpay-api
+          
+          echo "📌 Storing current HEAD..."
+          OLD_HEAD=$(git rev-parse HEAD)
+          
+          echo "📥 Pulling latest code..."
+          git pull https://x-access-token:${{ secrets.GITHUB_TOKEN }}@github.com/${{ github.repository }}.git main
+          
+          echo "📌 Storing new HEAD..."
+          NEW_HEAD=$(git rev-parse HEAD)
+          
+          if [ "$OLD_HEAD" != "$NEW_HEAD" ]; then
+            echo "🔍 Checking for dependency changes..."
+            # Use git diff pathspec directly instead of grep to avoid any pipe/exit code issues
+            DEP_CHANGES=$(git diff --name-only $OLD_HEAD $NEW_HEAD -- package.json pnpm-lock.yaml)
+            
+            if [ -n "$DEP_CHANGES" ]; then
+              echo "📦 Dependencies changed. Running pnpm install..."
+              pnpm install --frozen-lockfile
+            else
+              echo "✅ No dependency changes detected. Skipping pnpm install."
+            fi
+          else
+            echo "✅ Code is already up to date. Skipping install."
+          fi
+          
+          echo "🔨 Building project..."
+          if ! pnpm run build; then
+            echo "🚨 Build failed on server! Rolling back to previous commit..."
+            git reset --hard $OLD_HEAD
+            pnpm install --frozen-lockfile
+            pnpm run build
+            exit 1
+          fi
+          
+          echo "🔄 Reloading PM2..."
+          pm2 reload poolpay-api
+          
+          echo "✅ Deployment completed successfully!"

@@ -1,0 +1,1 @@
+export const excludeField = ["searchTerm", "search", "sort", "fields", "page", "limit"]

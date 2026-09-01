@@ -1,0 +1,4 @@
+# Environment Variables Management
+- Never attempt to read or modify `.env`. It is ignored for security reasons.
+- If you need to read or write environment variables, only use `.env.example`.
+- If `.env.example` does not exist, create it before proceeding.
