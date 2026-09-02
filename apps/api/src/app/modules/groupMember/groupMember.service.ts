@@ -24,6 +24,7 @@ import {
 } from "../../utils/notification.utils";
 import { PaymentMethod } from "../paymentMethod/paymentMethod.model";
 import { QueryBuilder } from "../../utils/QueryBuilder";
+import { withTransaction } from "../../utils/transaction.utils";
 
 const calculateJoinMonth = (
   startDate: Date | undefined,
@@ -116,10 +117,7 @@ const joinGroup = async (userId: string, inviteCode: string) => {
     missedAmount = missedMonths * group.contributionAmount;
   }
 
-  const session = await mongoose.startSession();
-  session.startTransaction();
-
-  try {
+  return await withTransaction(async (session) => {
     const newMember = await GroupMember.create(
       [
         {
@@ -131,24 +129,22 @@ const joinGroup = async (userId: string, inviteCode: string) => {
           missedPayments: missedMonths,
         },
       ],
-      { session }
+      session ? { session } : undefined
     );
 
     await Group.findByIdAndUpdate(
       group._id,
       { $inc: { currentMembers: 1 } },
-      { session }
+      session ? { session } : undefined
     );
 
     // Recalculate Turns & Payments if the group is already active
     if (group.status === GroupStatus.ACTIVE) {
       await TurnServices.recalculateTurnsAfterRemoval(
         group._id.toString(),
-        session
+        session || null
       );
     }
-
-    await session.commitTransaction();
 
     // Notify Creator
     const creatorId = group.createdBy.toString();
@@ -159,12 +155,17 @@ const joinGroup = async (userId: string, inviteCode: string) => {
     emitRealTimeNotification(creatorId, title, body, { groupId: group._id, userId });
     enqueuePushNotification(creatorId, title, body, { groupId: group._id.toString(), userId });
     
-    await Notification.create([{
-      userId: group.createdBy,
-      title,
-      message: body,
-      type: NotificationType.NEW_MESSAGE
-    }]);
+    await Notification.create(
+      [
+        {
+          userId: group.createdBy,
+          title,
+          message: body,
+          type: NotificationType.NEW_MESSAGE,
+        },
+      ],
+      session ? { session } : undefined
+    );
 
     // Notify Joiner (Success)
     const joinerTitle = "Joined Group";
@@ -173,16 +174,7 @@ const joinGroup = async (userId: string, inviteCode: string) => {
     enqueuePushNotification(userId, joinerTitle, joinerBody);
 
     return newMember[0];
-  } catch (error) {
-    await session.abortTransaction();
-    logger.error(
-      `[TRANSACTION_ROLLBACK] joinGroup failed for user ${userId}:`,
-      error
-    );
-    throw error;
-  } finally {
-    session.endSession();
-  }
+  });
 };
 
 const getGroupMembers = async (groupId: string) => {
@@ -197,24 +189,19 @@ const markNotice = async (
   memberId: string,
   noticeStatus: "NONE" | "NOTICE"
 ) => {
-  const session = await mongoose.startSession();
-  session.startTransaction();
-
-  try {
+  return await withTransaction(async (session) => {
     const member = await GroupMember.findByIdAndUpdate(
       memberId,
       { noticeStatus },
-      { new: true, session }
+      session ? { new: true, session } : { new: true }
     ).populate("userId", "fullName email fcmToken");
 
     if (!member) {
       throw new AppError(httpStatus.NOT_FOUND, "Group member not found");
     }
 
-    await session.commitTransaction();
-
     const user: IUserDocument = member.userId as unknown as IUserDocument;
-    const group = await Group.findById(member.groupId);
+    const group = await Group.findById(member.groupId).session(session || null);
 
     logger.info(
       `[PAYMENT_FLOW] Notice marked as ${noticeStatus} for member ${memberId}`
@@ -241,16 +228,7 @@ const markNotice = async (
     await Promise.all(notificationPromises);
 
     return member;
-  } catch (error) {
-    await session.abortTransaction();
-    logger.error(
-      `[TRANSACTION_ROLLBACK] markNotice failed for member ${memberId}:`,
-      error
-    );
-    throw error;
-  } finally {
-    session.endSession();
-  }
+  });
 };
 
 const removeMember = async (
@@ -258,16 +236,13 @@ const removeMember = async (
   removalNote: string,
   adminId: string
 ) => {
-  const session = await mongoose.startSession();
-  session.startTransaction();
-
-  try {
-    const member = await GroupMember.findById(memberId).session(session);
+  return await withTransaction(async (session) => {
+    const member = await GroupMember.findById(memberId).session(session || null);
     if (!member || member.status === MemberStatus.REMOVED) {
       throw new AppError(httpStatus.NOT_FOUND, "Active group member not found");
     }
 
-    const group = await Group.findById(member.groupId).session(session);
+    const group = await Group.findById(member.groupId).session(session || null);
     if (!group) {
       throw new AppError(httpStatus.NOT_FOUND, "Group not found");
     }
@@ -275,75 +250,70 @@ const removeMember = async (
     member.status = MemberStatus.REMOVED;
     member.removalNote = removalNote;
     member.removedAt = new Date();
-    await member.save({ session });
+    await member.save(session ? { session } : undefined);
 
     await Group.findByIdAndUpdate(
       group._id,
       { $inc: { currentMembers: -1 } },
-      { session }
+      session ? { session } : undefined
     );
 
     // Recalculate Turns
     await TurnServices.recalculateTurnsAfterRemoval(
       group._id.toString(),
-      session
+      session || null
     );
-
-    await session.commitTransaction();
 
     logger.info(
       `[PAYMENT_FLOW] Member ${memberId} removed from group ${group.name}. Reason: ${removalNote}`
     );
 
-    const user = await User.findById(member.userId);
-    const notificationPromises: Promise<unknown>[] = [
-      Notification.create({
-        userId: user._id,
-        title: "Group Removal",
-        message: `You have been removed from ${group.name}. Reason: ${removalNote}`,
-        type: NotificationType.PAYMENT_FAILED,
-      })
-    ];
+    const user = await User.findById(member.userId).session(session || null);
+    const notificationPromises: Promise<unknown>[] = [];
 
-    if (user?.fcmToken) {
+    if (user) {
       notificationPromises.push(
-        enqueuePushNotification(
-          user._id.toString(),
-          "Group Removal",
-          `You have been removed from ${group.name}. Reason: ${removalNote}`,
-          undefined
-        )
-      );
-    }
-
-    if (user?.email) {
-      notificationPromises.push(
-        enqueueEmailNotification(
-          user.email,
-          "Removed from Group",
-          "removalEmail",
+        Notification.create([
           {
-            name: `${user.firstName} ${user.lastName}`.trim(),
-            groupName: group.name,
-            reason: removalNote,
+            userId: user._id,
+            title: "Group Removal",
+            message: `You have been removed from ${group.name}. Reason: ${removalNote}`,
+            type: NotificationType.PAYMENT_FAILED,
           }
-        )
+        ], session ? { session } : undefined)
       );
+
+      if (user?.fcmToken) {
+        notificationPromises.push(
+          enqueuePushNotification(
+            user._id.toString(),
+            "Group Removal",
+            `You have been removed from ${group.name}. Reason: ${removalNote}`,
+            undefined
+          )
+        );
+      }
+
+      if (user?.email) {
+        notificationPromises.push(
+          enqueueEmailNotification(
+            user.email,
+            "Removed from Group",
+            "removalEmail",
+            {
+              name: `${user.firstName} ${user.lastName}`.trim(),
+              groupName: group.name,
+              reason: removalNote,
+            }
+          )
+        );
+      }
     }
 
     await Promise.all(notificationPromises);
 
     return member;
-  } catch (error) {
-    await session.abortTransaction();
-    logger.error(
-      `[TRANSACTION_ROLLBACK] removeMember failed for member ${memberId} (Admin: ${adminId}):`,
-      error
-    );
-    throw error;
-  } finally {
-    session.endSession();
-  }
+  });
 };
 
 const getUserGroupSummary = async (userId: string) => {

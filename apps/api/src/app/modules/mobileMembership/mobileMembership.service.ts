@@ -11,6 +11,7 @@ import {
   enqueueEmailNotification
 } from "../../utils/notification.utils";
 import { Notification, NotificationType } from "../notification/notification.model";
+import { withTransaction } from "../../utils/transaction.utils";
 
 /**
  * Maps store product IDs to local database MembershipTiers

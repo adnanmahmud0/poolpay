@@ -20,6 +20,7 @@ import { PaymentMethod } from "../paymentMethod/paymentMethod.model";
 import { IUser, Role } from "../user/user.interface";
 import type { IGroupMember } from "../groupMember/groupMember.interface";
 import { validateMembershipAction, MembershipAction } from "../membership/membership.utils";
+import { withTransaction } from "../../utils/transaction.utils";
 
 const generateInviteCode = (): string => {
   return Math.random().toString(36).substring(2, 8).toUpperCase();
@@ -81,10 +82,7 @@ const createGroup = async (userId: string, payload: Partial<IGroup>) => {
     codeExists = await Group.findOne({ inviteCode });
   }
 
-  const session = await mongoose.startSession();
-  session.startTransaction();
-
-  try {
+  return await withTransaction(async (session) => {
     const newGroup = await Group.create(
       [
         {
@@ -96,7 +94,7 @@ const createGroup = async (userId: string, payload: Partial<IGroup>) => {
           isAdminCreated: isAdmin,
         },
       ],
-      { session }
+      session ? { session } : undefined
     );
 
     // Create GroupMember for the creator
@@ -110,22 +108,11 @@ const createGroup = async (userId: string, payload: Partial<IGroup>) => {
           status: "active",
         },
       ],
-      { session }
+      session ? { session } : undefined
     );
-
-    await session.commitTransaction();
-    session.endSession();
 
     return newGroup[0];
-  } catch (error) {
-    await session.abortTransaction();
-    session.endSession();
-    logger.error(
-      `[TRANSACTION_ROLLBACK] Group creation failed for user ${userId}:`,
-      error
-    );
-    throw error;
-  }
+  });
 };
 
 const getGroupDetails = async (groupId: string) => {
@@ -279,19 +266,16 @@ const deleteGroup = async (userId: string, groupId: string) => {
     );
   }
 
-  const session = await mongoose.startSession();
-  session.startTransaction();
-
-  try {
+  return await withTransaction(async (session) => {
     // 1. Mark group as deleted
     group.isDeleted = true;
-    await group.save({ session });
+    await group.save(session ? { session } : undefined);
 
     // 2. Find all active members
     const members = await GroupMember.find({
       groupId: group._id,
       status: "active",
-    });
+    }).session(session || null);
 
     // 3. Notify all members
     const notifications = members.map((member) => ({
@@ -302,11 +286,8 @@ const deleteGroup = async (userId: string, groupId: string) => {
     }));
 
     if (notifications.length > 0) {
-      await Notification.insertMany(notifications, { session });
+      await Notification.insertMany(notifications, session ? { session } : undefined);
     }
-
-    await session.commitTransaction();
-    session.endSession();
 
     // Side-effects (Real-time and Push)
     for (const n of notifications) {
@@ -322,15 +303,7 @@ const deleteGroup = async (userId: string, groupId: string) => {
     );
 
     return { message: "Group soft-deleted successfully and members notified" };
-  } catch (error) {
-    await session.abortTransaction();
-    session.endSession();
-    logger.error(
-      `[TRANSACTION_ROLLBACK] Group deletion failed for group ${groupId}:`,
-      error
-    );
-    throw error;
-  }
+  });
 };
 
 const startGroup = async (userId: string, groupId: string) => {
@@ -371,25 +344,21 @@ const startGroup = async (userId: string, groupId: string) => {
   // 3. Verify all members have at least one payment method
   await checkMembersPaymentMethods(groupId);
 
-  const session = await mongoose.startSession();
-  session.startTransaction();
-
-  try {
+  return await withTransaction(async (session) => {
     // 3. Update Group Status and Start Date
     group.status = GroupStatus.ACTIVE;
     group.startDate = new Date();
-    await group.save({ session });
+    await group.save(session ? { session } : undefined);
 
     // 4. Generate Initial Turns for all current members
+    await TurnServices.generateTurnsForGroup(group._id.toString(), session || null);
+
+    // 5. Notify all members
     const members = await GroupMember.find({
       groupId: group._id,
       status: "active",
-    });
+    }).session(session || null);
 
-    // We generate turns for the group as a whole
-    await TurnServices.generateTurnsForGroup(group._id.toString());
-
-    // 5. Notify all members
     const notifications = members.map((member) => ({
       userId: member.userId,
       title: "Group Started!",
@@ -398,11 +367,8 @@ const startGroup = async (userId: string, groupId: string) => {
     }));
 
     if (notifications.length > 0) {
-      await Notification.insertMany(notifications, { session });
+      await Notification.insertMany(notifications, session ? { session } : undefined);
     }
-
-    await session.commitTransaction();
-    session.endSession();
 
     // Side-effects (Real-time and Push)
     for (const n of notifications) {
@@ -418,15 +384,7 @@ const startGroup = async (userId: string, groupId: string) => {
     );
 
     return { message: "Group started successfully and turns generated", group };
-  } catch (error) {
-    await session.abortTransaction();
-    session.endSession();
-    logger.error(
-      `[TRANSACTION_ROLLBACK] Group activation failed for group ${groupId}:`,
-      error
-    );
-    throw error;
-  }
+  });
 };
 
 export const GroupServices = {
