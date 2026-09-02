@@ -8,6 +8,7 @@ import { dbConnect } from "./app/config/dbConnect";
 import { initNativeScheduler } from "./app/schedulers/native.scheduler";
 import { initSelfPing } from "./app/schedulers/selfPing.scheduler";
 import { seedSuperAdmin } from "./app/utils/seedSuperAdmin";
+import { seedDemoGroups } from "./app/utils/seedDemoGroups";
 import os from "os";
 import { initBackupCronJob } from "./app/utils/backupDatabase";
 
@@ -27,6 +28,7 @@ const startServer = async () => {
 
     // Seed Initial Data
     await seedSuperAdmin();
+    await seedDemoGroups();
 
     // Initialize Firebase
     initializeFirebase();
