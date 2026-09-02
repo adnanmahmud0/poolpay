@@ -44,6 +44,32 @@ const createEphemeralKey = catchAsync(async (req: Request, res: Response) => {
   });
 });
 
+const syncSetupIntent = catchAsync(async (req: Request, res: Response) => {
+  const user = req.user as JwtPayload;
+  const { setupIntentId } = req.body;
+
+  if (!setupIntentId) {
+    return sendResponse(res, {
+      success: false,
+      statusCode: 400,
+      message: "setupIntentId is required",
+      data: null,
+    });
+  }
+
+  const result = await PaymentMethodServices.syncSetupIntent(
+    user.userId || user._id,
+    setupIntentId
+  );
+
+  sendResponse(res, {
+    success: true,
+    statusCode: httpStatus.CREATED,
+    message: "Payment method synced successfully",
+    data: result,
+  });
+});
+
 const getPaymentMethods = catchAsync(async (req: Request, res: Response) => {
   const user = req.user as JwtPayload;
   const result = await PaymentMethodServices.getPaymentMethods(user.userId || user._id);
@@ -113,6 +139,7 @@ export const PaymentMethodControllers = {
   addPaymentMethod,
   createSetupIntent,
   createEphemeralKey,
+  syncSetupIntent,
   getPaymentMethods,
   setDefaultPaymentMethod,
   toggleAutoPay,

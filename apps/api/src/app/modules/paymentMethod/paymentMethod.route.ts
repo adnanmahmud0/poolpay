@@ -26,6 +26,13 @@ router.post(
   PaymentMethodControllers.createEphemeralKey
 );
 
+// Called after Stripe Payment Sheet succeeds — syncs the confirmed payment method to DB
+router.post(
+  "/sync-setup-intent",
+  checkAuth(Role.USER, Role.ADMIN, Role.SUPER_ADMIN),
+  PaymentMethodControllers.syncSetupIntent
+);
+
 router.get(
   "/",
   checkAuth(Role.USER, Role.ADMIN, Role.SUPER_ADMIN),

@@ -384,12 +384,54 @@ const createEphemeralKey = async (userId: string) => {
   };
 };
 
+const syncSetupIntent = async (userId: string, setupIntentId: string): Promise<IPaymentMethodDocument> => {
+  // Retrieve the confirmed SetupIntent from Stripe
+  const setupIntent = await stripe.setupIntents.retrieve(setupIntentId);
+
+  if (!setupIntent) {
+    throw new AppError(httpStatus.NOT_FOUND, "SetupIntent not found");
+  }
+
+  if (setupIntent.status !== "succeeded") {
+    throw new AppError(
+      httpStatus.BAD_REQUEST,
+      `SetupIntent not yet confirmed. Status: ${setupIntent.status}`
+    );
+  }
+
+  const paymentMethodId = setupIntent.payment_method;
+  if (!paymentMethodId || typeof paymentMethodId !== "string") {
+    throw new AppError(httpStatus.BAD_REQUEST, "No payment method found on SetupIntent");
+  }
+
+  // Check if already registered to avoid duplicates
+  const existing = await PaymentMethod.findOne({ userId, paymentMethodId });
+  if (existing) {
+    return existing;
+  }
+
+  // Determine the type from the payment method
+  const stripePaymentMethod = await stripe.paymentMethods.retrieve(paymentMethodId);
+  const typeStr = stripePaymentMethod.type;
+  const type = typeStr === "us_bank_account" ? "bank" : "card";
+  const isDefault = !(await PaymentMethod.exists({ userId }));
+
+  return await addPaymentMethod(userId, {
+    paymentMethodId,
+    type: type as PaymentMethodType,
+    isDefault,
+    autoPayEnabled: true,
+  });
+};
+
 export const PaymentMethodServices = {
   addPaymentMethod,
   createSetupIntent,
+  syncSetupIntent,
   createEphemeralKey,
   getPaymentMethods,
   setDefaultPaymentMethod,
   toggleAutoPay,
   deletePaymentMethod,
 };
+
