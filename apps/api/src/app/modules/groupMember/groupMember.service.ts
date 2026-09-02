@@ -1,5 +1,5 @@
 import httpStatus from "http-status-codes";
-import mongoose, { Types } from "mongoose";
+import { Types } from "mongoose";
 import AppError from "../../errorHelpers/AppError";
 import { Group } from "../group/group.model";
 import { GroupMember } from "./groupMember.model";
@@ -234,7 +234,7 @@ const markNotice = async (
 const removeMember = async (
   memberId: string,
   removalNote: string,
-  adminId: string
+  _adminId?: string
 ) => {
   return await withTransaction(async (session) => {
     const member = await GroupMember.findById(memberId).session(session || null);

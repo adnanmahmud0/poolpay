@@ -1,5 +1,4 @@
 import { Worker } from "bullmq";
-import mongoose from "mongoose";
 import { stripe } from "../config/stripe.config";
 import { Payment, PaymentStatus } from "../modules/payment/payment.model";
 import { Turn } from "../modules/turn/turn.model";
@@ -24,8 +23,9 @@ import {
   Notification,
   NotificationType,
 } from "../modules/notification/notification.model";
-import { withLock } from "../utils/lock.utils";
 import { AuditLog, AuditAction, EntityType } from "../modules/auditLog/auditLog.model";
+import { withLock } from "../utils/lock.utils";
+import { withTransaction } from "../utils/transaction.utils";
 
 /**
  * Shared logic for scheduler jobs
@@ -90,35 +90,29 @@ export const processSchedulerJobs = async (jobName: string) => {
       }).cursor();
 
       for await (const turn of dueTurnsCursor) {
-        const session = await mongoose.startSession();
-        session.startTransaction();
         try {
-          const updatedTurn = await Turn.findOneAndUpdate(
-            { _id: turn._id, status: TurnStatus.PENDING },
-            { status: TurnStatus.PROCESSING },
-            { session, new: true }
-          );
-
-          if (updatedTurn) {
-            await turnSchedulerQueue.add(
-              "processPayout",
-              { turnId: turn._id },
-              {
-                jobId: `payout_${turn._id}`,
-                attempts: 3,
-                backoff: { type: "exponential", delay: 1000 },
-              }
+          await withTransaction(async (session) => {
+            const updatedTurn = await Turn.findOneAndUpdate(
+              { _id: turn._id, status: TurnStatus.PENDING },
+              { status: TurnStatus.PROCESSING },
+              { session: session || undefined, new: true }
             );
-            await session.commitTransaction();
-            logger.info(`[PAYMENT_FLOW] Turn ${turn._id} marked as PROCESSING and queued.`);
-          } else {
-            await session.abortTransaction();
-          }
+
+            if (updatedTurn) {
+              await turnSchedulerQueue.add(
+                "processPayout",
+                { turnId: turn._id },
+                {
+                  jobId: `payout_${turn._id}`,
+                  attempts: 3,
+                  backoff: { type: "exponential", delay: 1000 },
+                }
+              );
+              logger.info(`[PAYMENT_FLOW] Turn ${turn._id} marked as PROCESSING and queued.`);
+            }
+          });
         } catch (error) {
-          await session.abortTransaction();
           logger.error(`[CRON_ERROR] Failed to queue payout for turn ${turn._id}:`, error);
-        } finally {
-          session.endSession();
         }
       }
 
@@ -139,50 +133,45 @@ export const processSchedulerJobs = async (jobName: string) => {
         if (!groupMember || groupMember.status === MemberStatus.REMOVED) continue;
 
         if (diffDays > 3 && !payment.lateFeeApplied) {
-          const session = await mongoose.startSession();
-          session.startTransaction();
           try {
-            payment.lateFeeApplied = true;
-            const settings = await Settings.findOne().session(session);
-            const lateFeePercent = settings?.lateFeePercent || 5;
-            payment.lateFee = (payment.amount * lateFeePercent) / 100;
-            payment.status = PaymentStatus.LATE;
-            await payment.save({ session });
+            await withTransaction(async (session) => {
+              payment.lateFeeApplied = true;
+              const settings = await Settings.findOne().session(session || null);
+              const lateFeePercent = settings?.lateFeePercent || 5;
+              payment.lateFee = (payment.amount * lateFeePercent) / 100;
+              payment.status = PaymentStatus.LATE;
+              await payment.save(session ? { session } : undefined);
 
-            await GroupMember.findOneAndUpdate(
-              { groupId: group._id, userId: user._id },
-              { $inc: { missedPaymentCount: 1 } },
-              { session }
-            );
+              await GroupMember.findOneAndUpdate(
+                { groupId: group._id, userId: user._id },
+                { $inc: { missedPaymentCount: 1 } },
+                { session: session || undefined }
+              );
 
-            await session.commitTransaction();
-            
-            const notification = await Notification.create({
-              userId: user._id,
-              title: "Late Fee Applied",
-              message: `A late fee of $${payment.lateFee} has been applied to your payment for ${group.name}.`,
-              type: NotificationType.PAYMENT_FAILED,
-            });
+              const notification = await Notification.create([{
+                userId: user._id,
+                title: "Late Fee Applied",
+                message: `A late fee of $${payment.lateFee} has been applied to your payment for ${group.name}.`,
+                type: NotificationType.PAYMENT_FAILED,
+              }], session ? { session } : undefined);
 
-            await enqueueEmailNotification(user.email, "Late Fee Applied", "lateFeeEmail", {
-              name: `${user.firstName} ${user.lastName}`.trim(),
-              amount: payment.amount.toString(),
-              lateFee: payment.lateFee.toString(),
-              groupName: group.name,
-            });
-
-            if (user.fcmToken) {
-              await enqueuePushNotification(user._id.toString(), "Late Fee Applied", `A late fee has been applied to your missed payment for ${group.name}.`, {
-                route: "/notifications",
-                notificationId: notification._id.toString(),
+              await enqueueEmailNotification(user.email, "Late Fee Applied", "lateFeeEmail", {
+                name: `${user.firstName} ${user.lastName}`.trim(),
+                amount: payment.amount.toString(),
+                lateFee: payment.lateFee.toString(),
+                groupName: group.name,
               });
-            }
-            emitRealTimeNotification(user._id.toString(), "Late Fee Applied", `A late fee has been applied to your missed payment for ${group.name}.`);
+
+              if (user.fcmToken) {
+                await enqueuePushNotification(user._id.toString(), "Late Fee Applied", `A late fee has been applied to your missed payment for ${group.name}.`, {
+                  route: "/notifications",
+                  notificationId: notification[0]._id.toString(),
+                });
+              }
+              emitRealTimeNotification(user._id.toString(), "Late Fee Applied", `A late fee has been applied to your missed payment for ${group.name}.`);
+            });
           } catch (error) {
-            await session.abortTransaction();
             logger.error(`[CRON_ERROR] Late fee failed for ${payment._id}:`, error);
-          } finally {
-            session.endSession();
           }
         }
 
@@ -314,23 +303,21 @@ export const processSchedulerJobs = async (jobName: string) => {
       if (expiredMobileUsers.length > 0) {
         logger.info(`🔄 Found ${expiredMobileUsers.length} expired mobile memberships to downgrade.`);
         for (const user of expiredMobileUsers) {
-          const session = await mongoose.startSession();
-          session.startTransaction();
+          const oldTier = user.membershipTier;
           try {
-            const oldTier = user.membershipTier;
-            user.membershipTier = "guest";
-            user.subscriptionStatus = "expired";
-            user.autoRenewEnabled = false;
-            await user.save({ session });
+            await withTransaction(async (session) => {
+              user.membershipTier = "guest";
+              user.subscriptionStatus = "expired";
+              user.autoRenewEnabled = false;
+              await user.save(session ? { session } : undefined);
 
-            await AuditLog.create([{
-              entityType: EntityType.USER,
-              entityId: user._id,
-              action: AuditAction.MEMBERSHIP_CANCEL,
-              metadata: { reason: "Expired (Daily Scheduler)", provider: user.membershipProvider }
-            }], { session });
-
-            await session.commitTransaction();
+              await AuditLog.create([{
+                entityType: EntityType.USER,
+                entityId: user._id,
+                action: AuditAction.MEMBERSHIP_CANCEL,
+                metadata: { reason: "Expired (Daily Scheduler)", provider: user.membershipProvider }
+              }], session ? { session } : undefined);
+            });
 
             // Notifications
             const title = "Membership Expired";
@@ -354,10 +341,7 @@ export const processSchedulerJobs = async (jobName: string) => {
               logger.error(`❌ Failed to send notifications for user ${user._id}:`, notifyErr);
             }
           } catch (err) {
-            await session.abortTransaction();
             logger.error(`❌ Failed to downgrade expired mobile membership for user ${user._id}:`, err);
-          } finally {
-            session.endSession();
           }
         }
       }

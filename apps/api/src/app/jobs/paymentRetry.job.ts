@@ -77,14 +77,13 @@ export const paymentWorker = new Worker(
     );
 
     try {
-      // Execute Stripe Charge
+      // Execute Stripe Charge across all supported payment method types
       const paymentIntent = await stripe.paymentIntents.create(
         {
           amount: Math.round(payment.amount * 100), // Stripe expects cents
           currency: "usd",
           customer: paymentMethod.stripeCustomerId,
           payment_method: paymentMethod.paymentMethodId,
-          payment_method_types: ["card", "us_bank_account"],
           off_session: true, // AutoPay
           confirm: true,
         },

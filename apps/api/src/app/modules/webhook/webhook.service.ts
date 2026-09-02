@@ -13,7 +13,6 @@ import {
 } from "../notification/notification.model";
 import { Group } from "../group/group.model";
 import logger from "../../utils/logger";
-import mongoose from "mongoose";
 import { logActivity } from "../../utils/activityLogger";
 import { Payout, PayoutStatus } from "../payout/payout.model";
 import { Turn } from "../turn/turn.model";
@@ -25,6 +24,7 @@ import {
   enqueuePushNotification, 
   emitRealTimeNotification 
 } from "../../utils/notification.utils";
+import { withTransaction } from "../../utils/transaction.utils";
 
 const handleStripeWebhook = async (payload: Buffer, signature: string) => {
   let event: Stripe.Event;
@@ -43,7 +43,7 @@ const handleStripeWebhook = async (payload: Buffer, signature: string) => {
       );
     } catch (primaryErr) {
       // If primary fails and we have a connect secret, try that
-      if (envVars.STRIPE.CONNECT_WEBHOOK_SECRET) {
+      if (envVars.STRIPE?.CONNECT_WEBHOOK_SECRET) {
         logger.info("[Webhook] Primary secret failed, trying Connect secret...");
         event = await stripe.webhooks.constructEventAsync(
           payload,
@@ -54,7 +54,7 @@ const handleStripeWebhook = async (payload: Buffer, signature: string) => {
         throw primaryErr;
       }
     }
-  } catch (err) {
+  } catch (err: unknown) {
     const message = err instanceof Error ? err.message : "Unknown error";
     logger.error(`[Webhook] Signature verification failed for all secrets: ${message}`);
 
@@ -68,17 +68,12 @@ const handleStripeWebhook = async (payload: Buffer, signature: string) => {
     throw new AppError(httpStatus.BAD_REQUEST, `Webhook Error: ${message}`);
   }
 
-  const session = await mongoose.startSession();
-
-  try {
-    session.startTransaction();
-
+  return await withTransaction(async (session) => {
     // Handle the event
     switch (event.type) {
       case "payment_intent.succeeded": {
-        const paymentIntent = event.data.object;
+        const paymentIntent = event.data.object as Stripe.PaymentIntent;
 
-        // Idempotency check: verify if already processed atomically
         const payment = await Payment.findOneAndUpdate(
           {
             stripePaymentIntentId: paymentIntent.id,
@@ -88,14 +83,13 @@ const handleStripeWebhook = async (payload: Buffer, signature: string) => {
             status: PaymentStatus.PAID,
             paidDate: new Date(),
           },
-          { new: true, session }
+          { new: true, session: session || undefined }
         );
 
         if (!payment) {
           logger.info(
             `[Webhook] Payment ${paymentIntent.id} already processed or not found.`
           );
-          await session.commitTransaction();
           return { received: true };
         }
 
@@ -105,7 +99,7 @@ const handleStripeWebhook = async (payload: Buffer, signature: string) => {
             status: { $ne: TransactionStatus.SUCCESS },
           },
           { status: TransactionStatus.SUCCESS },
-          { new: true, session }
+          { new: true, session: session || undefined }
         );
 
         if (transaction) {
@@ -113,25 +107,23 @@ const handleStripeWebhook = async (payload: Buffer, signature: string) => {
           await Group.findByIdAndUpdate(
             transaction.groupId,
             { $inc: { poolAmount: transaction.amount } },
-            { session }
+            { session: session || undefined }
           );
 
           const group = await Group.findById(transaction.groupId).session(
-            session
+            session || null
           );
+
+          await Notification.create([{
+            userId: payment.userId,
+            title: "Payment Succeeded",
+            message: `Your payment of $${payment.amount} for group ${group?.name || ""} was successful.`,
+            type: NotificationType.PAYMENT_SUCCESS,
+          }], session ? { session } : undefined);
+
+          // Push Notifications
           const title = "Payment Successful";
           const message = `Your payment of $${transaction.amount} for ${group?.name || "the group"} was successful.`;
-          await Notification.create(
-            [
-              {
-                userId: transaction.userId,
-                title,
-                message,
-                type: NotificationType.PAYMENT_SUCCESS,
-              },
-            ],
-            { session }
-          );
           emitRealTimeNotification(transaction.userId.toString(), title, message);
           enqueuePushNotification(transaction.userId.toString(), title, message);
 
@@ -142,14 +134,15 @@ const handleStripeWebhook = async (payload: Buffer, signature: string) => {
           await logActivity(
             transaction.userId,
             "PAYMENT_SUCCESS",
-            `Payment of ${transaction.amount} succeeded for group ${transaction.groupId}. Stripe ID: ${paymentIntent.id}`
+            `Payment of ${transaction.amount} succeeded for group ${transaction.groupId}. Stripe ID: ${paymentIntent.id}`,
+            session
           );
         }
         break;
       }
 
       case "payment_intent.payment_failed": {
-        const paymentIntent = event.data.object;
+        const paymentIntent = event.data.object as Stripe.PaymentIntent;
 
         // Idempotency check: verify if already failed atomically
         const payment = await Payment.findOneAndUpdate(
@@ -160,14 +153,13 @@ const handleStripeWebhook = async (payload: Buffer, signature: string) => {
           {
             status: PaymentStatus.FAILED,
           },
-          { new: true, session }
+          { new: true, session: session || undefined }
         );
 
         if (!payment) {
           logger.info(
             `[Webhook] Payment failure for ${paymentIntent.id} already processed or not found.`
           );
-          await session.commitTransaction();
           return { received: true };
         }
 
@@ -177,12 +169,12 @@ const handleStripeWebhook = async (payload: Buffer, signature: string) => {
             status: { $ne: TransactionStatus.FAILED },
           },
           { status: TransactionStatus.FAILED },
-          { new: true, session }
+          { new: true, session: session || undefined }
         );
 
         if (transaction) {
           const group = await Group.findById(transaction.groupId).session(
-            session
+            session || null
           );
           const title = "Payment Failed";
           const message = `Your payment of $${transaction.amount} for ${group?.name || "the group"} failed. Please try again.`;
@@ -195,7 +187,7 @@ const handleStripeWebhook = async (payload: Buffer, signature: string) => {
                 type: NotificationType.PAYMENT_FAILED,
               },
             ],
-            { session }
+            session ? { session } : undefined
           );
           emitRealTimeNotification(transaction.userId.toString(), title, message);
           enqueuePushNotification(transaction.userId.toString(), title, message);
@@ -224,14 +216,13 @@ const handleStripeWebhook = async (payload: Buffer, signature: string) => {
             status: { $ne: TransactionStatus.FAILED },
           },
           { status: TransactionStatus.FAILED },
-          { session, new: true }
+          { session: session || undefined, new: true }
         );
 
         if (!transaction) {
           logger.info(
             `[Webhook] Transfer ${transfer.id} already reversed or not found.`
           );
-          await session.commitTransaction();
           return { received: true };
         }
 
@@ -239,18 +230,18 @@ const handleStripeWebhook = async (payload: Buffer, signature: string) => {
           await Payout.findOneAndUpdate(
             { transactionId: transaction._id },
             { status: PayoutStatus.FAILED },
-            { session }
+            { session: session || undefined }
           );
 
           // Find the turn and revert status
           const payout = await Payout.findOne({
             transactionId: transaction._id,
-          }).session(session);
+          }).session(session || null);
           if (payout) {
             await Turn.findByIdAndUpdate(
               payout.turnId,
               { status: TurnStatus.RECOVERY_REQUIRED },
-              { session }
+              { session: session || undefined }
             );
 
             await AuditLog.create(
@@ -262,7 +253,7 @@ const handleStripeWebhook = async (payload: Buffer, signature: string) => {
                   metadata: { reason: "Transfer reversed by Stripe" },
                 },
               ],
-              { session }
+              session ? { session } : undefined
             );
           }
 
@@ -277,7 +268,7 @@ const handleStripeWebhook = async (payload: Buffer, signature: string) => {
                 type: NotificationType.PAYMENT_FAILED,
               },
             ],
-            { session }
+            session ? { session } : undefined
           );
           emitRealTimeNotification(transaction.userId.toString(), title, message);
           enqueuePushNotification(transaction.userId.toString(), title, message);
@@ -295,14 +286,13 @@ const handleStripeWebhook = async (payload: Buffer, signature: string) => {
               stripeConnectStatus: { $ne: "verified" },
             },
             { stripeConnectStatus: "verified" },
-            { session, new: true }
+            { session: session || undefined, new: true }
           );
 
           if (!user) {
             logger.info(
               `[Webhook] User account ${account.id} already verified or not found.`
             );
-            await session.commitTransaction();
             return { received: true };
           }
           if (user) {
@@ -320,7 +310,7 @@ const handleStripeWebhook = async (payload: Buffer, signature: string) => {
                   type: NotificationType.PAYMENT_SUCCESS,
                 },
               ],
-              { session }
+              session ? { session } : undefined
             );
             emitRealTimeNotification(user._id.toString(), title, message);
             enqueuePushNotification(user._id.toString(), title, message);
@@ -342,16 +332,8 @@ const handleStripeWebhook = async (payload: Buffer, signature: string) => {
         logger.info(`[Webhook] Unhandled event type ${event.type}`);
     }
 
-    await session.commitTransaction();
-  } catch (error) {
-    await session.abortTransaction();
-    logger.error(`[Webhook] Error processing event ${event?.type}:`, error);
-    throw error;
-  } finally {
-    session.endSession();
-  }
-
-  return { received: true };
+    return { received: true };
+  });
 };
 
 export const WebhookServices = {

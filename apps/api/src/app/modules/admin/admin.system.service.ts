@@ -1,4 +1,3 @@
-import mongoose from "mongoose";
 import crypto from "crypto";
 import httpStatus from "http-status-codes";
 import AppError from "../../errorHelpers/AppError";
@@ -175,10 +174,8 @@ const sendTestPushNotification = async () => {
 };
 
 const seedMockData = async () => {
-  const session = await mongoose.startSession();
-  session.startTransaction();
-  try {
-    const admins = await User.find({ role: { $in: [Role.ADMIN, Role.SUPER_ADMIN] } }).session(session);
+  return await withTransaction(async (session) => {
+    const admins = await User.find({ role: { $in: [Role.ADMIN, Role.SUPER_ADMIN] } }).session(session || null);
     if (admins.length === 0) {
       throw new Error("No Admin or Super Admin found. Please create one first.");
     }
@@ -329,11 +326,10 @@ const seedMockData = async () => {
         isActive: true,
         createdBy: primaryAdmin._id,
         isMock: true,
-      }
+      },
     ];
-    await Advertisement.insertMany(mockAdsData, { session });
+    await Advertisement.insertMany(mockAdsData, session ? { session } : {});
 
-    await session.commitTransaction();
     return {
       users: createdUsers.length,
       groups: createdGroups.length,
@@ -344,18 +340,11 @@ const seedMockData = async () => {
       notifications: mockNotificationsData.length,
       advertisements: mockAdsData.length,
     };
-  } catch (error) {
-    await session.abortTransaction();
-    throw error;
-  } finally {
-    session.endSession();
-  }
+  });
 };
 
 const clearMockData = async () => {
-  const session = await mongoose.startSession();
-  session.startTransaction();
-  try {
+  return await withTransaction(async (session) => {
     const mockNotificationTitles = [
       "Payment Due Reminder",
       "Payment Successful",
@@ -366,42 +355,40 @@ const clearMockData = async () => {
       "Group Completion Report",
     ];
 
-    // MongoDB transactions do not support concurrent operations on the same session.
-    // We must execute these sequentially.
     const usersDeleted = await User.deleteMany({
       $or: [
         { isMock: true }, 
         { lastName: { $regex: /^\[MOCK\]/i } },
         { firstName: { $regex: /^\[MOCK\]/i } }
-      ],
-    }, { session });
+      ]
+    }, session ? { session } : undefined);
 
     const groupsDeleted = await Group.deleteMany({
-      $or: [{ isMock: true }, { name: { $regex: /^\[MOCK\]/i } }],
-    }, { session });
+      $or: [
+        { isMock: true },
+        { name: { $regex: /^\[MOCK\]/i } }
+      ]
+    }, session ? { session } : undefined);
 
-    const revenueDeleted = await Revenue.deleteMany({ isMock: true }, { session });
-    
-    const logsDeleted = await ActivityLog.deleteMany({
-      $or: [{ isMock: true }, { details: { $regex: /^\[MOCK\]/i } }],
-    }, { session });
-
+    const revenueDeleted = await Revenue.deleteMany({ isMock: true }, session ? { session } : undefined);
+    const logsDeleted = await ActivityLog.deleteMany({ isMock: true }, session ? { session } : undefined);
     const notificationsDeleted = await Notification.deleteMany({
       $or: [
         { isMock: true },
-        { title: { $in: mockNotificationTitles } },
-        { title: { $regex: /^\[MOCK\]/i } },
-      ],
-    }, { session });
+        { title: { $in: mockNotificationTitles } }
+      ]
+    }, session ? { session } : undefined);
 
-    const paymentsDeleted = await Payment.deleteMany({ isMock: true }, { session });
+    const paymentsDeleted = await Payment.deleteMany({ isMock: true }, session ? { session } : undefined);
     const transactionsDeleted = await Transaction.deleteMany({
-      $or: [{ isMock: true }, { referenceId: { $regex: /^MOCK-TRX/i } }]
-    }, { session });
-    const membersDeleted = await GroupMember.deleteMany({ isMock: true }, { session });
-    const adsDeleted = await Advertisement.deleteMany({ isMock: true }, { session });
+      $or: [
+        { isMock: true },
+        { description: { $regex: /mock/i } }
+      ]
+    }, session ? { session } : undefined);
+    const membersDeleted = await GroupMember.deleteMany({ isMock: true }, session ? { session } : undefined);
+    const adsDeleted = await Advertisement.deleteMany({ isMock: true }, session ? { session } : undefined);
 
-    await session.commitTransaction();
     return {
       usersDeleted: usersDeleted.deletedCount,
       groupsDeleted: groupsDeleted.deletedCount,
@@ -413,12 +400,7 @@ const clearMockData = async () => {
       membersDeleted: membersDeleted.deletedCount,
       adsDeleted: adsDeleted.deletedCount,
     };
-  } catch (error) {
-    await session.abortTransaction();
-    throw error;
-  } finally {
-    session.endSession();
-  }
+  });
 };
 
 export const AdminSystemServices = {

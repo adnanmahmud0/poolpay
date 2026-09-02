@@ -43,11 +43,8 @@ const getTierFromProductId = (productId: string, platform: "google" | "apple"): 
  * Verifies purchase token against Google Play Store API
  */
 const verifyGooglePurchase = async (userId: string, productId: string, token: string) => {
-  const session = await User.startSession();
-  session.startTransaction();
-
-  try {
-    const user = await User.findById(userId).session(session);
+  return await withTransaction(async (session) => {
+    const user = await User.findById(userId).session(session || null);
     if (!user) {
       throw new AppError(httpStatus.NOT_FOUND, "User not found");
     }
@@ -122,7 +119,7 @@ const verifyGooglePurchase = async (userId: string, productId: string, token: st
     user.lastBillingDate = now;
     user.gracePeriodUntil = undefined;
     
-    await user.save({ session });
+    await user.save(session ? { session } : undefined);
 
     // Audit logs
     await AuditLog.create([{
@@ -136,9 +133,7 @@ const verifyGooglePurchase = async (userId: string, productId: string, token: st
         platformSubscriptionId, 
         expiryDate 
       }
-    }], { session });
-
-    await session.commitTransaction();
+    }], session ? { session } : undefined);
 
     // Notify User
     const title = "Membership Activated";
@@ -167,13 +162,7 @@ const verifyGooglePurchase = async (userId: string, productId: string, token: st
         autoRenewEnabled: user.autoRenewEnabled,
       }
     };
-
-  } catch (error) {
-    await session.abortTransaction();
-    throw error;
-  } finally {
-    session.endSession();
-  }
+  });
 };
 
 /**
@@ -231,11 +220,8 @@ const callAppleVerifyAPI = async (receiptData: string, password?: string, useSan
  * Verifies App Store receipt against Apple iTunes API
  */
 const verifyApplePurchase = async (userId: string, receiptData: string): Promise<{ message: string; user: unknown }> => {
-  const session = await User.startSession();
-  session.startTransaction();
-
-  try {
-    const user = await User.findById(userId).session(session);
+  return await withTransaction(async (session) => {
+    const user = await User.findById(userId).session(session || null);
     if (!user) {
       throw new AppError(httpStatus.NOT_FOUND, "User not found");
     }
@@ -328,7 +314,7 @@ const verifyApplePurchase = async (userId: string, receiptData: string): Promise
     user.lastBillingDate = now;
     user.gracePeriodUntil = undefined;
 
-    await user.save({ session });
+    await user.save(session ? { session } : undefined);
 
     // Audit logs
     await AuditLog.create([{
@@ -342,9 +328,7 @@ const verifyApplePurchase = async (userId: string, receiptData: string): Promise
         platformSubscriptionId, 
         expiryDate 
       }
-    }], { session });
-
-    await session.commitTransaction();
+    }], session ? { session } : undefined);
 
     // Notify User
     const title = "Membership Activated";
@@ -373,31 +357,21 @@ const verifyApplePurchase = async (userId: string, receiptData: string): Promise
         autoRenewEnabled: user.autoRenewEnabled,
       }
     };
-
-  } catch (error) {
-    await session.abortTransaction();
-    throw error;
-  } finally {
-    session.endSession();
-  }
+  });
 };
 
 /**
  * Synchronizes user's Google Play or App Store subscription status on-demand
  */
 const syncMobileSubscriptionStatus = async (userId: string) => {
-  const session = await User.startSession();
-  session.startTransaction();
-
-  try {
-    const user = await User.findById(userId).session(session);
+  return await withTransaction(async (session) => {
+    const user = await User.findById(userId).session(session || null);
     if (!user) {
       throw new AppError(httpStatus.NOT_FOUND, "User not found");
     }
 
     // If no provider, skip remote verification sync
     if (!user.membershipProvider) {
-      await session.commitTransaction();
       return {
         message: "No mobile subscription provider found for this account.",
         user: {
@@ -419,8 +393,6 @@ const syncMobileSubscriptionStatus = async (userId: string) => {
       const packageName = iapConfig.products.google.packageName;
 
       // Find the user's mapped active product ID (Regular or VIP)
-      // Since Google Play subscription check requires the original productId, 
-      // we resolve it from the user's current/pending tier or config fallback.
       let productId = iapConfig.products.google.regularId || "regular_membership";
       if (user.membershipTier === MembershipTier.VIP) {
         productId = iapConfig.products.google.vipId || "vip_membership";
@@ -454,7 +426,6 @@ const syncMobileSubscriptionStatus = async (userId: string) => {
         } catch (error: unknown) {
           const err = error as Error;
           logger.error(`[IAP-SYNC] Google sync failed: ${err?.message || err}`);
-          // If product check failed (e.g. VIP vs Regular mismatch), check the other product ID
           const alternateProductId = productId === iapConfig.products.google.regularId 
             ? (iapConfig.products.google.vipId || "vip_membership")
             : (iapConfig.products.google.regularId || "regular_membership");
@@ -542,7 +513,7 @@ const syncMobileSubscriptionStatus = async (userId: string) => {
           entityId: userId,
           action: AuditAction.MEMBERSHIP_CANCEL,
           metadata: { reason: "Expired", provider: user.membershipProvider }
-        }], { session });
+        }], session ? { session } : undefined);
 
         // Notify User
         const title = "Membership Expired";
@@ -571,10 +542,8 @@ const syncMobileSubscriptionStatus = async (userId: string) => {
     }
 
     if (statusUpdated) {
-      await user.save({ session });
+      await user.save(session ? { session } : undefined);
     }
-
-    await session.commitTransaction();
 
     return {
       message: "Subscription synchronized successfully.",
@@ -586,12 +555,7 @@ const syncMobileSubscriptionStatus = async (userId: string) => {
         autoRenewEnabled: user.autoRenewEnabled,
       }
     };
-  } catch (error) {
-    await session.abortTransaction();
-    throw error;
-  } finally {
-    session.endSession();
-  }
+  });
 };
 
 export const MobileMembershipServices = {

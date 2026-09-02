@@ -1,10 +1,9 @@
 import httpStatus from "http-status-codes";
-import mongoose, { Types } from "mongoose";
+import { Types } from "mongoose";
 import AppError from "../../errorHelpers/AppError";
 import { Group } from "./group.model";
 import { IGroup } from "./group.interface";
 import { GroupMember } from "../groupMember/groupMember.model";
-import logger from "../../utils/logger";
 import { emitRealTimeNotification, enqueuePushNotification } from "../../utils/notification.utils";
 import {
   Notification,
@@ -286,7 +285,7 @@ const deleteGroup = async (userId: string, groupId: string) => {
     }));
 
     if (notifications.length > 0) {
-      await Notification.insertMany(notifications, session ? { session } : undefined);
+      await Notification.insertMany(notifications, session ? { session } : {});
     }
 
     // Side-effects (Real-time and Push)
@@ -367,7 +366,7 @@ const startGroup = async (userId: string, groupId: string) => {
     }));
 
     if (notifications.length > 0) {
-      await Notification.insertMany(notifications, session ? { session } : undefined);
+      await Notification.insertMany(notifications, session ? { session } : {});
     }
 
     // Side-effects (Real-time and Push)

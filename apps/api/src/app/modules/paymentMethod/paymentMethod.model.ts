@@ -4,6 +4,10 @@ import { encrypt, decrypt } from "../../utils/encryption";
 export enum PaymentMethodType {
   CARD = "card",
   BANK = "bank",
+  WALLET = "wallet",
+  REDIRECT = "redirect",
+  BNPL = "bnpl",
+  REALTIME = "realtime",
 }
 
 export enum PaymentMethodStatus {
@@ -16,6 +20,7 @@ export interface IPaymentMethod {
   stripeCustomerId: string;
   paymentMethodId: string;
   type: PaymentMethodType;
+  stripeType?: string;
   brand: string;
   last4: string;
   bankName?: string;
@@ -51,6 +56,7 @@ const paymentMethodSchema = new Schema<IPaymentMethodDocument>(
       enum: Object.values(PaymentMethodType),
       required: true,
     },
+    stripeType: { type: String, default: "card" },
     brand: { type: String, required: true },
     last4: { type: String, required: true },
     bankName: { type: String },

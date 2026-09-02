@@ -1,4 +1,3 @@
-import mongoose from "mongoose";
 import ExcelJS from "exceljs";
 import httpStatus from "http-status-codes";
 import AppError from "../../errorHelpers/AppError";
@@ -13,6 +12,7 @@ import { QueryBuilder } from "../../utils/QueryBuilder";
 import { logActivity } from "../../utils/activityLogger";
 import { paymentQueue, turnSchedulerQueue } from "../../queues/payment.queue";
 import { stripe } from "../../config/stripe.config";
+import { withTransaction } from "../../utils/transaction.utils";
 
 const getAllPayments = async (query: Record<string, unknown>) => {
   const { status, search } = query;
@@ -135,10 +135,8 @@ const getAllPayouts = async (query: Record<string, unknown>) => {
 };
 
 const resolvePayment = async (paymentId: string, adminId: string) => {
-  const session = await mongoose.startSession();
-  session.startTransaction();
-  try {
-    const payment = await Payment.findById(paymentId).session(session);
+  return await withTransaction(async (session) => {
+    const payment = await Payment.findById(paymentId).session(session || null);
     if (!payment) throw new AppError(httpStatus.NOT_FOUND, "Payment not found");
 
     if (payment.status !== PaymentStatus.MANUAL_REVIEW && payment.status !== PaymentStatus.RECOVERY_REQUIRED) {
@@ -157,7 +155,7 @@ const resolvePayment = async (paymentId: string, adminId: string) => {
       payment.status = PaymentStatus.FAILED;
     }
 
-    await payment.save({ session });
+    await payment.save(session ? { session } : undefined);
 
     await AuditLog.create([{
       entityType: EntityType.PAYMENT,
@@ -169,23 +167,15 @@ const resolvePayment = async (paymentId: string, adminId: string) => {
         finalStatus: payment.status,
         stripeStatus: payment.stripePaymentIntentId ? "verified" : "unknown"
       }
-    }], { session });
+    }], session ? { session } : undefined);
 
-    await session.commitTransaction();
     return payment;
-  } catch (error) {
-    await session.abortTransaction();
-    throw error;
-  } finally {
-    session.endSession();
-  }
+  });
 };
 
 const resolveTurn = async (turnId: string, adminId: string) => {
-  const session = await mongoose.startSession();
-  session.startTransaction();
-  try {
-    const turn = await Turn.findById(turnId).session(session);
+  return await withTransaction(async (session) => {
+    const turn = await Turn.findById(turnId).session(session || null);
     if (!turn) throw new AppError(httpStatus.NOT_FOUND, "Turn not found");
 
     if (turn.status !== TurnStatus.MANUAL_REVIEW && turn.status !== TurnStatus.RECOVERY_REQUIRED) {
@@ -202,7 +192,7 @@ const resolveTurn = async (turnId: string, adminId: string) => {
       turn.status = TurnStatus.FAILED;
     }
 
-    await turn.save({ session });
+    await turn.save(session ? { session } : undefined);
 
     await AuditLog.create([{
       entityType: EntityType.TURN,
@@ -214,23 +204,15 @@ const resolveTurn = async (turnId: string, adminId: string) => {
         finalStatus: turn.status,
         stripeStatus: turn.stripeTransferId ? "verified" : "unknown"
       }
-    }], { session });
+    }], session ? { session } : undefined);
 
-    await session.commitTransaction();
     return turn;
-  } catch (error) {
-    await session.abortTransaction();
-    throw error;
-  } finally {
-    session.endSession();
-  }
+  });
 };
 
 const retryPayment = async (paymentId: string, adminId: string) => {
-  const session = await mongoose.startSession();
-  session.startTransaction();
-  try {
-    const payment = await Payment.findById(paymentId).session(session);
+  return await withTransaction(async (session) => {
+    const payment = await Payment.findById(paymentId).session(session || null);
     if (!payment) throw new AppError(httpStatus.NOT_FOUND, "Payment not found");
 
     if (payment.status !== PaymentStatus.FAILED && payment.status !== PaymentStatus.LATE) {
@@ -248,30 +230,22 @@ const retryPayment = async (paymentId: string, adminId: string) => {
     );
 
     payment.status = PaymentStatus.PROCESSING;
-    await payment.save({ session });
+    await payment.save(session ? { session } : undefined);
 
     await AuditLog.create([{
       entityType: EntityType.PAYMENT,
       entityId: paymentId,
       action: AuditAction.PAYMENT_RETRY,
       metadata: { adminId }
-    }], { session });
+    }], session ? { session } : undefined);
 
-    await session.commitTransaction();
     return payment;
-  } catch (error) {
-    await session.abortTransaction();
-    throw error;
-  } finally {
-    session.endSession();
-  }
+  });
 };
 
 const retryTurn = async (turnId: string, adminId: string) => {
-  const session = await mongoose.startSession();
-  session.startTransaction();
-  try {
-    const turn = await Turn.findById(turnId).session(session);
+  return await withTransaction(async (session) => {
+    const turn = await Turn.findById(turnId).session(session || null);
     if (!turn) throw new AppError(httpStatus.NOT_FOUND, "Turn not found");
 
     if (turn.status !== TurnStatus.FAILED && turn.status !== TurnStatus.RECOVERY_REQUIRED) {
@@ -289,23 +263,17 @@ const retryTurn = async (turnId: string, adminId: string) => {
     );
 
     turn.status = TurnStatus.PROCESSING;
-    await turn.save({ session });
+    await turn.save(session ? { session } : undefined);
 
     await AuditLog.create([{
       entityType: EntityType.TURN,
       entityId: turnId,
       action: AuditAction.PAYOUT_RETRY,
       metadata: { adminId }
-    }], { session });
+    }], session ? { session } : undefined);
 
-    await session.commitTransaction();
     return turn;
-  } catch (error) {
-    await session.abortTransaction();
-    throw error;
-  } finally {
-    session.endSession();
-  }
+  });
 };
 
 const retryPayout = async (payoutId: string) => {

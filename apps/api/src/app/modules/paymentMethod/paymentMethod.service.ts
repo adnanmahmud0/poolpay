@@ -11,9 +11,177 @@ import { emitRealTimeNotification } from "../../utils/notification.utils";
 import { Notification, NotificationType } from "../notification/notification.model";
 import { withTransaction } from "../../utils/transaction.utils";
  
- interface ExtendedUsBankAccount extends Stripe.PaymentMethod.UsBankAccount {
-   verification_status?: string;
- }
+ interface ExtendedUsBankAccount {
+  verification_status?: string;
+  bank_name?: string;
+  last4?: string;
+  networks?: {
+    preferred?: string;
+  };
+}
+
+/**
+ * Maps all 21 Stripe payment method types to clean domain types and metadata
+ */
+export const resolvePaymentMethodDetails = (stripePaymentMethod: Stripe.PaymentMethod) => {
+  const stripeType = stripePaymentMethod.type as string;
+  let type: PaymentMethodType = PaymentMethodType.CARD;
+  let brand = "Unknown";
+  let last4 = "****";
+  let bankName: string | undefined;
+  let expiryMonth: number | undefined;
+  let expiryYear: number | undefined;
+  let country: string | undefined;
+
+  switch (stripeType) {
+    case "card":
+      type = PaymentMethodType.CARD;
+      brand = stripePaymentMethod.card?.brand ? stripePaymentMethod.card.brand.toUpperCase() : "Card";
+      last4 = stripePaymentMethod.card?.last4 || "****";
+      expiryMonth = stripePaymentMethod.card?.exp_month;
+      expiryYear = stripePaymentMethod.card?.exp_year;
+      country = (stripePaymentMethod.card?.country as string | undefined) || undefined;
+      if (stripePaymentMethod.card?.wallet?.type === "apple_pay") {
+        type = PaymentMethodType.WALLET;
+        brand = "Apple Pay";
+      } else if (stripePaymentMethod.card?.wallet?.type === "google_pay") {
+        type = PaymentMethodType.WALLET;
+        brand = "Google Pay";
+      } else if (stripePaymentMethod.card?.wallet?.type === "samsung_pay") {
+        type = PaymentMethodType.WALLET;
+        brand = "Samsung Pay";
+      } else if (stripePaymentMethod.card?.wallet?.type === "link") {
+        type = PaymentMethodType.WALLET;
+        brand = "Link";
+      }
+      break;
+
+    case "us_bank_account":
+      type = PaymentMethodType.BANK;
+      brand = "US Bank Account";
+      bankName = stripePaymentMethod.us_bank_account?.bank_name || undefined;
+      last4 = stripePaymentMethod.us_bank_account?.last4 || "****";
+      break;
+
+    case "sepa_debit":
+      type = PaymentMethodType.BANK;
+      brand = "SEPA Direct Debit";
+      bankName = (stripePaymentMethod.sepa_debit?.bank_code as string | undefined) || undefined;
+      last4 = stripePaymentMethod.sepa_debit?.last4 || "****";
+      country = (stripePaymentMethod.sepa_debit?.country as string | undefined) || undefined;
+      break;
+
+    case "bacs_debit":
+      type = PaymentMethodType.BANK;
+      brand = "Bacs Direct Debit";
+      last4 = stripePaymentMethod.bacs_debit?.last4 || "****";
+      break;
+
+    case "acss_debit":
+      type = PaymentMethodType.BANK;
+      brand = "ACH Direct Debit (Canada)";
+      bankName = (stripePaymentMethod.acss_debit?.institution_number as string | undefined) || undefined;
+      last4 = stripePaymentMethod.acss_debit?.last4 || "****";
+      break;
+
+    case "cashapp":
+      type = PaymentMethodType.WALLET;
+      brand = "Cash App Pay";
+      last4 = stripePaymentMethod.cashapp?.cashtag || "****";
+      break;
+
+    case "link":
+      type = PaymentMethodType.WALLET;
+      brand = "Link by Stripe";
+      last4 = stripePaymentMethod.link?.email ? stripePaymentMethod.link.email.split("@")[0] : "****";
+      break;
+
+    case "amazon_pay":
+      type = PaymentMethodType.WALLET;
+      brand = "Amazon Pay";
+      break;
+
+    case "kakao_pay":
+      type = PaymentMethodType.WALLET;
+      brand = "Kakao Pay";
+      break;
+
+    case "naver_pay":
+      type = PaymentMethodType.WALLET;
+      brand = "Naver Pay";
+      break;
+
+    case "payco":
+      type = PaymentMethodType.WALLET;
+      brand = "PAYCO";
+      break;
+
+    case "customer_balance":
+      type = PaymentMethodType.BANK;
+      brand = "Bank Transfer / Balance";
+      break;
+
+    case "bancontact":
+      type = PaymentMethodType.REDIRECT;
+      brand = "Bancontact";
+      break;
+
+    case "blik":
+      type = PaymentMethodType.REDIRECT;
+      brand = "BLIK";
+      break;
+
+    case "eps":
+      type = PaymentMethodType.REDIRECT;
+      brand = "EPS";
+      break;
+
+    case "ideal":
+      type = PaymentMethodType.REDIRECT;
+      brand = "iDEAL";
+      bankName = (stripePaymentMethod.ideal?.bank as string | undefined) || undefined;
+      break;
+
+    case "p24":
+      type = PaymentMethodType.REDIRECT;
+      brand = "Przelewy24";
+      break;
+
+    case "sofort":
+      type = PaymentMethodType.REDIRECT;
+      brand = "Sofort";
+      country = (stripePaymentMethod.sofort?.country as string | undefined) || undefined;
+      break;
+
+    case "affirm":
+      type = PaymentMethodType.BNPL;
+      brand = "Affirm";
+      break;
+
+    case "klarna":
+      type = PaymentMethodType.BNPL;
+      brand = "Klarna";
+      break;
+
+    case "afterpay_clearpay":
+      type = PaymentMethodType.BNPL;
+      brand = "Afterpay";
+      break;
+
+    case "pix":
+      type = PaymentMethodType.REALTIME;
+      brand = "Pix";
+      break;
+
+    default:
+      type = PaymentMethodType.CARD;
+      brand = stripeType.charAt(0).toUpperCase() + stripeType.slice(1).replace(/_/g, " ");
+      last4 = (stripePaymentMethod as any)[stripeType]?.last4 || "****";
+      break;
+  }
+
+  return { type, stripeType, brand, last4, bankName, expiryMonth, expiryYear, country };
+};
 
 const addPaymentMethod = async (
   userId: string,
@@ -75,29 +243,29 @@ const addPaymentMethod = async (
     logger.info(`[STRIPE_TEST] Bank account ${paymentMethodId} found. Status: ${usBankAccount?.verification_status}`);
   }
 
-  // Attach payment method to customer
+  // Attach payment method to customer if not already attached
   try {
-    await stripe.paymentMethods.attach(paymentMethodId, {
-      customer: stripeCustomerId as string,
-    });
-    logger.info(`[STRIPE] Payment method ${paymentMethodId} attached to customer ${stripeCustomerId}`);
+    if (stripePaymentMethod.customer !== stripeCustomerId) {
+      await stripe.paymentMethods.attach(paymentMethodId, {
+        customer: stripeCustomerId as string,
+      });
+      logger.info(`[STRIPE] Payment method ${paymentMethodId} attached to customer ${stripeCustomerId}`);
+    }
   } catch (err) {
     const stripeError = err as Stripe.errors.StripeError;
-    if (stripePaymentMethod.type === "us_bank_account") {
-      logger.warn(`[STRIPE_TEST] Could not attach bank account yet (needs verification), but proceeding to save locally: ${stripeError.message}`);
+    if (
+      stripePaymentMethod.type === "us_bank_account" ||
+      stripeError.message?.includes("already attached") ||
+      (stripeError as any).code === "resource_already_exists"
+    ) {
+      logger.warn(`[STRIPE] Note while attaching ${paymentMethodId}: ${stripeError.message}`);
     } else {
-      throw err; // For cards, we still want it to fail if attach fails
+      throw err;
     }
   }
 
-  // Extract metadata
-  const type = stripePaymentMethod.type === "card" ? PaymentMethodType.CARD : PaymentMethodType.BANK;
-  const brand = stripePaymentMethod.card?.brand || "Unknown";
-  const last4 = stripePaymentMethod.card?.last4 || stripePaymentMethod.us_bank_account?.last4 || "****";
-  const bankName = stripePaymentMethod.us_bank_account?.bank_name;
-  const expiryMonth = stripePaymentMethod.card?.exp_month;
-  const expiryYear = stripePaymentMethod.card?.exp_year;
-  const country = stripePaymentMethod.card?.country || stripePaymentMethod.us_bank_account?.networks?.preferred;
+  // Extract metadata across 21 payment method types
+  const resolved = resolvePaymentMethodDetails(stripePaymentMethod);
 
   // Determine if this should be default
   const isDefault = requestedDefault !== undefined ? requestedDefault : !hasExistingMethods;
@@ -117,13 +285,14 @@ const addPaymentMethod = async (
           userId: new Types.ObjectId(userId),
           stripeCustomerId,
           paymentMethodId,
-          type,
-          brand,
-          last4,
-          bankName,
-          expiryMonth,
-          expiryYear,
-          country,
+          type: resolved.type,
+          stripeType: resolved.stripeType,
+          brand: resolved.brand,
+          last4: resolved.last4,
+          bankName: resolved.bankName,
+          expiryMonth: resolved.expiryMonth,
+          expiryYear: resolved.expiryYear,
+          country: resolved.country,
           isDefault,
           autoPayEnabled,
           status: PaymentMethodStatus.ACTIVE,
@@ -149,16 +318,16 @@ const addPaymentMethod = async (
 
   // Notify User
   const title = "Payment Method Added";
-  const body = `A new ${type === PaymentMethodType.CARD ? "card" : "bank account"} ending in ${last4} has been successfully added to your account.`;
+  const body = `A new ${resolved.type === PaymentMethodType.CARD ? "card" : resolved.brand} ending in ${resolved.last4} has been successfully added to your account.`;
   
   emitRealTimeNotification(userId, title, body, { paymentMethodId });
   
-  await Notification.create({
+  await Notification.create([{
     userId: new Types.ObjectId(userId),
     title,
     message: body,
     type: NotificationType.PAYMENT_SUCCESS
-  });
+  }]);
 
   return newPaymentMethod;
 };
@@ -410,15 +579,14 @@ const syncSetupIntent = async (userId: string, setupIntentId: string): Promise<I
     return existing;
   }
 
-  // Determine the type from the payment method
+  // Determine the type and metadata from the payment method
   const stripePaymentMethod = await stripe.paymentMethods.retrieve(paymentMethodId);
-  const typeStr = stripePaymentMethod.type;
-  const type = typeStr === "us_bank_account" ? "bank" : "card";
+  const resolved = resolvePaymentMethodDetails(stripePaymentMethod);
   const isDefault = !(await PaymentMethod.exists({ userId }));
 
   return await addPaymentMethod(userId, {
     paymentMethodId,
-    type: type as PaymentMethodType,
+    type: resolved.type,
     isDefault,
     autoPayEnabled: true,
   });

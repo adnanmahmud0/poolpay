@@ -1,4 +1,3 @@
-import mongoose from "mongoose";
 import { Group } from "../group/group.model";
 import { GroupMember } from "../groupMember/groupMember.model";
 import { GroupServices } from "../group/group.service";
@@ -8,6 +7,7 @@ import { MemberStatus } from "../groupMember/groupMember.interface";
 import { QueryBuilder } from "../../utils/QueryBuilder";
 import { logActivity } from "../../utils/activityLogger";
 import { emitRealTimeNotification, enqueuePushNotification } from "../../utils/notification.utils";
+import { withTransaction } from "../../utils/transaction.utils";
 
 const getAllGroups = async (query: Record<string, unknown>) => {
   const groupQuery = new QueryBuilder(
@@ -44,14 +44,12 @@ const getGroupById = (id: string) =>
   Group.findById(id).populate("createdBy", "firstName lastName email").lean();
 
 const updateGroupStatus = async (id: string, status: string) => {
-  const session = await mongoose.startSession();
-  session.startTransaction();
-  try {
+  return await withTransaction(async (session) => {
     if (status === GroupStatus.ACTIVE) {
       await GroupServices.checkMembersPaymentMethods(id);
     }
 
-    const updated = await Group.findByIdAndUpdate(id, { status }, { new: true, session });
+    const updated = await Group.findByIdAndUpdate(id, { status }, { new: true, session: session || undefined });
     if (updated) {
       await logActivity(id, "GROUP_STATUS_UPDATED", `Group status updated to ${status} by Admin.`, session);
 
@@ -70,17 +68,11 @@ const updateGroupStatus = async (id: string, status: string) => {
         title,
         message: body,
         type: NotificationType.NEW_MESSAGE
-      }], { session });
+      }], session ? { session } : undefined);
     }
 
-    await session.commitTransaction();
     return updated;
-  } catch (error) {
-    await session.abortTransaction();
-    throw error;
-  } finally {
-    session.endSession();
-  }
+  });
 };
 
 export const AdminGroupServices = {
