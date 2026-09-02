@@ -9,6 +9,7 @@ import logger from "../../utils/logger";
 import Stripe from "stripe";
 import { emitRealTimeNotification } from "../../utils/notification.utils";
 import { Notification, NotificationType } from "../notification/notification.model";
+import { withTransaction } from "../../utils/transaction.utils";
  
  interface ExtendedUsBankAccount extends Stripe.PaymentMethod.UsBankAccount {
    verification_status?: string;
@@ -101,19 +102,16 @@ const addPaymentMethod = async (
   // Determine if this should be default
   const isDefault = requestedDefault !== undefined ? requestedDefault : !hasExistingMethods;
 
-  const session = await mongoose.startSession();
-  try {
-    session.startTransaction();
-
+  const newPaymentMethod = await withTransaction(async (session) => {
     if (isDefault) {
       await PaymentMethod.updateMany(
         { userId: new Types.ObjectId(userId) },
         { isDefault: false },
-        { session }
+        { session: session || undefined }
       );
     }
 
-    const newPaymentMethod = await PaymentMethod.create(
+    const created = await PaymentMethod.create(
       [
         {
           userId: new Types.ObjectId(userId),
@@ -131,7 +129,7 @@ const addPaymentMethod = async (
           status: PaymentMethodStatus.ACTIVE,
         },
       ],
-      { session }
+      session ? { session } : undefined
     );
 
     if (isDefault) {
@@ -146,28 +144,23 @@ const addPaymentMethod = async (
       }
     }
 
-    await session.commitTransaction();
+    return created[0];
+  });
 
-    // Notify User
-    const title = "Payment Method Added";
-    const body = `A new ${type === PaymentMethodType.CARD ? "card" : "bank account"} ending in ${last4} has been successfully added to your account.`;
-    
-    emitRealTimeNotification(userId, title, body, { paymentMethodId });
-    
-    await Notification.create({
-      userId: new Types.ObjectId(userId),
-      title,
-      message: body,
-      type: NotificationType.PAYMENT_SUCCESS
-    });
+  // Notify User
+  const title = "Payment Method Added";
+  const body = `A new ${type === PaymentMethodType.CARD ? "card" : "bank account"} ending in ${last4} has been successfully added to your account.`;
+  
+  emitRealTimeNotification(userId, title, body, { paymentMethodId });
+  
+  await Notification.create({
+    userId: new Types.ObjectId(userId),
+    title,
+    message: body,
+    type: NotificationType.PAYMENT_SUCCESS
+  });
 
-    return newPaymentMethod[0];
-  } catch (error) {
-    await session.abortTransaction();
-    throw error;
-  } finally {
-    session.endSession();
-  }
+  return newPaymentMethod;
 };
 
 const getPaymentMethods = async (userId: string): Promise<IPaymentMethodDocument[]> => {
@@ -175,10 +168,7 @@ const getPaymentMethods = async (userId: string): Promise<IPaymentMethodDocument
 };
 
 const setDefaultPaymentMethod = async (userId: string, id: string): Promise<IPaymentMethodDocument> => {
-  const session = await mongoose.startSession();
-  try {
-    session.startTransaction();
-
+  return await withTransaction(async (session) => {
     const isObjectId = mongoose.Types.ObjectId.isValid(id);
     let paymentMethod: IPaymentMethodDocument | null | undefined;
 
@@ -186,12 +176,12 @@ const setDefaultPaymentMethod = async (userId: string, id: string): Promise<IPay
       paymentMethod = await PaymentMethod.findOne({
         _id: new Types.ObjectId(id),
         userId: new Types.ObjectId(userId),
-      }).session(session);
+      }).session(session || null);
     } else {
       // Find by Stripe paymentMethodId (requires in-memory check due to encryption)
       const methods = await PaymentMethod.find({
         userId: new Types.ObjectId(userId),
-      }).session(session);
+      }).session(session || null);
       paymentMethod = methods.find((pm) => pm.paymentMethodId === id);
     }
 
@@ -203,12 +193,12 @@ const setDefaultPaymentMethod = async (userId: string, id: string): Promise<IPay
     await PaymentMethod.updateMany(
       { userId: new Types.ObjectId(userId) },
       { isDefault: false },
-      { session }
+      { session: session || undefined }
     );
 
     // Set this one as default
     paymentMethod.isDefault = true;
-    await paymentMethod.save({ session });
+    await paymentMethod.save({ session: session || undefined });
 
     // Update Stripe Customer
     try {
@@ -226,14 +216,8 @@ const setDefaultPaymentMethod = async (userId: string, id: string): Promise<IPay
       }
     }
 
-    await session.commitTransaction();
     return paymentMethod;
-  } catch (error) {
-    await session.abortTransaction();
-    throw error;
-  } finally {
-    session.endSession();
-  }
+  });
 };
 
 const toggleAutoPay = async (userId: string, id: string, autoPayEnabled: boolean): Promise<IPaymentMethodDocument> => {
@@ -346,8 +330,14 @@ const createSetupIntent = async (userId: string) => {
 
   const setupIntent = await stripe.setupIntents.create({
     customer: stripeCustomerId,
-    payment_method_types: ["card", "us_bank_account"],
-    usage: "off_session", // Allow future automatic payments
+    // automatic_payment_methods lets the Stripe Dashboard control which methods
+    // appear in the Payment Sheet — just toggle them on/off in your Dashboard
+    // without any code changes. This includes ACH, cards, wallets, etc.
+    automatic_payment_methods: {
+      enabled: true,
+      allow_redirects: "never", // Prevents redirect-only methods on mobile
+    },
+    usage: "off_session", // Allow future automatic (off-session) payments
   });
 
   return {
@@ -356,9 +346,48 @@ const createSetupIntent = async (userId: string) => {
   };
 };
 
+const createEphemeralKey = async (userId: string) => {
+  const user = await User.findById(userId);
+  if (!user) {
+    throw new AppError(httpStatus.NOT_FOUND, "User not found");
+  }
+
+  let stripeCustomerId = user.stripeCustomerId;
+
+  if (!stripeCustomerId) {
+    const existingMethod = await PaymentMethod.findOne({ userId: user._id });
+    if (existingMethod) {
+      stripeCustomerId = existingMethod.stripeCustomerId;
+      user.stripeCustomerId = stripeCustomerId;
+      await user.save();
+    } else {
+      const customer = await stripe.customers.create({
+        email: user.email,
+        name: `${user.firstName} ${user.lastName}`.trim(),
+        metadata: { userId: user._id.toString() },
+      });
+      stripeCustomerId = customer.id;
+      user.stripeCustomerId = stripeCustomerId;
+      await user.save();
+    }
+  }
+
+  // Stripe requires the API version for ephemeral keys
+  const ephemeralKey = await stripe.ephemeralKeys.create(
+    { customer: stripeCustomerId as string },
+    { apiVersion: "2025-04-30" }
+  );
+
+  return {
+    customerId: stripeCustomerId,
+    ephemeralKeySecret: ephemeralKey.secret,
+  };
+};
+
 export const PaymentMethodServices = {
   addPaymentMethod,
   createSetupIntent,
+  createEphemeralKey,
   getPaymentMethods,
   setDefaultPaymentMethod,
   toggleAutoPay,

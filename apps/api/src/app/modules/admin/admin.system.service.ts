@@ -21,6 +21,7 @@ import { User } from "../user/user.model";
 import { logActivity } from "../../utils/activityLogger";
 import { QueryBuilder } from "../../utils/QueryBuilder";
 import { sendPushNotification } from "../../utils/notification.utils";
+import { withTransaction } from "../../utils/transaction.utils";
 
 const getRecentActivities = async () => {
   return await ActivityLog.find()
@@ -102,26 +103,40 @@ const getAuditLogs = async (query: Record<string, unknown>) => {
 
 const getSettings = () => Settings.findOne().lean();
 
-const updateSettings = async (payload: Record<string, unknown>) => {
-  const session = await mongoose.startSession();
-  session.startTransaction();
-  try {
+const updateSettings = async (payload: Record<string, unknown>, description?: string) => {
+  return await withTransaction(async (session) => {
     const updated = await Settings.findOneAndUpdate({}, payload, {
       new: true,
       upsert: true,
-      session
+      session: session || undefined,
     });
-    await logActivity(updated?._id?.toString() || "SYSTEM", "SETTINGS_UPDATED", "Platform settings updated by Admin.", session);
-
-    await session.commitTransaction();
+    await logActivity(
+      updated?._id?.toString() || "SYSTEM",
+      "SETTINGS_UPDATED",
+      description || "Platform settings updated by Admin.",
+      session || undefined
+    );
     return updated;
-  } catch (error) {
-    await session.abortTransaction();
-    throw error;
-  } finally {
-    session.endSession();
-  }
+  });
 };
+
+const updateGeneralSettings = (payload: Record<string, unknown>) =>
+  updateSettings(payload, "General settings updated by Admin.");
+
+const updateFinancialSettings = (payload: Record<string, unknown>) =>
+  updateSettings(payload, "Financial settings updated by Admin.");
+
+const updateContributionSettings = (payload: Record<string, unknown>) =>
+  updateSettings(payload, "Contribution limit settings updated by Admin.");
+
+const updateAccessAuthSettings = (payload: Record<string, unknown>) =>
+  updateSettings(payload, "Access and authentication settings updated by Admin.");
+
+const updateNotificationSettings = (payload: Record<string, unknown>) =>
+  updateSettings(payload, "Notification settings updated by Admin.");
+
+const updateContactSettings = (payload: Record<string, unknown>) =>
+  updateSettings(payload, "Contact channels updated by Admin.");
 
 const sendTestPushNotification = async () => {
   const users = await User.find({ fcmToken: { $exists: true, $ne: "" } }).select("fcmToken firstName lastName email");
@@ -415,6 +430,12 @@ export const AdminSystemServices = {
   getAuditLogs,
   getSettings,
   updateSettings,
+  updateGeneralSettings,
+  updateFinancialSettings,
+  updateContributionSettings,
+  updateAccessAuthSettings,
+  updateNotificationSettings,
+  updateContactSettings,
   sendTestPushNotification,
   seedMockData,
   clearMockData,

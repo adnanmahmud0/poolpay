@@ -14,6 +14,7 @@ export interface ISettings {
   maxContribution: number;
   supportEmail: string;
   supportPhone?: string;
+  supportWhatsapp?: string;
   isUserRegistrationEnabled: boolean;
   isSocialLoginEnabled: boolean;
   isTwoFactorAuthenticationEnabled: boolean;
@@ -43,8 +44,9 @@ const settingsSchema = new Schema<ISettingsDocument>(
     minContribution: { type: Number, default: 50 },
     maxContribution: { type: Number, default: 10000 },
     lateFeePercent: { type: Number, default: 3 },
-    supportEmail: { type: String, default: "support@poolpay.com" },
-    supportPhone: { type: String },
+    supportEmail: { type: String, default: "support@poolpay.space" },
+    supportPhone: { type: String, default: "+16079004569" },
+    supportWhatsapp: { type: String, default: "+16079004569" },
     isUserRegistrationEnabled: { type: Boolean, default: true },
     isSocialLoginEnabled: { type: Boolean, default: true },
     isTwoFactorAuthenticationEnabled: { type: Boolean, default: true },

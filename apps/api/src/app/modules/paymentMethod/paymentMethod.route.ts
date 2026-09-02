@@ -20,6 +20,12 @@ router.post(
   PaymentMethodControllers.createSetupIntent
 );
 
+router.post(
+  "/ephemeral-key",
+  checkAuth(Role.USER, Role.ADMIN, Role.SUPER_ADMIN),
+  PaymentMethodControllers.createEphemeralKey
+);
+
 router.get(
   "/",
   checkAuth(Role.USER, Role.ADMIN, Role.SUPER_ADMIN),

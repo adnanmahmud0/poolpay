@@ -55,17 +55,30 @@ const updateSupportEmail = async (email: string, userId: string) => {
 
 const getAuthSettings = async () => {
   const settings = await Settings.findOne().select(
-    "platformName isTwoFactorAuthenticationEnabled supportEmail sessionTimeoutMinutes"
+    "platformName isTwoFactorAuthenticationEnabled supportEmail supportPhone supportWhatsapp sessionTimeoutMinutes"
   );
   if (!settings) {
     return {
       platformName: "PoolPay",
       isTwoFactorAuthenticationEnabled: true,
-      supportEmail: "support@poolpay.com",
+      supportEmail: "support@poolpay.space",
+      supportPhone: "+16079004569",
+      supportWhatsapp: "+16079004569",
       sessionTimeoutMinutes: envVars.SESSION_TIMEOUT_MINUTES || 20,
     };
   }
   return settings;
+};
+
+const getContactSettings = async () => {
+  const settings = await Settings.findOne().select(
+    "supportEmail supportPhone supportWhatsapp"
+  );
+  return {
+    supportEmail: settings?.supportEmail || "support@poolpay.space",
+    supportPhone: settings?.supportPhone || "+16079004569",
+    supportWhatsapp: settings?.supportWhatsapp || "+16079004569",
+  };
 };
 
 export const SettingsServices = {
@@ -73,4 +86,5 @@ export const SettingsServices = {
   updateSettings,
   updateSupportEmail,
   getAuthSettings,
+  getContactSettings,
 };

@@ -1,5 +1,4 @@
 import { Worker } from "bullmq";
-import mongoose from "mongoose";
 import { bullMqRedis } from "../config/ioredis.config";
 import { Payment, PaymentStatus } from "../modules/payment/payment.model";
 import { PaymentMethod } from "../modules/paymentMethod/paymentMethod.model";
@@ -19,6 +18,7 @@ import {
   emitRealTimeNotification
 } from "../utils/notification.utils";
 import { alertPaymentFailure } from "../utils/alerting";
+import { withTransaction } from "../utils/transaction.utils";
 
 const getSystemSettings = async () => {
   const settings = await Settings.findOne();
@@ -100,10 +100,7 @@ export const paymentWorker = new Worker(
       }
 
       if (paymentIntent.status === "succeeded") {
-        const session = await mongoose.startSession();
-        session.startTransaction();
-
-        try {
+        await withTransaction(async (session) => {
           await Payment.findByIdAndUpdate(
             paymentId,
             {
@@ -114,7 +111,7 @@ export const paymentWorker = new Worker(
                 recoveryAttempts: 0,
               },
             },
-            { new: true, session }
+            { new: true, session: session || undefined }
           );
 
           // Log transaction
@@ -136,7 +133,7 @@ export const paymentWorker = new Worker(
                 referenceId: paymentIntent.id,
               },
             ],
-            { session }
+            session ? { session } : undefined
           );
 
           // Log Revenue
@@ -148,7 +145,7 @@ export const paymentWorker = new Worker(
                 feeType: FeeType.TRANSACTION_FEE,
               },
             ],
-            { session }
+            session ? { session } : undefined
           );
 
           // STEP 6: Reset Notice Status & Update Stats after successful payment
@@ -158,13 +155,13 @@ export const paymentWorker = new Worker(
               noticeStatus: "NONE",
               $inc: { totalPaidAmount: payment.amount },
             },
-            { session }
+            { session: session || undefined }
           );
 
-          await session.commitTransaction();
           logger.info(
             `[PAYMENT_FLOW] Payment database updates committed for user ${user?.email}.`
           );
+        });
 
           // Notifications (Outside Transaction)
           if (user?.fcmToken) {
@@ -194,16 +191,6 @@ export const paymentWorker = new Worker(
               paymentId: paymentIntent.id,
             }
           );
-        } catch (dbError) {
-          await session.abortTransaction();
-          logger.error(
-            `[TRANSACTION_ROLLBACK] Payment DB update failed for user ${user?.email}:`,
-            dbError
-          );
-          throw dbError;
-        } finally {
-          session.endSession();
-        }
       } else if (paymentIntent.status === "processing") {
         // ACH or other async payment methods
         payment.status = PaymentStatus.PROCESSING;

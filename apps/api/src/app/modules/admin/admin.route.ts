@@ -156,6 +156,42 @@ router.patch(
   validateRequest(AdminValidation.updateSettingsSchema),
   AdminControllers.updateSettings
 );
+router.patch(
+  "/settings/general",
+  checkAuth(Role.ADMIN, Role.SUPER_ADMIN),
+  validateRequest(AdminValidation.updateGeneralSettingsSchema),
+  AdminControllers.updateGeneralSettings
+);
+router.patch(
+  "/settings/financial",
+  checkAuth(Role.ADMIN, Role.SUPER_ADMIN),
+  validateRequest(AdminValidation.updateFinancialSettingsSchema),
+  AdminControllers.updateFinancialSettings
+);
+router.patch(
+  "/settings/contributions",
+  checkAuth(Role.ADMIN, Role.SUPER_ADMIN),
+  validateRequest(AdminValidation.updateContributionSettingsSchema),
+  AdminControllers.updateContributionSettings
+);
+router.patch(
+  "/settings/access-auth",
+  checkAuth(Role.ADMIN, Role.SUPER_ADMIN),
+  validateRequest(AdminValidation.updateAccessAuthSettingsSchema),
+  AdminControllers.updateAccessAuthSettings
+);
+router.patch(
+  "/settings/notifications",
+  checkAuth(Role.ADMIN, Role.SUPER_ADMIN),
+  validateRequest(AdminValidation.updateNotificationSettingsSchema),
+  AdminControllers.updateNotificationSettings
+);
+router.patch(
+  "/settings/contact",
+  checkAuth(Role.ADMIN, Role.SUPER_ADMIN),
+  validateRequest(AdminValidation.updateContactSettingsSchema),
+  AdminControllers.updateContactSettings
+);
 
 // Activity Logs
 router.get(

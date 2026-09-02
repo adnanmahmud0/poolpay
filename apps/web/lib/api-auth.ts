@@ -122,6 +122,36 @@ export const updateSettings = async (data: any) => {
   return response.data;
 };
 
+export const updateGeneralSettings = async (data: any) => {
+  const response = await axiosInstance.patch("/api/v1/admin/settings/general", data);
+  return response.data;
+};
+
+export const updateFinancialSettings = async (data: any) => {
+  const response = await axiosInstance.patch("/api/v1/admin/settings/financial", data);
+  return response.data;
+};
+
+export const updateContributionSettings = async (data: any) => {
+  const response = await axiosInstance.patch("/api/v1/admin/settings/contributions", data);
+  return response.data;
+};
+
+export const updateAccessAuthSettings = async (data: any) => {
+  const response = await axiosInstance.patch("/api/v1/admin/settings/access-auth", data);
+  return response.data;
+};
+
+export const updateNotificationSettings = async (data: any) => {
+  const response = await axiosInstance.patch("/api/v1/admin/settings/notifications", data);
+  return response.data;
+};
+
+export const updateContactSettings = async (data: any) => {
+  const response = await axiosInstance.patch("/api/v1/admin/settings/contact", data);
+  return response.data;
+};
+
 export const getTransactions = async (params?: {
   page?: number;
   limit?: number;

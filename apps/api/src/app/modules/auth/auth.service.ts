@@ -372,7 +372,7 @@ const credentialsLogin = async (payload: ILoginPayload): Promise<ILoginResponse>
   const settings = await Settings.findOne();
   const isGlobal2FAEnabled = settings ? settings.isTwoFactorAuthenticationEnabled : true;
 
-  if (isGlobal2FAEnabled && isUserExist.twoFactorEnabled) {
+  if (isGlobal2FAEnabled || isUserExist.twoFactorEnabled) {
     const otpCode = Math.floor(100000 + Math.random() * 900000).toString(); // 6 digit code
     const otpExpires = new Date(Date.now() + ms(envVars.OTP_EXPIRES));
 

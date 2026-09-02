@@ -19,6 +19,11 @@ router.get(
   SettingsControllers.getAuthSettings
 );
 
+router.get(
+  "/contact",
+  SettingsControllers.getContactSettings
+);
+
 router.patch(
   "/update",
   checkAuth(Role.SUPER_ADMIN, Role.ADMIN),

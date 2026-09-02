@@ -32,6 +32,18 @@ const createSetupIntent = catchAsync(async (req: Request, res: Response) => {
   });
 });
 
+const createEphemeralKey = catchAsync(async (req: Request, res: Response) => {
+  const user = req.user as JwtPayload;
+  const result = await PaymentMethodServices.createEphemeralKey(user.userId || user._id);
+
+  sendResponse(res, {
+    success: true,
+    statusCode: httpStatus.OK,
+    message: "Ephemeral key created successfully",
+    data: result,
+  });
+});
+
 const getPaymentMethods = catchAsync(async (req: Request, res: Response) => {
   const user = req.user as JwtPayload;
   const result = await PaymentMethodServices.getPaymentMethods(user.userId || user._id);
@@ -100,6 +112,7 @@ const deletePaymentMethod = catchAsync(async (req: Request, res: Response) => {
 export const PaymentMethodControllers = {
   addPaymentMethod,
   createSetupIntent,
+  createEphemeralKey,
   getPaymentMethods,
   setDefaultPaymentMethod,
   toggleAutoPay,

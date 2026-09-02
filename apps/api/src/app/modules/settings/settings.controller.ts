@@ -47,9 +47,20 @@ const getAuthSettings = catchAsync(async (_req: Request, res: Response) => {
   });
 });
 
+const getContactSettings = catchAsync(async (_req: Request, res: Response) => {
+  const result = await SettingsServices.getContactSettings();
+  sendResponse(res, {
+    success: true,
+    statusCode: httpStatus.OK,
+    message: "Contact settings retrieved successfully",
+    data: result,
+  });
+});
+
 export const SettingsControllers = {
   getSettings,
   updateSettings,
   updateSupportEmail,
   getAuthSettings,
+  getContactSettings,
 };

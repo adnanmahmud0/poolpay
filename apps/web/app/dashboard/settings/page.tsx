@@ -1,22 +1,36 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import React, { useState, useEffect } from "react";
 import { 
   Settings, 
-  Users, 
-  Shield, 
-  DollarSign, 
-  Bell, 
-  Save, 
-  Loader2, 
   Percent, 
   Clock, 
   RotateCcw, 
+  DollarSign, 
+  Users, 
+  Bell, 
+  Save, 
+  Loader2, 
   Database, 
   Trash2, 
-  RefreshCw 
+  RefreshCw,
+  Mail,
+  Phone,
+  MessageSquare,
+  HelpCircle
 } from "lucide-react";
-import { getSettings, updateSettings, seedMockData, clearMockData } from "@/lib/api-auth";
+import { 
+  getSettings, 
+  updateSettings, 
+  updateGeneralSettings,
+  updateFinancialSettings,
+  updateContributionSettings,
+  updateAccessAuthSettings,
+  updateNotificationSettings,
+  updateContactSettings,
+  seedMockData, 
+  clearMockData 
+} from "@/lib/api-auth";
 import { toast } from "sonner";
 
 interface SettingsState {
@@ -28,6 +42,8 @@ interface SettingsState {
   minContribution: number;
   maxContribution: number;
   supportEmail: string;
+  supportPhone?: string;
+  supportWhatsapp?: string;
   sessionTimeoutMinutes: number;
   isUserRegistrationEnabled: boolean;
   isSocialLoginEnabled: boolean;
@@ -46,6 +62,8 @@ const defaultSettings: SettingsState = {
   minContribution: 10,
   maxContribution: 50000,
   supportEmail: "support@poolpay.space",
+  supportPhone: "+16079004569",
+  supportWhatsapp: "+16079004569",
   sessionTimeoutMinutes: 20,
   isUserRegistrationEnabled: true,
   isSocialLoginEnabled: true,
@@ -58,6 +76,7 @@ const defaultSettings: SettingsState = {
 export default function SettingsPage() {
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
+  const [savingSection, setSavingSection] = useState<string | null>(null);
   const [settings, setSettings] = useState<SettingsState>(defaultSettings);
 
   useEffect(() => {
@@ -80,17 +99,124 @@ export default function SettingsPage() {
     fetchSettings();
   }, []);
 
-  const handleSave = async () => {
+  const handleSaveAll = async () => {
     setIsSaving(true);
     try {
       const response = await updateSettings(settings);
       if (response.success) {
-        toast.success("Settings updated successfully");
+        toast.success("All settings updated successfully");
       }
     } catch (error: any) {
       toast.error(error.response?.data?.message || "Failed to update settings");
     } finally {
       setIsSaving(false);
+    }
+  };
+
+  const handleSaveGeneral = async () => {
+    setSavingSection("general");
+    try {
+      const response = await updateGeneralSettings({
+        platformName: settings.platformName,
+        supportEmail: settings.supportEmail,
+      });
+      if (response.success) {
+        toast.success("General settings saved successfully");
+      }
+    } catch (error: any) {
+      toast.error(error.response?.data?.message || "Failed to save general settings");
+    } finally {
+      setSavingSection(null);
+    }
+  };
+
+  const handleSaveFinancial = async () => {
+    setSavingSection("financial");
+    try {
+      const response = await updateFinancialSettings({
+        transactionFeePercent: Number(settings.transactionFeePercent),
+        lateFeePercent: Number(settings.lateFeePercent),
+        gracePeriodDays: Number(settings.gracePeriodDays),
+        maxRetryCount: Number(settings.maxRetryCount),
+        minimumStripeBalance: Number(settings.minimumStripeBalance),
+      });
+      if (response.success) {
+        toast.success("Financial & fee settings saved successfully");
+      }
+    } catch (error: any) {
+      toast.error(error.response?.data?.message || "Failed to save financial settings");
+    } finally {
+      setSavingSection(null);
+    }
+  };
+
+  const handleSaveContributions = async () => {
+    setSavingSection("contributions");
+    try {
+      const response = await updateContributionSettings({
+        minContribution: Number(settings.minContribution),
+        maxContribution: Number(settings.maxContribution),
+      });
+      if (response.success) {
+        toast.success("Contribution limits saved successfully");
+      }
+    } catch (error: any) {
+      toast.error(error.response?.data?.message || "Failed to save contribution limits");
+    } finally {
+      setSavingSection(null);
+    }
+  };
+
+  const handleSaveAccessAuth = async () => {
+    setSavingSection("access-auth");
+    try {
+      const response = await updateAccessAuthSettings({
+        sessionTimeoutMinutes: Number(settings.sessionTimeoutMinutes),
+        isUserRegistrationEnabled: Boolean(settings.isUserRegistrationEnabled),
+        isTwoFactorAuthenticationEnabled: Boolean(settings.isTwoFactorAuthenticationEnabled),
+      });
+      if (response.success) {
+        toast.success("Access & authentication settings saved successfully");
+      }
+    } catch (error: any) {
+      toast.error(error.response?.data?.message || "Failed to save access & authentication settings");
+    } finally {
+      setSavingSection(null);
+    }
+  };
+
+  const handleSaveNotifications = async () => {
+    setSavingSection("notifications");
+    try {
+      const response = await updateNotificationSettings({
+        isEmailNotificationEnabled: Boolean(settings.isEmailNotificationEnabled),
+        isPushNotificationEnabled: Boolean(settings.isPushNotificationEnabled),
+      });
+      if (response.success) {
+        toast.success("Notification settings saved successfully");
+      }
+    } catch (error: any) {
+      toast.error(error.response?.data?.message || "Failed to save notification settings");
+    } finally {
+      setSavingSection(null);
+    }
+  };
+
+  const handleSaveContact = async () => {
+    setSavingSection("contact");
+    try {
+      const response = await updateContactSettings({
+        supportEmail: settings.supportEmail,
+        supportPhone: settings.supportPhone,
+        supportWhatsapp: settings.supportWhatsapp,
+      });
+      if (response.success) {
+        toast.success("Contact channels saved successfully");
+      }
+    } catch (error: any) {
+      toast.error(error.response?.data?.message || "Failed to save contact channels");
+    } finally {
+      setSavingSection(null);
     }
   };
 
@@ -142,6 +268,9 @@ export default function SettingsPage() {
       <SettingsSection 
         title="General Settings" 
         icon={<Settings className="w-5 h-5 text-gray-500" />}
+        onSave={handleSaveGeneral}
+        isSaving={savingSection === "general"}
+        saveLabel="Save General"
       >
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
           <InputGroup 
@@ -161,6 +290,9 @@ export default function SettingsPage() {
       <SettingsSection 
         title="Financial & Fee Settings" 
         icon={<Percent className="w-5 h-5 text-gray-500" />}
+        onSave={handleSaveFinancial}
+        isSaving={savingSection === "financial"}
+        saveLabel="Save Financial"
       >
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
           <InputGroup 
@@ -203,6 +335,9 @@ export default function SettingsPage() {
       <SettingsSection 
         title="Contribution Limits" 
         icon={<DollarSign className="w-5 h-5 text-gray-500" />}
+        onSave={handleSaveContributions}
+        isSaving={savingSection === "contributions"}
+        saveLabel="Save Limits"
       >
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
           <InputGroup 
@@ -224,6 +359,9 @@ export default function SettingsPage() {
       <SettingsSection 
         title="Access & Authentication" 
         icon={<Users className="w-5 h-5 text-gray-500" />}
+        onSave={handleSaveAccessAuth}
+        isSaving={savingSection === "access-auth"}
+        saveLabel="Save Access & Auth"
       >
         <div className="space-y-6">
           <div className="bg-gray-50/70 p-4 rounded-xl border border-gray-100">
@@ -256,6 +394,9 @@ export default function SettingsPage() {
       <SettingsSection 
         title="Notification System" 
         icon={<Bell className="w-5 h-5 text-gray-500" />}
+        onSave={handleSaveNotifications}
+        isSaving={savingSection === "notifications"}
+        saveLabel="Save Notifications"
       >
         <div className="space-y-6">
           <ToggleGroup 
@@ -271,6 +412,42 @@ export default function SettingsPage() {
             onToggle={() => toggleSetting('isPushNotificationEnabled')} 
           />
         </div>
+      </SettingsSection>
+
+      {/* Contact & Support Settings */}
+      <SettingsSection 
+        title="Contact & Support Channels" 
+        icon={<HelpCircle className="w-5 h-5 text-gray-500" />}
+        onSave={handleSaveContact}
+        isSaving={savingSection === "contact"}
+        saveLabel="Save Contact Channels"
+      >
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+          <InputGroup 
+            label="Support Email" 
+            type="email"
+            icon={<Mail className="w-4 h-4 text-gray-400" />}
+            value={settings?.supportEmail ?? ""} 
+            onChange={(e) => setSettings({ ...settings, supportEmail: e.target.value })} 
+          />
+          <InputGroup 
+            label="Support Phone Number" 
+            type="text"
+            icon={<Phone className="w-4 h-4 text-gray-400" />}
+            value={settings?.supportPhone ?? ""} 
+            onChange={(e) => setSettings({ ...settings, supportPhone: e.target.value })} 
+          />
+          <InputGroup 
+            label="WhatsApp Business (Number or Link)" 
+            type="text"
+            icon={<MessageSquare className="w-4 h-4 text-gray-400" />}
+            value={settings?.supportWhatsapp ?? ""} 
+            onChange={(e) => setSettings({ ...settings, supportWhatsapp: e.target.value })} 
+          />
+        </div>
+        <p className="text-xs text-gray-500 mt-3">
+          These contact channels are displayed to users in the mobile app. Tapping them will automatically trigger email, phone call, or WhatsApp conversation.
+        </p>
       </SettingsSection>
 
       {/* Developer Tools */}
@@ -308,28 +485,71 @@ export default function SettingsPage() {
       {/* Action Buttons */}
       <div className="flex justify-end mt-8">
         <button 
-          onClick={handleSave}
-          disabled={isSaving}
+          onClick={handleSaveAll}
+          disabled={isSaving || savingSection !== null}
           className="bg-[#1A2279] text-white px-8 py-3 rounded-xl font-bold hover:bg-indigo-900 transition-all shadow-lg shadow-indigo-100 flex items-center gap-2 disabled:opacity-70 disabled:cursor-not-allowed"
         >
           {isSaving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
-          {isSaving ? "Saving..." : "Save Changes"}
+          {isSaving ? "Saving All..." : "Save All Settings"}
         </button>
       </div>
     </div>
   );
 }
 
-function SettingsSection({ title, icon, children }: { title: string; icon: React.ReactNode; children: React.ReactNode }) {
+function SettingsSection({ 
+  title, 
+  icon, 
+  children,
+  onSave,
+  isSaving,
+  saveLabel = "Save Changes"
+}: { 
+  title: string; 
+  icon: React.ReactNode; 
+  children: React.ReactNode;
+  onSave?: () => void;
+  isSaving?: boolean;
+  saveLabel?: string;
+}) {
   return (
     <div className="bg-white rounded-2xl border border-gray-100/50 shadow-sm overflow-hidden">
-      <div className="px-8 py-6 border-b border-gray-50 flex items-center gap-3">
-        {icon}
-        <h2 className="text-lg font-bold text-gray-900">{title}</h2>
+      <div className="px-8 py-5 border-b border-gray-100 flex items-center justify-between gap-3">
+        <div className="flex items-center gap-3">
+          {icon}
+          <h2 className="text-lg font-bold text-gray-900">{title}</h2>
+        </div>
+        {onSave && (
+          <button 
+            type="button"
+            onClick={onSave}
+            disabled={isSaving}
+            className="bg-[#1A2279] text-white px-4 py-2 rounded-xl text-xs font-semibold hover:bg-indigo-900 transition-all shadow-sm shadow-indigo-100 flex items-center gap-2 disabled:opacity-60 disabled:cursor-not-allowed"
+          >
+            {isSaving ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Save className="w-3.5 h-3.5" />}
+            {isSaving ? "Saving..." : saveLabel}
+          </button>
+        )}
       </div>
       <div className="p-8">
         {children}
       </div>
+      {onSave && (
+        <div className="px-8 py-3.5 bg-gray-50/60 border-t border-gray-100 flex flex-col sm:flex-row items-center justify-between gap-3">
+          <p className="text-xs text-gray-500">
+            Save updates to <span className="font-semibold text-gray-700">{title}</span> independently.
+          </p>
+          <button 
+            type="button"
+            onClick={onSave}
+            disabled={isSaving}
+            className="w-full sm:w-auto bg-[#1A2279] text-white px-5 py-2.5 rounded-xl text-xs font-bold hover:bg-indigo-900 transition-all shadow-sm shadow-indigo-100 flex items-center justify-center gap-2 disabled:opacity-60 disabled:cursor-not-allowed"
+          >
+            {isSaving ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Save className="w-3.5 h-3.5" />}
+            {isSaving ? "Saving..." : saveLabel}
+          </button>
+        </div>
+      )}
     </div>
   );
 }

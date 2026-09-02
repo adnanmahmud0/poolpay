@@ -1,5 +1,4 @@
 import { Worker } from "bullmq";
-import mongoose from "mongoose";
 import { bullMqRedis } from "../config/ioredis.config";
 import { Turn } from "../modules/turn/turn.model";
 import { TurnStatus } from "../modules/turn/turn.interface";
@@ -28,6 +27,7 @@ import { TurnServices } from "../modules/turn/turn.service";
 import { Settings } from "../modules/settings/settings.model";
 import { MembershipAction, validateMembershipAction } from "../modules/membership/membership.utils";
 import { AuditLog, AuditAction, EntityType } from "../modules/auditLog/auditLog.model";
+import { withTransaction } from "../utils/transaction.utils";
 
 export const turnSchedulerWorker = new Worker(
   "turnSchedulerQueue",
@@ -150,9 +150,6 @@ export const turnSchedulerWorker = new Worker(
       throw balanceError;
     }
 
-    const session = await mongoose.startSession();
-    session.startTransaction();
-
     try {
       // 1. Fetch Creator and check eligibility
       const creator = await User.findById(group.createdBy);
@@ -233,49 +230,49 @@ export const turnSchedulerWorker = new Worker(
       }
 
       // 4. Database updates
-      const transaction = await Transaction.create(
-        [
-          {
-            userId: turn.userId,
-            groupId: turn.groupId,
-            type: TransactionType.PAYOUT,
-            amount: turn.grossAmount || turn.payoutAmount,
-            fee: 0,
-            platformFee: platformAmountCents / 100,
-            platformFeePercent: (turn.feeAmount / turn.grossAmount) * 100 || 1,
-            creatorFee: creatorAmountCents / 100,
-            creatorFeePercent: (turn.commissionAmount / turn.grossAmount) * 100 || 0,
-            stripeFee: 0.25, 
-            netAmount: memberAmountCents / 100,
-            status: TransactionStatus.SUCCESS,
-            referenceId: memberTransferId,
-            metadata: { creatorTransferId }
-          },
-        ],
-        { session }
-      );
+      await withTransaction(async (session) => {
+        const transaction = await Transaction.create(
+          [
+            {
+              userId: turn.userId,
+              groupId: turn.groupId,
+              type: TransactionType.PAYOUT,
+              amount: turn.grossAmount || turn.payoutAmount,
+              fee: 0,
+              platformFee: platformAmountCents / 100,
+              platformFeePercent: (turn.feeAmount / turn.grossAmount) * 100 || 1,
+              creatorFee: creatorAmountCents / 100,
+              creatorFeePercent: (turn.commissionAmount / turn.grossAmount) * 100 || 0,
+              stripeFee: 0.25, 
+              netAmount: memberAmountCents / 100,
+              status: TransactionStatus.SUCCESS,
+              referenceId: memberTransferId,
+              metadata: { creatorTransferId }
+            },
+          ],
+          session ? { session } : undefined
+        );
 
-      await Payout.create(
-        [
-          {
-            groupId: turn.groupId,
-            userId: turn.userId,
-            turnId: turn._id,
-            amount: turn.payoutAmount,
-            payoutDate: new Date(),
-            status: PayoutStatus.COMPLETED,
-            transactionId: transaction[0]._id,
-          },
-        ],
-        { session }
-      );
+        await Payout.create(
+          [
+            {
+              groupId: turn.groupId,
+              userId: turn.userId,
+              turnId: turn._id,
+              amount: turn.payoutAmount,
+              payoutDate: new Date(),
+              status: PayoutStatus.COMPLETED,
+              transactionId: transaction[0]._id,
+            },
+          ],
+          session ? { session } : undefined
+        );
 
-      turn.status = TurnStatus.PAID;
-      turn.paidDate = new Date();
-      turn.recoveryAttempts = 0;
-      await turn.save({ session });
-
-      await session.commitTransaction();
+        turn.status = TurnStatus.PAID;
+        turn.paidDate = new Date();
+        turn.recoveryAttempts = 0;
+        await turn.save({ session: session || undefined });
+      });
       logger.info(`✅ Payout successfully completed for turn ${turn._id}`);
 
       // Notify User
@@ -383,11 +380,8 @@ export const turnSchedulerWorker = new Worker(
         }
       }
     } catch (error) {
-      await session.abortTransaction();
       logger.error(`[PAYOUT_ERROR] Payout failed for turn ${turn._id}:`, error);
       throw error; // Let BullMQ handle retry
-    } finally {
-      session.endSession();
     }
   },
   { 

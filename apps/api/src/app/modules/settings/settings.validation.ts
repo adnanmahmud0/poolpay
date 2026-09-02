@@ -18,6 +18,7 @@ const updateSettingsSchema = z.object({
     maxRetryCount: z.number().min(1).optional(),
     supportEmail: z.string().email().optional(),
     supportPhone: z.string().optional(),
+    supportWhatsapp: z.string().optional(),
     minContribution: z.number().min(0).optional(),
     maxContribution: z.number().min(0).optional(),
     isUserRegistrationEnabled: z.boolean().optional(),

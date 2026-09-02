@@ -1,4 +1,3 @@
-import mongoose from "mongoose";
 import ExcelJS from "exceljs";
 import httpStatus from "http-status-codes";
 import AppError from "../../errorHelpers/AppError";
@@ -12,6 +11,7 @@ import {
   enqueueEmailNotification,
   enqueuePushNotification,
 } from "../../utils/notification.utils";
+import { withTransaction } from "../../utils/transaction.utils";
 
 const getAllUsers = async (query: Record<string, unknown>) => {
   const userQuery = new QueryBuilder(User.find(), query as Record<string, string>)
@@ -60,10 +60,10 @@ const getRecentUsers = async () => {
 };
 
 const updateUserStatus = async (id: string, status: string, adminRole: string) => {
-  const session = await mongoose.startSession();
-  session.startTransaction();
-  try {
-    const userExist = await User.findById(id).session(session);
+  return await withTransaction(async (session) => {
+    const userQuery = User.findById(id);
+    if (session) userQuery.session(session);
+    const userExist = await userQuery;
     if (!userExist) {
       throw new AppError(httpStatus.NOT_FOUND, "User not found");
     }
@@ -72,7 +72,11 @@ const updateUserStatus = async (id: string, status: string, adminRole: string) =
       throw new AppError(httpStatus.UNAUTHORIZED, "Admin cannot update Super Admin status");
     }
 
-    const updated = await User.findByIdAndUpdate(id, { status }, { new: true, session });
+    const updated = await User.findByIdAndUpdate(
+      id,
+      { status },
+      { new: true, ...(session ? { session } : {}) }
+    );
     if (updated) {
       await logActivity(id, "USER_STATUS_UPDATED", `User status updated to ${status} by Admin.`, session);
 
@@ -87,12 +91,15 @@ const updateUserStatus = async (id: string, status: string, adminRole: string) =
 
       const notificationPromises: Promise<unknown>[] = [
         enqueueEmailNotification(updated.email, title, "adminAlert", { message: body }),
-        Notification.create([{
-          userId: id,
-          title,
-          message: body,
-          type: status === UserStatus.ACTIVE ? NotificationType.NEW_MESSAGE : NotificationType.PAYMENT_FAILED
-        }], { session })
+        Notification.create(
+          [{
+            userId: id,
+            title,
+            message: body,
+            type: status === UserStatus.ACTIVE ? NotificationType.NEW_MESSAGE : NotificationType.PAYMENT_FAILED
+          }],
+          session ? { session } : undefined
+        )
       ];
 
       if (updated.fcmToken) {
@@ -104,14 +111,8 @@ const updateUserStatus = async (id: string, status: string, adminRole: string) =
       await Promise.all(notificationPromises);
     }
 
-    await session.commitTransaction();
     return updated;
-  } catch (error) {
-    await session.abortTransaction();
-    throw error;
-  } finally {
-    session.endSession();
-  }
+  });
 };
 
 const exportUsersToExcel = async (query: Record<string, unknown>) => {

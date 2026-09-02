@@ -237,6 +237,66 @@ const updateSettings = catchAsync(async (req: Request, res: Response) => {
   });
 });
 
+const updateGeneralSettings = catchAsync(async (req: Request, res: Response) => {
+  const result = await AdminServices.updateGeneralSettings(req.body);
+  sendResponse(res, {
+    success: true,
+    statusCode: httpStatus.OK,
+    message: "General settings updated successfully",
+    data: result,
+  });
+});
+
+const updateFinancialSettings = catchAsync(async (req: Request, res: Response) => {
+  const result = await AdminServices.updateFinancialSettings(req.body);
+  sendResponse(res, {
+    success: true,
+    statusCode: httpStatus.OK,
+    message: "Financial settings updated successfully",
+    data: result,
+  });
+});
+
+const updateContributionSettings = catchAsync(async (req: Request, res: Response) => {
+  const result = await AdminServices.updateContributionSettings(req.body);
+  sendResponse(res, {
+    success: true,
+    statusCode: httpStatus.OK,
+    message: "Contribution limit settings updated successfully",
+    data: result,
+  });
+});
+
+const updateAccessAuthSettings = catchAsync(async (req: Request, res: Response) => {
+  const result = await AdminServices.updateAccessAuthSettings(req.body);
+  sendResponse(res, {
+    success: true,
+    statusCode: httpStatus.OK,
+    message: "Access & authentication settings updated successfully",
+    data: result,
+  });
+});
+
+const updateNotificationSettings = catchAsync(async (req: Request, res: Response) => {
+  const result = await AdminServices.updateNotificationSettings(req.body);
+  sendResponse(res, {
+    success: true,
+    statusCode: httpStatus.OK,
+    message: "Notification settings updated successfully",
+    data: result,
+  });
+});
+
+const updateContactSettings = catchAsync(async (req: Request, res: Response) => {
+  const result = await AdminServices.updateContactSettings(req.body);
+  sendResponse(res, {
+    success: true,
+    statusCode: httpStatus.OK,
+    message: "Contact settings updated successfully",
+    data: result,
+  });
+});
+
 const getActivityLogs = catchAsync(async (req: Request, res: Response) => {
   const result = await AdminServices.getActivityLogs(req.query);
   sendResponse(res, {
@@ -422,6 +482,12 @@ export const AdminControllers = {
   getPerformanceReports,
   getSettings,
   updateSettings,
+  updateGeneralSettings,
+  updateFinancialSettings,
+  updateContributionSettings,
+  updateAccessAuthSettings,
+  updateNotificationSettings,
+  updateContactSettings,
   getActivityLogs,
   getAllPayouts,
   retryPayout,
