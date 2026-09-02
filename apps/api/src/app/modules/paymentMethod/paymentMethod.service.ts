@@ -335,7 +335,7 @@ const createSetupIntent = async (userId: string) => {
     // without any code changes. This includes ACH, cards, wallets, etc.
     automatic_payment_methods: {
       enabled: true,
-      allow_redirects: "never", // Prevents redirect-only methods on mobile
+      allow_redirects: "always", // Allows redirect-based methods (Cash App, Amazon Pay, Klarna, etc.)
     },
     usage: "off_session", // Allow future automatic (off-session) payments
   });
