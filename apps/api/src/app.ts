@@ -27,6 +27,7 @@ import path from "path";
 import { trimInput } from "./app/middlewares/trimInput";
 
 const app = express();
+app.set("trust proxy", 1);
 
 // Security Middlewares
 app.use(

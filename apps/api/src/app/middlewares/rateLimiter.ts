@@ -34,10 +34,13 @@ export const authRateLimiter = rateLimit({
 });
 
 export const paymentRateLimiter = rateLimit({
-  windowMs: 60 * 60 * 1000, // 1 hour
-  max: 50, // Limit each IP to 50 payment requests per hour
-  message: "Too many payment requests from this IP, please try again after an hour",
+  windowMs: 15 * 60 * 1000, // 15 minutes
+  max: 500, // Limit each IP to 500 payment requests per 15 mins
+  message: "Too many payment requests from this IP, please try again after 15 minutes",
   standardHeaders: true,
   legacyHeaders: false,
-  skip: (req) => isAdmin(req),
+  skip: (req) => {
+    if (envVars.NODE_ENV === "development") return true;
+    return isAdmin(req);
+  },
 });
