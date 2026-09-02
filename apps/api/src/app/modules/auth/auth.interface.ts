@@ -8,6 +8,7 @@ export interface ILoginResponse {
   channel?: string;
   accessToken?: string;
   refreshToken?: string;
+  sessionTimeoutMinutes?: number;
   user?: Partial<IUser>;
 }
 

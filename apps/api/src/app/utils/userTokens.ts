@@ -6,17 +6,23 @@ import { IUser, UserStatus } from "../modules/user/user.interface";
 import { User } from "../modules/user/user.model";
 import { generateToken, verifyToken } from "./jwt";
 
-export const createUserTokens = (user: Partial<IUser>) => {
+import { Settings } from "../modules/settings/settings.model";
+
+export const createUserTokens = (user: Partial<IUser>, sessionTimeoutMinutes?: number) => {
   const jwtPayload = {
     userId: user._id,
     userName: `${user.firstName} ${user.lastName}`.trim(),
     email: user.email,
     role: user.role,
   };
+
+  const timeout = sessionTimeoutMinutes || envVars.SESSION_TIMEOUT_MINUTES || 20;
+  const accessExpiresIn = `${timeout}m`;
+
   const accessToken = generateToken(
     jwtPayload,
     envVars.JWT_ACCESS_SECRET,
-    envVars.JWT_ACCESS_EXPIRES_IN
+    accessExpiresIn
   );
 
   const refreshToken = generateToken(
@@ -28,6 +34,7 @@ export const createUserTokens = (user: Partial<IUser>) => {
   return {
     accessToken,
     refreshToken,
+    sessionTimeoutMinutes: timeout,
   };
 };
 
@@ -54,6 +61,10 @@ export const createNewAccessTokenWithRefreshToken = async (
     throw new AppError(httpStatus.BAD_REQUEST, "User account is pending approval");
   }
 
+  const settings = await Settings.findOne().select("sessionTimeoutMinutes");
+  const timeout = settings?.sessionTimeoutMinutes || envVars.SESSION_TIMEOUT_MINUTES || 20;
+  const accessExpiresIn = `${timeout}m`;
+
   const jwtPayload = {
     userId: isUserExist._id,
     userName: `${isUserExist.firstName} ${isUserExist.lastName}`.trim(),
@@ -63,7 +74,7 @@ export const createNewAccessTokenWithRefreshToken = async (
   const accessToken = generateToken(
     jwtPayload,
     envVars.JWT_ACCESS_SECRET,
-    envVars.JWT_ACCESS_EXPIRES_IN
+    accessExpiresIn
   );
 
   return accessToken;

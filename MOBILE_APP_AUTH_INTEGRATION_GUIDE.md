@@ -1,8 +1,11 @@
-# 📱 PoolPay Mobile App Authentication Integration Guide (Flutter)
+# 📱 PoolPay Mobile App Authentication & Session Integration Guide (Flutter)
 
-This guide documents the complete Authentication API integration for the **PoolPay Flutter Mobile App (`derival81`)**. 
+This guide documents the complete Authentication API and Session Management integration for the **PoolPay Flutter Mobile App (`derival81`)**. 
 
-Social login (Google / Facebook) has been completely removed in favor of secure, direct **Email / Phone Number + Password with OTP Verification**.
+> **Important Updates**:
+> 1. Social login (Google / Facebook) and Stripe subscriptions have been removed.
+> 2. Direct **Email / Phone Number + Password with OTP Verification** is the authentication standard.
+> 3. **Auto-Logout on App Close** & **Auto-Logout after Inactivity (20 Minutes default / dynamic from Admin Panel)** are detailed below with complete Flutter implementations.
 
 ---
 
@@ -96,20 +99,11 @@ Resend OTP if expired or not received.
   "identifier": "john.doe@example.com"
 }
 ```
-* **Response (200 OK)**:
-```json
-{
-  "success": true,
-  "statusCode": 200,
-  "message": "Verification code resent successfully to your email and phone number.",
-  "data": null
-}
-```
 
 ---
 
-### 4️⃣ User Login
-Login using Email OR Phone Number with Password.
+### 4️⃣ User Login (Includes Session Timeout)
+Login using Email OR Phone Number with Password. The server returns the active JWT tokens plus `sessionTimeoutMinutes` (configured by the Admin).
 
 * **Endpoint**: `POST /api/v1/auth/login`
 * **Headers**: `Content-Type: application/json`
@@ -120,7 +114,7 @@ Login using Email OR Phone Number with Password.
   "password": "Password123!"
 }
 ```
-*(Or with phone number: `{"identifier": "+1234567890", "password": "Password123!"}`)*
+*(Or with phone: `{"identifier": "+1234567890", "password": "Password123!"}`)*
 
 * **Response (200 OK - Direct Login)**:
 ```json
@@ -131,6 +125,7 @@ Login using Email OR Phone Number with Password.
   "data": {
     "accessToken": "eyJhbGciOi...",
     "refreshToken": "eyJhbGciOi...",
+    "sessionTimeoutMinutes": 20,
     "requires2FA": false,
     "user": {
       "_id": "66d3a...",
@@ -140,6 +135,7 @@ Login using Email OR Phone Number with Password.
       "phone": "+1234567890",
       "role": "user",
       "status": "active",
+      "membershipTier": "regular",
       "isVerified": true
     }
   }
@@ -151,10 +147,11 @@ Login using Email OR Phone Number with Password.
 {
   "success": true,
   "statusCode": 200,
-  "message": "2FA verification code sent to your email and phone number",
+  "message": "2FA code sent to your email and phone number",
   "data": {
     "requires2FA": true,
-    "twoFactorToken": "temp_token_for_verification"
+    "email": "john.doe@example.com",
+    "phone": "+1234567890"
   }
 }
 ```
@@ -167,7 +164,7 @@ Login using Email OR Phone Number with Password.
 * **Request Body**:
 ```json
 {
-  "twoFactorToken": "temp_token_for_verification",
+  "identifier": "john.doe@example.com",
   "code": "123456"
 }
 ```
@@ -176,10 +173,11 @@ Login using Email OR Phone Number with Password.
 {
   "success": true,
   "statusCode": 200,
-  "message": "2FA verification successful!",
+  "message": "User Logged In Successfully!",
   "data": {
     "accessToken": "eyJhbGciOi...",
     "refreshToken": "eyJhbGciOi...",
+    "sessionTimeoutMinutes": 20,
     "user": { ... }
   }
 }
@@ -187,8 +185,30 @@ Login using Email OR Phone Number with Password.
 
 ---
 
-### 6️⃣ Refresh Access Token
-Refresh an expired access token using the refresh token.
+### 6️⃣ Fetch System Auth & Session Policies
+Mobile apps can fetch global authentication policies and the session timeout on app launch.
+
+* **Endpoint**: `GET /api/v1/settings/auth-status`
+* **Headers**: `Authorization: Bearer <ACCESS_TOKEN>`
+* **Response (200 OK)**:
+```json
+{
+  "success": true,
+  "statusCode": 200,
+  "message": "Settings retrieved successfully",
+  "data": {
+    "platformName": "PoolPay",
+    "isTwoFactorAuthenticationEnabled": true,
+    "supportEmail": "support@poolpay.space",
+    "sessionTimeoutMinutes": 20
+  }
+}
+```
+
+---
+
+### 7️⃣ Refresh Access Token
+Refresh an expiring access token while the user is actively using the app.
 
 * **Endpoint**: `POST /api/v1/auth/refresh-token`
 * **Headers**: `Content-Type: application/json`
@@ -212,121 +232,210 @@ Refresh an expired access token using the refresh token.
 
 ---
 
-### 7️⃣ Forgot Password (Request OTP)
-* **Endpoint**: `POST /api/v1/auth/forgot-password`
-* **Headers**: `Content-Type: application/json`
-* **Request Body**:
-```json
-{
-  "identifier": "john.doe@example.com"
-}
-```
+## ⏱️ Auto-Logout Implementation in Flutter
 
----
+To satisfy the requirements:
+1. **Auto-logout when the user closes the app**
+2. **Auto-logout after 20 minutes (or dynamic minutes from Admin Panel) of inactivity**
 
-### 8️⃣ Reset Password (Submit OTP & New Password)
-* **Endpoint**: `POST /api/v1/auth/reset-password`
-* **Headers**: `Content-Type: application/json`
-* **Request Body**:
-```json
-{
-  "identifier": "john.doe@example.com",
-  "code": "123456",
-  "newPassword": "NewPassword123!"
-}
-```
+Here is the production-ready implementation:
 
----
-
-### 9️⃣ Change Password (Authenticated User)
-* **Endpoint**: `POST /api/v1/auth/change-password`
-* **Headers**: 
-  * `Content-Type: application/json`
-  * `Authorization: Bearer <ACCESS_TOKEN>`
-* **Request Body**:
-```json
-{
-  "oldPassword": "Password123!",
-  "newPassword": "NewPassword123!"
-}
-```
-
----
-
-## 🛠️ Flutter Dart Service Example
+### 1. Inactivity Watcher (`session_inactivity_watcher.dart`)
+Wrap your top-level `MaterialApp` widget with this widget. Every tap, scroll, or swipe resets the timer. If 20 minutes pass without interaction, it automatically logs out the user.
 
 ```dart
-import 'dart:convert';
-import 'package:http/http.dart' as http;
+import 'dart:async';
+import 'package:flutter/material.dart';
 
-class AuthService {
-  static const String baseUrl = 'https://adnan5000.binarybards.online/api/v1';
+class SessionInactivityWatcher extends StatefulWidget {
+  final Widget child;
+  final int timeoutMinutes;
+  final VoidCallback onTimeout;
 
-  // 1. Register
-  static Future<Map<String, dynamic>> register({
-    required String firstName,
-    required String lastName,
-    required String email,
-    required String phone,
-    required String password,
-  }) async {
-    final response = await http.post(
-      Uri.parse('$baseUrl/auth/register'),
-      headers: {'Content-Type': 'application/json'},
-      body: jsonEncode({
-        'firstName': firstName,
-        'lastName': lastName,
-        'email': email,
-        'phone': phone,
-        'password': password,
-        'agreeToTerms': true,
-        'agreeToForfeitOnRemoval': true,
-        'agreeToSms': true,
-      }),
-    );
-    return jsonDecode(response.body);
+  const SessionInactivityWatcher({
+    Key? key,
+    required this.child,
+    this.timeoutMinutes = 20, // Configured via backend / Admin Panel
+    required this.onTimeout,
+  }) : super(key: key);
+
+  @override
+  State<SessionInactivityWatcher> createState() =>
+      _SessionInactivityWatcherState();
+}
+
+class _SessionInactivityWatcherState extends State<SessionInactivityWatcher> {
+  Timer? _timer;
+
+  @override
+  void initState() {
+    super.initState();
+    _startTimer();
   }
 
-  // 2. Verify OTP
-  static Future<Map<String, dynamic>> verifyEmail({
-    required String identifier,
-    required String code,
-  }) async {
-    final response = await http.post(
-      Uri.parse('$baseUrl/auth/verify-email'),
-      headers: {'Content-Type': 'application/json'},
-      body: jsonEncode({
-        'identifier': identifier,
-        'code': code,
-      }),
-    );
-    return jsonDecode(response.body);
+  void _startTimer() {
+    _timer?.cancel();
+    _timer = Timer(Duration(minutes: widget.timeoutMinutes), () {
+      widget.onTimeout();
+    });
   }
 
-  // 3. Login
-  static Future<Map<String, dynamic>> login({
-    required String identifier,
-    required String password,
-  }) async {
-    final response = await http.post(
-      Uri.parse('$baseUrl/auth/login'),
-      headers: {'Content-Type': 'application/json'},
-      body: jsonEncode({
-        'identifier': identifier,
-        'password': password,
-      }),
-    );
-    return jsonDecode(response.body);
+  void _handleUserInteraction([_]) {
+    _startTimer();
   }
 
-  // 4. Refresh Token
-  static Future<Map<String, dynamic>> refreshToken(String refreshToken) async {
-    final response = await http.post(
-      Uri.parse('$baseUrl/auth/refresh-token'),
-      headers: {'Content-Type': 'application/json'},
-      body: jsonEncode({'refreshToken': refreshToken}),
+  @override
+  void dispose() {
+    _timer?.cancel();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Listener(
+      behavior: HitTestBehavior.translucent,
+      onPointerDown: _handleUserInteraction,
+      onPointerMove: _handleUserInteraction,
+      onPointerUp: _handleUserInteraction,
+      child: widget.child,
     );
-    return jsonDecode(response.body);
+  }
+}
+```
+
+---
+
+### 2. Auto-Logout on App Close (`app_lifecycle_manager.dart`)
+To ensure the app logs out when closed, **tokens must not persist across app kills**. Store tokens in an in-memory session or clear them when the app is detached/closed:
+
+```dart
+import 'package:flutter/material.dart';
+
+class AppLifecycleManager extends StatefulWidget {
+  final Widget child;
+  final VoidCallback onAppClosed;
+
+  const AppLifecycleManager({
+    Key? key,
+    required this.child,
+    required this.onAppClosed,
+  }) : super(key: key);
+
+  @override
+  State<AppLifecycleManager> createState() => _AppLifecycleManagerState();
+}
+
+class _AppLifecycleManagerState extends State<AppLifecycleManager>
+    with WidgetsBindingObserver {
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addObserver(this);
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    super.didChangeAppLifecycleState(state);
+    
+    // When the user exits / kills the app
+    if (state == AppLifecycleState.detached) {
+      widget.onAppClosed();
+    }
+  }
+
+  @override
+  void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return widget.child;
+  }
+}
+```
+
+---
+
+### 3. Integrating in `main.dart`
+
+```dart
+import 'package:flutter/material.dart';
+
+void main() {
+  runApp(const MyApp());
+}
+
+class MyApp extends StatefulWidget {
+  const MyApp({Key? key}) : super(key: key);
+
+  @override
+  State<MyApp> createState() => _MyAppState();
+}
+
+class _MyAppState extends State<MyApp> {
+  final GlobalKey<NavigatorState> _navigatorKey = GlobalKey<NavigatorState>();
+  int _sessionTimeoutMinutes = 20; // Updated from login response
+
+  void _logout(String reason) {
+    // 1. Clear in-memory / local token data
+    AuthSession.clear();
+
+    // 2. Redirect to Login Screen
+    _navigatorKey.currentState?.pushNamedAndRemoveUntil(
+      '/login',
+      (route) => false,
+    );
+
+    ScaffoldMessenger.of(_navigatorKey.currentContext!).showSnackBar(
+      SnackBar(content: Text(reason)),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return AppLifecycleManager(
+      onAppClosed: () => _logout('App closed'),
+      child: SessionInactivityWatcher(
+        timeoutMinutes: _sessionTimeoutMinutes,
+        onTimeout: () => _logout('Session expired due to 20 minutes of inactivity'),
+        child: MaterialApp(
+          navigatorKey: _navigatorKey,
+          title: 'PoolPay',
+          initialRoute: '/login',
+          routes: {
+            '/login': (context) => const LoginScreen(),
+            '/home': (context) => const HomeScreen(),
+          },
+        ),
+      ),
+    );
+  }
+}
+
+/// Simple In-Memory Session Storage (Ensures no auto-login after app kill)
+class AuthSession {
+  static String? accessToken;
+  static String? refreshToken;
+  static Map<String, dynamic>? currentUser;
+
+  static bool get isLoggedIn => accessToken != null;
+
+  static void setSession({
+    required String access,
+    required String refresh,
+    required Map<String, dynamic> user,
+  }) {
+    accessToken = access;
+    refreshToken = refresh;
+    currentUser = user;
+  }
+
+  static void clear() {
+    accessToken = null;
+    refreshToken = null;
+    currentUser = null;
   }
 }
 ```

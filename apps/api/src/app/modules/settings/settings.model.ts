@@ -5,8 +5,7 @@ export interface ISettings {
   transactionFeePercent: number;
   creatorCommissionPercent: number;
   platformCommissionPercent: number;
-  regularMembershipPriceId?: string;
-  vipMembershipPriceId?: string;
+  sessionTimeoutMinutes: number;
   lateFeePercent: number;
   gracePeriodDays: number;
   maxRetryCount: number;
@@ -37,8 +36,7 @@ const settingsSchema = new Schema<ISettingsDocument>(
     transactionFeePercent: { type: Number, default: 5 },
     creatorCommissionPercent: { type: Number, default: 1 },
     platformCommissionPercent: { type: Number, default: 1 },
-    regularMembershipPriceId: { type: String },
-    vipMembershipPriceId: { type: String },
+    sessionTimeoutMinutes: { type: Number, default: 20 },
     gracePeriodDays: { type: Number, default: 7 },
     maxRetryCount: { type: Number, default: 3 },
     minimumStripeBalance: { type: Number, default: 500 },

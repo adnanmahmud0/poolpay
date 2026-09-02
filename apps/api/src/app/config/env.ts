@@ -18,9 +18,10 @@ const envSchema = z.object({
 
   BCRYPT_SALT_ROUND: z.string().default("10"),
   JWT_ACCESS_SECRET: z.string(),
-  JWT_ACCESS_EXPIRES_IN: z.string().default("1d"),
+  JWT_ACCESS_EXPIRES_IN: z.string().default("20m"),
   JWT_REFRESH_SECRET: z.string(),
   JWT_REFRESH_EXPIRES_IN: z.string().default("30d"),
+  SESSION_TIMEOUT_MINUTES: z.coerce.number().default(20),
   OTP_EXPIRES: z.string().default("10m"),
   RESET_PASS_EXPIRES: z.string().default("10m"),
 

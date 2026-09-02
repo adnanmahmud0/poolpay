@@ -418,7 +418,7 @@ const credentialsLogin = async (payload: ILoginPayload): Promise<ILoginResponse>
 
   await logActivity(isUserExist._id, "USER_LOGIN", `User logged in with email ${isUserExist.email}`);
 
-  const userTokens = createUserTokens(isUserExist);
+  const userTokens = createUserTokens(isUserExist, settings?.sessionTimeoutMinutes);
 
   const user = isUserExist.toObject();
   const { password: _, ...userWithoutPassword } = user;
@@ -481,7 +481,8 @@ const verify2FA = async (identifier: string, code: string): Promise<ILoginRespon
   user.otpCooldownUntil = undefined;
   await user.save();
 
-  const userTokens = createUserTokens(user);
+  const settings = await Settings.findOne().select("sessionTimeoutMinutes");
+  const userTokens = createUserTokens(user, settings?.sessionTimeoutMinutes);
 
   const userData = user.toObject();
   const { password: _, ...userWithoutPassword } = userData;

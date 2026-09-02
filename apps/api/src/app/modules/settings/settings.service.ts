@@ -11,6 +11,7 @@ const getSettings = async () => {
       transactionFeePercent: 5,
       creatorCommissionPercent: 1,
       platformCommissionPercent: 1,
+      sessionTimeoutMinutes: envVars.SESSION_TIMEOUT_MINUTES || 20,
       lateFeePercent: 5,
       gracePeriodDays: 3,
       maxRetryCount: 3,
@@ -54,13 +55,14 @@ const updateSupportEmail = async (email: string, userId: string) => {
 
 const getAuthSettings = async () => {
   const settings = await Settings.findOne().select(
-    "platformName isTwoFactorAuthenticationEnabled supportEmail"
+    "platformName isTwoFactorAuthenticationEnabled supportEmail sessionTimeoutMinutes"
   );
   if (!settings) {
     return {
       platformName: "PoolPay",
       isTwoFactorAuthenticationEnabled: true,
       supportEmail: "support@poolpay.com",
+      sessionTimeoutMinutes: envVars.SESSION_TIMEOUT_MINUTES || 20,
     };
   }
   return settings;

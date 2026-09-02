@@ -28,6 +28,7 @@ interface SettingsState {
   minContribution: number;
   maxContribution: number;
   supportEmail: string;
+  sessionTimeoutMinutes: number;
   isUserRegistrationEnabled: boolean;
   isSocialLoginEnabled: boolean;
   isTwoFactorAuthenticationEnabled: boolean;
@@ -45,6 +46,7 @@ const defaultSettings: SettingsState = {
   minContribution: 10,
   maxContribution: 50000,
   supportEmail: "support@poolpay.space",
+  sessionTimeoutMinutes: 20,
   isUserRegistrationEnabled: true,
   isSocialLoginEnabled: true,
   isTwoFactorAuthenticationEnabled: false,
@@ -224,6 +226,17 @@ export default function SettingsPage() {
         icon={<Users className="w-5 h-5 text-gray-500" />}
       >
         <div className="space-y-6">
+          <div className="bg-gray-50/70 p-4 rounded-xl border border-gray-100">
+            <InputGroup 
+              label="App Inactivity Auto-Logout (Minutes)" 
+              type="number"
+              value={(settings?.sessionTimeoutMinutes ?? 20).toString()} 
+              onChange={(e) => setSettings({ ...settings, sessionTimeoutMinutes: Math.max(1, Number(e.target.value)) })} 
+            />
+            <p className="text-xs text-gray-500 mt-2">
+              Mobile app users will be automatically logged out after this duration of inactivity. Access tokens will also expire in this timeframe.
+            </p>
+          </div>
           <ToggleGroup 
             title="Enable User Registration" 
             description="Allow new users to sign up on the platform" 

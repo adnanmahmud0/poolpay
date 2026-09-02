@@ -15,12 +15,22 @@ const updateGroupStatusSchema = z.object({
 const updateSettingsSchema = z.object({
   body: z.object({
     transactionFeePercent: z.number().min(0).max(100).optional(),
+    creatorCommissionPercent: z.number().min(0).max(100).optional(),
+    platformCommissionPercent: z.number().min(0).max(100).optional(),
+    sessionTimeoutMinutes: z.number().min(1).max(1440).optional(),
     lateFeePercent: z.number().min(0).max(100).optional(),
     gracePeriodDays: z.number().min(0).optional(),
     maxRetryCount: z.number().min(1).optional(),
     supportEmail: z.string().email().optional(),
     supportPhone: z.string().optional(),
-  }),
+    minContribution: z.number().min(0).optional(),
+    maxContribution: z.number().min(0).optional(),
+    isUserRegistrationEnabled: z.boolean().optional(),
+    isTwoFactorAuthenticationEnabled: z.boolean().optional(),
+    isEmailNotificationEnabled: z.boolean().optional(),
+    isSMSNotificationEnabled: z.boolean().optional(),
+    isPushNotificationEnabled: z.boolean().optional(),
+  }).passthrough(),
 });
 
 export const AdminValidation = {

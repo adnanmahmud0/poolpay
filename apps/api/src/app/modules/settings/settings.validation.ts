@@ -12,6 +12,7 @@ const updateSettingsSchema = z.object({
     transactionFeePercent: z.number().min(0).max(100).optional(),
     creatorCommissionPercent: z.number().min(0).max(100).optional(),
     platformCommissionPercent: z.number().min(0).max(100).optional(),
+    sessionTimeoutMinutes: z.number().min(1).max(1440).optional(),
     lateFeePercent: z.number().min(0).max(100).optional(),
     gracePeriodDays: z.number().min(0).optional(),
     maxRetryCount: z.number().min(1).optional(),
