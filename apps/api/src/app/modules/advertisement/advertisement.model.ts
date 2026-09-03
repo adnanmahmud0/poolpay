@@ -9,6 +9,12 @@ const advertisementSchema = new Schema<IAdvertisementDocument>(
     description: { type: String },
     bannerImage: { type: String, required: true },
     redirectUrl: { type: String },
+    actionType: { 
+      type: String, 
+      enum: ["none", "link", "email", "phone", "whatsapp"], 
+      default: "none" 
+    },
+    actionValue: { type: String, default: "" },
     isActive: { type: Boolean, default: true },
     priority: { type: Number, default: 0 },
     startDate: { type: Date },

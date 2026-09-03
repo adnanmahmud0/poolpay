@@ -14,7 +14,13 @@ import {
   Loader2,
   X,
   Check,
-  AlertCircle
+  AlertCircle,
+  Globe,
+  Mail,
+  Phone,
+  MessageSquare,
+  ExternalLink,
+  Link2
 } from "lucide-react";
 import { getAdvertisements, createAdvertisement, updateAdvertisement, deleteAdvertisement } from "@/lib/api-auth";
 import { toast } from "sonner";
@@ -25,6 +31,9 @@ interface Advertisement {
   title: string;
   description: string;
   bannerImage: string; // URL from backend
+  redirectUrl?: string;
+  actionType?: "none" | "link" | "email" | "phone" | "whatsapp";
+  actionValue?: string;
   priority: number;
   isActive: boolean;
   startDate: string;
@@ -45,6 +54,8 @@ export default function AdsPage() {
     description: "",
     priority: 1,
     isActive: true,
+    actionType: "none" as "none" | "link" | "email" | "phone" | "whatsapp",
+    actionValue: "",
     startDate: format(new Date(), 'yyyy-MM-dd'),
     endDate: format(new Date(Date.now() + 30 * 24 * 60 * 60 * 1000), 'yyyy-MM-dd')
   });
@@ -94,6 +105,11 @@ export default function AdsPage() {
       if (formData.description) fd.append('description', formData.description);
       fd.append('isActive', formData.isActive ? 'true' : 'false');
       fd.append('priority', String(formData.priority || 0));
+      fd.append('actionType', formData.actionType);
+      fd.append('actionValue', formData.actionValue || '');
+      if (formData.actionType === 'link' && formData.actionValue) {
+        fd.append('redirectUrl', formData.actionValue);
+      }
       
       if (formData.startDate) {
         fd.append('startDate', new Date(formData.startDate).toISOString());
@@ -155,11 +171,15 @@ export default function AdsPage() {
     setEditingAd(ad);
     setImageFile(null);
     setImagePreview(ad.bannerImage);
+    const resolvedActionType = ad.actionType || (ad.redirectUrl ? "link" : "none");
+    const resolvedActionValue = ad.actionValue || ad.redirectUrl || "";
     setFormData({
       title: ad.title,
-      description: ad.description,
+      description: ad.description || "",
       priority: ad.priority,
       isActive: ad.isActive,
+      actionType: resolvedActionType as "none" | "link" | "email" | "phone" | "whatsapp",
+      actionValue: resolvedActionValue,
       startDate: ad.startDate ? format(new Date(ad.startDate), 'yyyy-MM-dd') : format(new Date(), 'yyyy-MM-dd'),
       endDate: ad.endDate ? format(new Date(ad.endDate), 'yyyy-MM-dd') : format(new Date(Date.now() + 30 * 24 * 60 * 60 * 1000), 'yyyy-MM-dd')
     });
@@ -175,6 +195,8 @@ export default function AdsPage() {
       description: "",
       priority: 1,
       isActive: true,
+      actionType: "none",
+      actionValue: "",
       startDate: format(new Date(), 'yyyy-MM-dd'),
       endDate: format(new Date(Date.now() + 30 * 24 * 60 * 60 * 1000), 'yyyy-MM-dd')
     });
@@ -250,6 +272,23 @@ export default function AdsPage() {
                   <div className="flex items-center justify-between text-[10px] font-medium text-gray-400">
                     <span className="flex items-center gap-1"><Megaphone className="w-3 h-3" /> Priority</span>
                     <span className="text-indigo-600 font-bold">Level {ad.priority}</span>
+                  </div>
+                  <div className="flex items-center justify-between text-[10px] font-medium text-gray-400">
+                    <span className="flex items-center gap-1">
+                      {ad.actionType === "link" && <Globe className="w-3 h-3 text-blue-500" />}
+                      {ad.actionType === "email" && <Mail className="w-3 h-3 text-amber-500" />}
+                      {ad.actionType === "phone" && <Phone className="w-3 h-3 text-emerald-500" />}
+                      {ad.actionType === "whatsapp" && <MessageSquare className="w-3 h-3 text-green-500" />}
+                      {(!ad.actionType || ad.actionType === "none") && <Link2 className="w-3 h-3 text-gray-400" />}
+                      Action
+                    </span>
+                    <span className="text-gray-700 font-semibold truncate max-w-[150px]" title={ad.actionValue || ad.redirectUrl || "None"}>
+                      {ad.actionType === "link" ? (ad.actionValue || ad.redirectUrl || "Website Link") :
+                       ad.actionType === "email" ? (ad.actionValue || "Email") :
+                       ad.actionType === "phone" ? (ad.actionValue || "Phone") :
+                       ad.actionType === "whatsapp" ? (ad.actionValue || "WhatsApp") :
+                       "Do Nothing"}
+                    </span>
                   </div>
                 </div>
               </div>
@@ -379,6 +418,55 @@ export default function AdsPage() {
                     onChange={(e) => setFormData({...formData, priority: Number(e.target.value)})}
                   />
                 </div>
+
+                <div className="space-y-2">
+                  <label className="text-xs font-bold text-gray-500 uppercase flex items-center gap-1.5">
+                    <ExternalLink className="w-3.5 h-3.5 text-indigo-500" />
+                    Click Action
+                  </label>
+                  <select
+                    className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/10 focus:border-indigo-500 font-medium"
+                    value={formData.actionType}
+                    onChange={(e) => setFormData({
+                      ...formData, 
+                      actionType: e.target.value as "none" | "link" | "email" | "phone" | "whatsapp"
+                    })}
+                  >
+                    <option value="none">⚪ None (Do Nothing)</option>
+                    <option value="link">🌐 Website Link (Open URL)</option>
+                    <option value="email">✉️ Email Address (Send Email)</option>
+                    <option value="phone">📞 Phone Number (Make Call)</option>
+                    <option value="whatsapp">💬 WhatsApp Number (Chat on WhatsApp)</option>
+                  </select>
+                </div>
+
+                {formData.actionType !== "none" && (
+                  <div className="space-y-2 col-span-2">
+                    <label className="text-xs font-bold text-gray-500 uppercase flex items-center gap-1.5">
+                      {formData.actionType === "link" && <Globe className="w-3.5 h-3.5 text-blue-500" />}
+                      {formData.actionType === "email" && <Mail className="w-3.5 h-3.5 text-amber-500" />}
+                      {formData.actionType === "phone" && <Phone className="w-3.5 h-3.5 text-emerald-500" />}
+                      {formData.actionType === "whatsapp" && <MessageSquare className="w-3.5 h-3.5 text-green-500" />}
+                      {formData.actionType === "link" ? "Website URL" :
+                       formData.actionType === "email" ? "Email Address" :
+                       formData.actionType === "phone" ? "Phone Number (with Country Code)" :
+                       "WhatsApp Number (with Country Code)"}
+                    </label>
+                    <input
+                      type={formData.actionType === "email" ? "email" : formData.actionType === "phone" || formData.actionType === "whatsapp" ? "tel" : "text"}
+                      required
+                      placeholder={
+                        formData.actionType === "link" ? "https://example.com" :
+                        formData.actionType === "email" ? "support@example.com" :
+                        formData.actionType === "phone" ? "+1 234 567 8900" :
+                        "+1 234 567 8900 (e.g. +12345678900)"
+                      }
+                      className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/10 focus:border-indigo-500"
+                      value={formData.actionValue}
+                      onChange={(e) => setFormData({...formData, actionValue: e.target.value})}
+                    />
+                  </div>
+                )}
 
                 <div className="flex items-center gap-3 h-full pt-6">
                   <button 

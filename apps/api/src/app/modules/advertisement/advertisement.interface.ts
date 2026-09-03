@@ -5,6 +5,8 @@ export interface IAdvertisement {
   description?: string;
   bannerImage: string;
   redirectUrl?: string;
+  actionType?: "none" | "link" | "email" | "phone" | "whatsapp";
+  actionValue?: string;
   isActive: boolean;
   priority: number;
   startDate?: Date;

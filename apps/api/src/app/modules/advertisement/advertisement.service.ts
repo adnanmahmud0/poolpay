@@ -12,6 +12,13 @@ const createAdvertisement = async (userId: string, payload: Partial<IAdvertiseme
     }
   }
 
+  if (payload.actionType === "link" && payload.actionValue) {
+    payload.redirectUrl = payload.actionValue;
+  } else if (!payload.actionValue && payload.redirectUrl) {
+    payload.actionType = "link";
+    payload.actionValue = payload.redirectUrl;
+  }
+
   const result = await Advertisement.create({ ...payload, createdBy: userId });
   return result;
 };
@@ -53,6 +60,13 @@ const updateAdvertisement = async (id: string, payload: Partial<IAdvertisement>)
         throw new AppError(httpStatus.CONFLICT, `An active advertisement with priority ${newPriority} already exists`);
       }
     }
+  }
+
+  if (payload.actionType === "link" && payload.actionValue) {
+    payload.redirectUrl = payload.actionValue;
+  } else if (!payload.actionValue && payload.redirectUrl) {
+    payload.actionType = "link";
+    payload.actionValue = payload.redirectUrl;
   }
 
   const result = await Advertisement.findByIdAndUpdate(id, payload, { new: true, runValidators: true });
