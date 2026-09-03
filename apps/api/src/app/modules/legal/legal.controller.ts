@@ -17,7 +17,7 @@ const getAllPolicies = catchAsync(async (req: Request, res: Response) => {
 });
 
 const getPolicyBySlug = catchAsync(async (req: Request, res: Response) => {
-  const { slug } = req.params;
+  const slug = req.params.slug as string;
   const isAdmin = Boolean(req.user);
   const result = await LegalService.getPolicyBySlug(slug, isAdmin);
   sendResponse(res, {
@@ -29,7 +29,7 @@ const getPolicyBySlug = catchAsync(async (req: Request, res: Response) => {
 });
 
 const updatePolicy = catchAsync(async (req: Request, res: Response) => {
-  const { slug } = req.params;
+  const slug = req.params.slug as string;
   const userId = (req.user as JwtPayload)?.userId;
   const result = await LegalService.updatePolicy(slug, req.body, userId);
   sendResponse(res, {

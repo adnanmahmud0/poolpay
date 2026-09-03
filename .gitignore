@@ -36,6 +36,12 @@ uploads/
 # Misc / OS
 .DS_Store
 *.pem
+*.p8
+*.key
+*SubscriptionKey*.p8
+*service-account*.json
+google-service-account*.json
+*poolpay-e80df*.json
 Thumbs.db
 
 # Debug logs

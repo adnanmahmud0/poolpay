@@ -23,9 +23,14 @@ const verifyGooglePurchase = catchAsync(async (req: Request, res: Response) => {
 
 const verifyApplePurchase = catchAsync(async (req: Request, res: Response) => {
   const user = req.user as JwtPayload;
-  const { receiptData } = req.body;
+  const { receiptData, transactionId, productId } = req.body;
   
-  const result = await MobileMembershipServices.verifyApplePurchase(user.userId, receiptData);
+  const result = await MobileMembershipServices.verifyApplePurchase(
+    user.userId,
+    receiptData,
+    transactionId,
+    productId
+  );
   
   sendResponse(res, {
     success: true,

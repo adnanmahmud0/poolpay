@@ -216,10 +216,133 @@ const callAppleVerifyAPI = async (receiptData: string, password?: string, useSan
   }
 };
 
+interface StoreKit2TransactionPayload {
+  originalTransactionId: string;
+  transactionId: string;
+  productId: string;
+  expiresDate?: number;
+  purchaseDate?: number;
+  type?: string;
+}
+
+interface StoreKit2RenewalPayload {
+  autoRenewStatus?: number;
+  productId?: string;
+}
+
+const decodeJwsPayload = <T = Record<string, unknown>>(jws: string): T | null => {
+  try {
+    const parts = jws.split(".");
+    if (parts.length < 2) return null;
+    const jsonStr = Buffer.from(parts[1], "base64url").toString("utf8");
+    return JSON.parse(jsonStr) as T;
+  } catch {
+    return null;
+  }
+};
+
 /**
- * Verifies App Store receipt against Apple iTunes API
+ * Helper to query Apple's modern StoreKit 2 App Store Server API
  */
-const verifyApplePurchase = async (userId: string, receiptData: string): Promise<{ message: string; user: unknown }> => {
+const callStoreKit2TransactionAPI = async (
+  transactionId: string,
+  useSandbox = false
+): Promise<{ transaction: StoreKit2TransactionPayload; autoRenewing: boolean } | null> => {
+  const token = iapConfig.apple.getSignedToken();
+  if (!token) return null;
+
+  const baseUrl = useSandbox
+    ? iapConfig.apple.serverApiSandboxUrl
+    : iapConfig.apple.serverApiUrl;
+
+  const url = `${baseUrl}/inApps/v1/subscriptions/${transactionId}`;
+
+  try {
+    const response = await fetch(url, {
+      method: "GET",
+      headers: {
+        Authorization: `Bearer ${token}`,
+        "Content-Type": "application/json",
+      },
+    });
+
+    if (response.status === 404 && !useSandbox) {
+      // Retry against Sandbox endpoint
+      logger.info(`[IAP-APPLE] Transaction ${transactionId} not found in production StoreKit 2, trying sandbox...`);
+      return await callStoreKit2TransactionAPI(transactionId, true);
+    }
+
+    if (!response.ok) {
+      // Try single transaction endpoint
+      const singleTxUrl = `${baseUrl}/inApps/v1/transactions/${transactionId}`;
+      const singleRes = await fetch(singleTxUrl, {
+        method: "GET",
+        headers: {
+          Authorization: `Bearer ${token}`,
+          "Content-Type": "application/json",
+        },
+      });
+
+      if (!singleRes.ok && !useSandbox) {
+        return await callStoreKit2TransactionAPI(transactionId, true);
+      }
+
+      if (singleRes.ok) {
+        const singleData = (await singleRes.json()) as { signedTransactionInfo?: string };
+        if (singleData.signedTransactionInfo) {
+          const payload = decodeJwsPayload<StoreKit2TransactionPayload>(singleData.signedTransactionInfo);
+          if (payload) {
+            return { transaction: payload, autoRenewing: true };
+          }
+        }
+      }
+
+      logger.warn(`[IAP-APPLE] StoreKit 2 API returned status ${response.status} for transaction ${transactionId}`);
+      return null;
+    }
+
+    const data = (await response.json()) as {
+      data?: Array<{
+        lastTransactions?: Array<{
+          signedTransactionInfo: string;
+          signedRenewalInfo?: string;
+        }>;
+      }>;
+    };
+
+    const firstGroup = data?.data?.[0];
+    const lastTx = firstGroup?.lastTransactions?.[0];
+    if (!lastTx?.signedTransactionInfo) {
+      return null;
+    }
+
+    const txPayload = decodeJwsPayload<StoreKit2TransactionPayload>(lastTx.signedTransactionInfo);
+    if (!txPayload) return null;
+
+    let autoRenewing = true;
+    if (lastTx.signedRenewalInfo) {
+      const renewalPayload = decodeJwsPayload<StoreKit2RenewalPayload>(lastTx.signedRenewalInfo);
+      if (renewalPayload && typeof renewalPayload.autoRenewStatus === "number") {
+        autoRenewing = renewalPayload.autoRenewStatus === 1;
+      }
+    }
+
+    return { transaction: txPayload, autoRenewing };
+  } catch (error) {
+    logger.error(`[IAP-APPLE] Error querying StoreKit 2 server API: ${error}`);
+    return null;
+  }
+};
+
+/**
+ * Verifies App Store purchase using modern StoreKit 2 API or legacy iTunes verifyReceipt
+ */
+const verifyApplePurchase = async (
+  userId: string,
+  receiptData?: string,
+  rawTransactionId?: string,
+  clientProductId?: string
+): Promise<{ message: string; user: unknown }> => {
   return await withTransaction(async (session) => {
     const user = await User.findById(userId).session(session || null);
     if (!user) {
@@ -227,66 +350,100 @@ const verifyApplePurchase = async (userId: string, receiptData: string): Promise
     }
 
     const sharedSecret = iapConfig.apple.sharedSecret;
-    let expiresDateMs: string;
+    let expiresDateMs = "";
     let autoRenewing = true;
     let platformSubscriptionId = "";
     let productId = "";
 
-    // MOCK MODE IN DEVELOPMENT
-    if (process.env.NODE_ENV === "development" && (!sharedSecret || receiptData === "mock_receipt_token")) {
-      logger.info(`[IAP-APPLE] Running in MOCK Mode for user ${userId}. Approving mock purchase.`);
-      expiresDateMs = String(Date.now() + 365 * 24 * 60 * 60 * 1000);
-      autoRenewing = true;
-      platformSubscriptionId = "mock_apple_trans_123456789";
-      productId = iapConfig.products.apple.regularId || "regular_membership";
-    } else {
-      // PRODUCTION/SANDBOX APPLE RECEIPT VERIFICATION FLOW
-      let appleResponse = await callAppleVerifyAPI(receiptData, sharedSecret, false); // Try Production first
-      
-      // Status 21007 indicates a Sandbox receipt was sent to Production endpoint
-      if (appleResponse.status === 21007) {
-        logger.info("[IAP-APPLE] Sandbox receipt sent to production, falling back to Sandbox verification.");
-        appleResponse = await callAppleVerifyAPI(receiptData, sharedSecret, true); // Fallback to Sandbox
-      }
-
-      if (appleResponse.status !== 0) {
-        throw new AppError(
-          httpStatus.BAD_REQUEST, 
-          `App Store receipt validation failed with error code: ${appleResponse.status}`
-        );
-      }
-
-      const latestReceiptInfo = appleResponse.latest_receipt_info;
-
-      if (!latestReceiptInfo || latestReceiptInfo.length === 0) {
-        throw new AppError(
-          httpStatus.BAD_REQUEST, 
-          "App Store receipt contains no latest purchase information."
-        );
-      }
-
-      // Get the latest purchase item (sorted by expires_date_ms desc)
-      const latestPurchase = latestReceiptInfo.reduce((latest: AppleReceiptItem, current: AppleReceiptItem) => {
-        const latestTime = parseInt(latest.expires_date_ms);
-        const currentTime = parseInt(current.expires_date_ms);
-        return currentTime > latestTime ? current : latest;
-      }, latestReceiptInfo[0]);
-
-      logger.info(`[IAP-APPLE] App Store verified receipt successfully: ${JSON.stringify(latestPurchase)}`);
-
-      expiresDateMs = latestPurchase.expires_date_ms;
-      productId = latestPurchase.product_id;
-      platformSubscriptionId = latestPurchase.original_transaction_id;
-
-      // Extract auto-renewal status from pending_renewal_info if available
-      const pendingRenewalInfo = appleResponse.pending_renewal_info;
-      if (pendingRenewalInfo && pendingRenewalInfo.length > 0) {
-        const renewalInfo = pendingRenewalInfo.find(
-          (info) => info.product_id === productId
-        );
-        if (renewalInfo) {
-          autoRenewing = renewalInfo.auto_renew_status === "1";
+    // Resolve transaction ID from client or receiptData if possible
+    let transactionId = rawTransactionId;
+    if (!transactionId && receiptData) {
+      const cleanReceipt = receiptData.trim();
+      if (/^\d{10,25}$/.test(cleanReceipt)) {
+        transactionId = cleanReceipt;
+      } else if (cleanReceipt.includes(".") && cleanReceipt.split(".").length === 3) {
+        const jwsData = decodeJwsPayload<StoreKit2TransactionPayload>(cleanReceipt);
+        if (jwsData?.transactionId) {
+          transactionId = jwsData.transactionId;
         }
+      }
+    }
+
+    let verifiedViaStoreKit2 = false;
+
+    // 1. ATTEMPT STOREKIT 2 (App Store Server API with .p8 private key)
+    if (transactionId) {
+      logger.info(`[IAP-APPLE] Attempting StoreKit 2 verification for transaction: ${transactionId}`);
+      const sk2Result = await callStoreKit2TransactionAPI(transactionId);
+      if (sk2Result) {
+        verifiedViaStoreKit2 = true;
+        expiresDateMs = String(sk2Result.transaction.expiresDate || (Date.now() + 365 * 24 * 60 * 60 * 1000));
+        productId = sk2Result.transaction.productId;
+        platformSubscriptionId = sk2Result.transaction.originalTransactionId || transactionId;
+        autoRenewing = sk2Result.autoRenewing;
+        logger.info(`[IAP-APPLE] StoreKit 2 verification succeeded: productId=${productId}, expires=${expiresDateMs}`);
+      }
+    }
+
+    // 2. FALLBACK TO STOREKIT 1 (Legacy verifyReceipt API) IF NOT VERIFIED VIA STOREKIT 2
+    if (!verifiedViaStoreKit2) {
+      if (process.env.NODE_ENV === "development" && (!sharedSecret || receiptData === "mock_receipt_token")) {
+        logger.info(`[IAP-APPLE] Running in MOCK Mode for user ${userId}. Approving mock purchase.`);
+        expiresDateMs = String(Date.now() + 365 * 24 * 60 * 60 * 1000);
+        autoRenewing = true;
+        platformSubscriptionId = transactionId || "mock_apple_trans_123456789";
+        productId = clientProductId || iapConfig.products.apple.regularId || "regular_yearly_subscription";
+      } else if (receiptData) {
+        // PRODUCTION/SANDBOX APPLE RECEIPT VERIFICATION FLOW
+        let appleResponse = await callAppleVerifyAPI(receiptData, sharedSecret, false); // Try Production first
+        
+        // Status 21007 indicates a Sandbox receipt was sent to Production endpoint
+        if (appleResponse.status === 21007) {
+          logger.info("[IAP-APPLE] Sandbox receipt sent to production, falling back to Sandbox verification.");
+          appleResponse = await callAppleVerifyAPI(receiptData, sharedSecret, true); // Fallback to Sandbox
+        }
+
+        if (appleResponse.status !== 0) {
+          throw new AppError(
+            httpStatus.BAD_REQUEST, 
+            `App Store receipt validation failed with error code: ${appleResponse.status}`
+          );
+        }
+
+        const latestReceiptInfo = appleResponse.latest_receipt_info;
+
+        if (!latestReceiptInfo || latestReceiptInfo.length === 0) {
+          throw new AppError(
+            httpStatus.BAD_REQUEST, 
+            "App Store receipt contains no latest purchase information."
+          );
+        }
+
+        // Get the latest purchase item (sorted by expires_date_ms desc)
+        const latestPurchase = latestReceiptInfo.reduce((latest: AppleReceiptItem, current: AppleReceiptItem) => {
+          const latestTime = parseInt(latest.expires_date_ms);
+          const currentTime = parseInt(current.expires_date_ms);
+          return currentTime > latestTime ? current : latest;
+        }, latestReceiptInfo[0]);
+
+        logger.info(`[IAP-APPLE] App Store verified receipt successfully: ${JSON.stringify(latestPurchase)}`);
+
+        expiresDateMs = latestPurchase.expires_date_ms;
+        productId = latestPurchase.product_id;
+        platformSubscriptionId = latestPurchase.original_transaction_id;
+
+        // Extract auto-renewal status from pending_renewal_info if available
+        const pendingRenewalInfo = appleResponse.pending_renewal_info;
+        if (pendingRenewalInfo && pendingRenewalInfo.length > 0) {
+          const renewalInfo = pendingRenewalInfo.find(
+            (info) => info.product_id === productId
+          );
+          if (renewalInfo) {
+            autoRenewing = renewalInfo.auto_renew_status === "1";
+          }
+        }
+      } else {
+        throw new AppError(httpStatus.BAD_REQUEST, "Neither valid transactionId nor receiptData could be verified by Apple.");
       }
     }
 

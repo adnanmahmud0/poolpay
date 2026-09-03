@@ -9,27 +9,27 @@ const router = Router();
 
 router.post(
   "/verify-google",
-  checkAuth(Role.USER),
+  checkAuth(Role.USER, Role.ADMIN, Role.SUPER_ADMIN),
   validateRequest(MobileMembershipValidations.verifyGoogleSchema),
   MobileMembershipControllers.verifyGooglePurchase
 );
 
 router.post(
   "/verify-apple",
-  checkAuth(Role.USER),
+  checkAuth(Role.USER, Role.ADMIN, Role.SUPER_ADMIN),
   validateRequest(MobileMembershipValidations.verifyAppleSchema),
   MobileMembershipControllers.verifyApplePurchase
 );
 
 router.post(
   "/sync",
-  checkAuth(Role.USER),
+  checkAuth(Role.USER, Role.ADMIN, Role.SUPER_ADMIN),
   MobileMembershipControllers.syncSubscriptionStatus
 );
 
 router.get(
   "/status",
-  checkAuth(Role.USER),
+  checkAuth(Role.USER, Role.ADMIN, Role.SUPER_ADMIN),
   MobileMembershipControllers.getMembershipStatus
 );
 

@@ -8,9 +8,15 @@ const verifyGoogleSchema = z.object({
 });
 
 const verifyAppleSchema = z.object({
-  body: z.object({
-    receiptData: z.string().min(1, "Apple receipt data is required and cannot be empty"),
-  }),
+  body: z
+    .object({
+      receiptData: z.string().optional(),
+      transactionId: z.string().optional(),
+      productId: z.string().optional(),
+    })
+    .refine((data) => data.receiptData || data.transactionId, {
+      message: "Either receiptData or transactionId is required",
+    }),
 });
 
 export const MobileMembershipValidations = {

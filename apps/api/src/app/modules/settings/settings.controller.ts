@@ -4,6 +4,7 @@ import { catchAsync } from "../../utils/catchAsync";
 import { sendResponse } from "../../utils/sendResponse";
 import { SettingsServices } from "./settings.service";
 import { JwtPayload } from "jsonwebtoken";
+import AppError from "../../errorHelpers/AppError";
 import { getActiveStripePublishableKey } from "../../utils/envConfig";
 
 const getSettings = catchAsync(async (_req: Request, res: Response) => {
@@ -63,10 +64,7 @@ const toggleEnvironment = catchAsync(async (req: Request, res: Response) => {
   const { environment } = req.body as { environment: 'test' | 'production' };
 
   if (!['test', 'production'].includes(environment)) {
-    return res.status(httpStatus.BAD_REQUEST).json({
-      success: false,
-      message: "environment must be 'test' or 'production'",
-    });
+    throw new AppError(httpStatus.BAD_REQUEST, "environment must be 'test' or 'production'");
   }
 
   const result = await SettingsServices.toggleEnvironment(environment, userId);
