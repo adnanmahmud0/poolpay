@@ -213,7 +213,6 @@ export default function AdsPage() {
                     alt={ad.title} 
                     fill 
                     unoptimized 
-                    crossOrigin="anonymous"
                     className="object-cover" 
                   />
                 ) : (
@@ -313,7 +312,6 @@ export default function AdsPage() {
                           alt="Preview" 
                           fill 
                           unoptimized 
-                          crossOrigin="anonymous"
                           className="object-cover" 
                         />
                         <button 
