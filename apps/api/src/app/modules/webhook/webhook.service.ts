@@ -25,6 +25,10 @@ import {
   emitRealTimeNotification 
 } from "../../utils/notification.utils";
 import { withTransaction } from "../../utils/transaction.utils";
+import { 
+  getActiveStripeWebhookSecret, 
+  getActiveStripeConnectWebhookSecret 
+} from "../../utils/envConfig";
 
 const handleStripeWebhook = async (payload: Buffer, signature: string) => {
   let event: Stripe.Event;
@@ -33,22 +37,25 @@ const handleStripeWebhook = async (payload: Buffer, signature: string) => {
     `[Webhook] Received webhook. Payload type: ${typeof payload}, isBuffer: ${Buffer.isBuffer(payload)}`
   );
 
+  const primarySecret = (await getActiveStripeWebhookSecret()) || envVars.STRIPE_WEBHOOK_SECRET || "";
+  const connectSecret = (await getActiveStripeConnectWebhookSecret()) || envVars.STRIPE?.CONNECT_WEBHOOK_SECRET;
+
   try {
     // Attempt verification with the primary secret first
     try {
       event = await stripe.webhooks.constructEventAsync(
         payload,
         signature,
-        envVars.STRIPE_WEBHOOK_SECRET || ""
+        primarySecret
       );
     } catch (primaryErr) {
       // If primary fails and we have a connect secret, try that
-      if (envVars.STRIPE?.CONNECT_WEBHOOK_SECRET) {
+      if (connectSecret && connectSecret !== primarySecret) {
         logger.info("[Webhook] Primary secret failed, trying Connect secret...");
         event = await stripe.webhooks.constructEventAsync(
           payload,
           signature,
-          envVars.STRIPE.CONNECT_WEBHOOK_SECRET
+          connectSecret
         );
       } else {
         throw primaryErr;

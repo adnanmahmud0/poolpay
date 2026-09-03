@@ -28,7 +28,12 @@ const startServer = async () => {
 
     // Seed Initial Data
     await seedSuperAdmin();
-    await seedDemoGroups();
+    const { getCurrentAppEnvironment } = await import("./app/config/dbConnect");
+    if (getCurrentAppEnvironment() === "test") {
+      await seedDemoGroups();
+    } else {
+      logger.info("ℹ️ Running in PRODUCTION mode: Skipped demo groups seeding.");
+    }
 
     // Initialize Firebase
     initializeFirebase();

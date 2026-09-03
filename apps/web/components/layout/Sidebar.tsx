@@ -12,7 +12,8 @@ import {
   Settings,
   LogOut,
   Megaphone,
-  History
+  History,
+  ShieldCheck
 } from "lucide-react";
 import { logout } from "@/lib/api-auth";
 
@@ -29,6 +30,7 @@ export function Sidebar() {
     { name: "Advertisements", href: "/dashboard/ads", icon: Megaphone },
     { name: "Audit Logs", href: "/dashboard/audit-logs", icon: History },
     { name: "Reports", href: "/dashboard/reports", icon: BarChart3 },
+    { name: "Legal & Policies", href: "/dashboard/legal", icon: ShieldCheck },
     { name: "Settings", href: "/dashboard/settings", icon: Settings },
   ];
 

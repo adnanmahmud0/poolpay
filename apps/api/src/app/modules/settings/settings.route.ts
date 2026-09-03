@@ -38,4 +38,13 @@ router.patch(
   SettingsControllers.updateSupportEmail
 );
 
+router.patch(
+  "/environment",
+  checkAuth(Role.ADMIN, Role.SUPER_ADMIN),
+  SettingsControllers.toggleEnvironment
+);
+
+// Public — no auth. Returns current appEnvironment + active Stripe publishable key.
+router.get("/config", SettingsControllers.getAppConfig);
+
 export const SettingsRoutes = router;

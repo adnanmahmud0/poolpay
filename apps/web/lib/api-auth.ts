@@ -236,3 +236,50 @@ export const clearMockData = async () => {
   const response = await axiosInstance.delete("/api/v1/admin/debug/clear-mock-data");
   return response.data;
 };
+
+// ==========================================
+// Environment Mode (Test / Production)
+// ==========================================
+
+/** Public — no auth needed. Returns current appEnvironment + stripePublishableKey. */
+export const getAppConfig = async () => {
+  const response = await axiosInstance.get("/api/v1/settings/config");
+  return response.data;
+};
+
+/** Admin — protected. Switch to 'test' or 'production' mode. */
+export const toggleEnvironment = async (environment: 'test' | 'production') => {
+  const response = await axiosInstance.patch("/api/v1/settings/environment", { environment });
+  return response.data;
+};
+
+// ==========================================
+// Legal & Policies Management
+// ==========================================
+
+export interface LegalPolicyPayload {
+  title?: string;
+  summary?: string;
+  content?: string;
+  version?: string;
+  isPublished?: boolean;
+}
+
+/** Public / Admin: Get all legal policies */
+export const getLegalPolicies = async () => {
+  const response = await axiosInstance.get("/api/v1/legal");
+  return response.data;
+};
+
+/** Public / Admin: Get a single legal policy by slug */
+export const getLegalPolicy = async (slug: string) => {
+  const response = await axiosInstance.get(`/api/v1/legal/${slug}`);
+  return response.data;
+};
+
+/** Admin — protected: Update or create a legal policy */
+export const updateLegalPolicy = async (slug: string, payload: LegalPolicyPayload) => {
+  const response = await axiosInstance.put(`/api/v1/legal/${slug}`, payload);
+  return response.data;
+};
+

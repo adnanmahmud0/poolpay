@@ -17,6 +17,8 @@ import {
   Mail,
   Phone,
   MessageSquare,
+  FlaskConical,
+  CheckCircle2,
   HelpCircle
 } from "lucide-react";
 import { 
@@ -29,7 +31,9 @@ import {
   updateNotificationSettings,
   updateContactSettings,
   seedMockData, 
-  clearMockData 
+  clearMockData,
+  getAppConfig,
+  toggleEnvironment as toggleEnvAPI
 } from "@/lib/api-auth";
 import { toast } from "sonner";
 
@@ -78,6 +82,9 @@ export default function SettingsPage() {
   const [isSaving, setIsSaving] = useState(false);
   const [savingSection, setSavingSection] = useState<string | null>(null);
   const [settings, setSettings] = useState<SettingsState>(defaultSettings);
+  const [appEnvironment, setAppEnvironment] = useState<'test' | 'production'>('test');
+  const [isTogglingEnv, setIsTogglingEnv] = useState(false);
+  const [showEnvConfirm, setShowEnvConfirm] = useState(false);
 
   useEffect(() => {
     const fetchSettings = async () => {
@@ -98,6 +105,35 @@ export default function SettingsPage() {
 
     fetchSettings();
   }, []);
+
+  useEffect(() => {
+    getAppConfig().then((res) => {
+      if (res?.data?.appEnvironment) setAppEnvironment(res.data.appEnvironment);
+    }).catch(() => {});
+  }, []);
+
+  const handleToggleEnvironment = async (newEnv: 'test' | 'production') => {
+    if (newEnv === appEnvironment) return;
+    if (newEnv === 'production') {
+      setShowEnvConfirm(true);
+      return;
+    }
+    await applyEnvSwitch('test');
+  };
+
+  const applyEnvSwitch = async (env: 'test' | 'production') => {
+    setIsTogglingEnv(true);
+    try {
+      await toggleEnvAPI(env);
+      setAppEnvironment(env);
+      setShowEnvConfirm(false);
+      toast.success(`Switched to ${env === 'test' ? 'TEST (Sandbox)' : 'PRODUCTION (Live)'} mode`);
+    } catch (error: any) {
+      toast.error(error.response?.data?.message || 'Failed to switch environment');
+    } finally {
+      setIsTogglingEnv(false);
+    }
+  };
 
   const handleSaveAll = async () => {
     setIsSaving(true);
@@ -264,7 +300,115 @@ export default function SettingsPage() {
 
   return (
     <div className="space-y-6 pb-12">
-      {/* General Settings */}
+
+      {/* ── Environment Mode Card ── */}
+      <div className="bg-white rounded-2xl border border-gray-200 overflow-hidden">
+        <div className="px-6 py-5 border-b border-gray-100 flex items-center gap-3">
+          <FlaskConical className="w-5 h-5 text-gray-500" />
+          <h2 className="text-base font-semibold text-gray-900">Environment Mode</h2>
+          <span className={`ml-2 inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-bold ${
+            appEnvironment === 'test' ? 'bg-amber-100 text-amber-700 border border-amber-300' : 'bg-emerald-100 text-emerald-700 border border-emerald-300'
+          }`}>
+            {appEnvironment === 'test' ? '⚠️ SANDBOX' : '🟢 LIVE'}
+          </span>
+        </div>
+        <div className="p-6">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
+            {/* TEST card */}
+            <button
+              onClick={() => handleToggleEnvironment('test')}
+              disabled={isTogglingEnv}
+              className={`text-left p-4 rounded-xl border-2 transition-all ${
+                appEnvironment === 'test'
+                  ? 'border-amber-400 bg-amber-50'
+                  : 'border-gray-200 bg-white hover:border-gray-300'
+              }`}
+            >
+              <div className="flex items-center gap-2 mb-2">
+                <span className="text-lg">⚠️</span>
+                <span className={`font-semibold ${ appEnvironment === 'test' ? 'text-amber-700' : 'text-gray-700' }`}>
+                  TEST MODE
+                </span>
+                {appEnvironment === 'test' && <span className="ml-auto text-amber-600 text-xs font-bold">● ACTIVE</span>}
+              </div>
+              <ul className="space-y-1 text-sm text-gray-600">
+                <li>✓ Stripe Sandbox (pk_test_...)</li>
+                <li>✓ No real money processed</li>
+                <li>✓ Test cards accepted</li>
+              </ul>
+            </button>
+
+            {/* PRODUCTION card */}
+            <button
+              onClick={() => handleToggleEnvironment('production')}
+              disabled={isTogglingEnv}
+              className={`text-left p-4 rounded-xl border-2 transition-all ${
+                appEnvironment === 'production'
+                  ? 'border-emerald-400 bg-emerald-50'
+                  : 'border-gray-200 bg-white hover:border-gray-300'
+              }`}
+            >
+              <div className="flex items-center gap-2 mb-2">
+                <span className="text-lg">🟢</span>
+                <span className={`font-semibold ${ appEnvironment === 'production' ? 'text-emerald-700' : 'text-gray-700' }`}>
+                  PRODUCTION
+                </span>
+                {appEnvironment === 'production' && <span className="ml-auto text-emerald-600 text-xs font-bold">● ACTIVE</span>}
+              </div>
+              <ul className="space-y-1 text-sm text-gray-600">
+                <li>✓ Stripe Live (pk_live_...)</li>
+                <li>✓ Real payments processed</li>
+                <li>✓ Real customer cards</li>
+              </ul>
+            </button>
+          </div>
+
+          {isTogglingEnv && (
+            <div className="flex items-center gap-2 text-sm text-gray-500">
+              <Loader2 className="w-4 h-4 animate-spin" />
+              Switching environment...
+            </div>
+          )}
+        </div>
+      </div>
+
+      {/* ── Production Confirmation Modal ── */}
+      {showEnvConfirm && (
+        <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
+          <div className="bg-white rounded-2xl shadow-2xl max-w-md w-full p-6">
+            <div className="flex items-center gap-3 mb-4">
+              <div className="w-10 h-10 rounded-full bg-red-100 flex items-center justify-center">
+                <CheckCircle2 className="w-5 h-5 text-red-600" />
+              </div>
+              <h3 className="text-lg font-bold text-gray-900">Switch to PRODUCTION?</h3>
+            </div>
+            <p className="text-sm text-gray-600 mb-2">
+              You are about to switch to <strong>PRODUCTION mode</strong>.
+            </p>
+            <ul className="text-sm text-red-600 space-y-1 mb-6 bg-red-50 p-3 rounded-lg">
+              <li>⚠️ Real money will be charged to customers</li>
+              <li>⚠️ Stripe Live keys will be active</li>
+              <li>⚠️ All payments will be processed immediately</li>
+            </ul>
+            <div className="flex gap-3">
+              <button
+                onClick={() => setShowEnvConfirm(false)}
+                className="flex-1 px-4 py-2 border border-gray-300 rounded-lg text-sm font-medium text-gray-700 hover:bg-gray-50"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={() => applyEnvSwitch('production')}
+                disabled={isTogglingEnv}
+                className="flex-1 px-4 py-2 bg-red-600 hover:bg-red-700 text-white rounded-lg text-sm font-medium disabled:opacity-50"
+              >
+                {isTogglingEnv ? 'Switching...' : 'Yes, Switch to LIVE'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       <SettingsSection 
         title="General Settings" 
         icon={<Settings className="w-5 h-5 text-gray-500" />}

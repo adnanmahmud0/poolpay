@@ -19,12 +19,18 @@ import { MobileMembershipRoutes } from "../modules/mobileMembership/mobileMember
 
 import { authRateLimiter, paymentRateLimiter } from "../middlewares/rateLimiter";
 
+import { LegalRoutes } from "../modules/legal/legal.route";
+
 export const router = Router();
 
 const moduleRoutes = [
   {
     path: "/admin",
     route: AdminRoutes,
+  },
+  {
+    path: "/legal",
+    route: LegalRoutes,
   },
   {
     path: "/auth",

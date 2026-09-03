@@ -4,7 +4,7 @@ import fs from "fs";
 import cron from "node-cron";
 import { S3Client, PutObjectCommand, ListObjectsV2Command, DeleteObjectsCommand } from "@aws-sdk/client-s3";
 import { envVars } from "../config/env";
-import { DB_NAME } from "../config/dbConnect";
+import { getCurrentDbName } from "../config/dbConnect";
 import logger from "./logger";
 
 export const backupDatabase = async () => {
@@ -22,23 +22,24 @@ export const backupDatabase = async () => {
       return;
     }
 
+    const currentDbName = getCurrentDbName();
     const dateStr = new Date().toISOString().split("T")[0]; // YYYY-MM-DD
     
     // Set the specific DB name in the URL so mongodump targets only this DB
     let finalDbUrl = DB_URL;
     try {
       const parsedUrl = new URL(DB_URL);
-      parsedUrl.pathname = `/${DB_NAME}`;
+      parsedUrl.pathname = `/${currentDbName}`;
       finalDbUrl = parsedUrl.toString();
     } catch (_err) {
       logger.warn(`Could not parse DB URL, using original URL for mongodump.`);
     }
 
-    const archiveName = `${DB_NAME}_backup_${dateStr}.gzip`;
+    const archiveName = `${currentDbName}_backup_${dateStr}.gzip`;
     // Storing in a temporary directory
     const archivePath = path.join("/tmp", archiveName);
 
-    logger.info(`Starting database backup: ${archiveName} for database: ${DB_NAME}`);
+    logger.info(`Starting database backup: ${archiveName} for database: ${currentDbName}`);
 
     // Command to dump and compress in one go
     const dumpCommand = `mongodump --uri="${finalDbUrl}" --archive="${archivePath}" --gzip`;
@@ -70,7 +71,7 @@ export const backupDatabase = async () => {
 
         const uploadParams = {
           Bucket: AWS_BUCKET_NAME,
-          Key: `db-backups/${DB_NAME}/${archiveName}`, // Folder path inside S3
+          Key: `db-backups/${currentDbName}/${archiveName}`, // Folder path inside S3
           Body: fileStream,
         };
 
@@ -80,7 +81,7 @@ export const backupDatabase = async () => {
         logger.info(`Successfully uploaded backup ${archiveName} to S3.`);
         
         // After successful upload, delete old backups
-        await deleteOldBackups(s3Client, AWS_BUCKET_NAME, `db-backups/${DB_NAME}/`, 7);
+        await deleteOldBackups(s3Client, AWS_BUCKET_NAME, `db-backups/${currentDbName}/`, 7);
 
       } catch (uploadError: unknown) {
         if (uploadError instanceof Error) {

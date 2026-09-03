@@ -22,6 +22,7 @@ export interface ISettings {
   isSMSNotificationEnabled: boolean;
   isPushNotificationEnabled: boolean;
   lastLowBalanceAlertSentAt?: Date;
+  appEnvironment: 'test' | 'production';
   updatedBy?: Types.ObjectId;
   isMock?: boolean;
   createdAt?: Date;
@@ -54,6 +55,7 @@ const settingsSchema = new Schema<ISettingsDocument>(
     isSMSNotificationEnabled: { type: Boolean, default: false },
     isPushNotificationEnabled: { type: Boolean, default: true },
     lastLowBalanceAlertSentAt: { type: Date },
+    appEnvironment: { type: String, enum: ['test', 'production'], default: 'test', index: true },
     updatedBy: { type: Schema.Types.ObjectId, ref: "User", index: true },
     isMock: { type: Boolean, default: false, index: true },
   },

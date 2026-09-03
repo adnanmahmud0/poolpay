@@ -2,11 +2,17 @@ import path from "path";
 import dotenv from "dotenv";
 import { z } from "zod";
 
-// Load local apps/api/.env first, then fall back to workspace root .env
-dotenv.config();
-dotenv.config({ path: path.resolve(process.cwd(), ".env") });
-dotenv.config({ path: path.resolve(process.cwd(), "../../.env") });
-dotenv.config({ path: path.resolve(__dirname, "../../../../../.env") });
+// Always load environment variables from the monorepo root .env file
+const rootEnvCandidates = [
+  path.resolve(process.cwd(), ".env"),
+  path.resolve(process.cwd(), "../../.env"),
+  path.resolve(__dirname, "../../../../../.env"),
+];
+
+for (const envPath of rootEnvCandidates) {
+  dotenv.config({ path: envPath });
+}
+
 
 const envSchema = z.object({
   PORT: z.string().default("5000"),
@@ -70,10 +76,23 @@ const envSchema = z.object({
   REDIS_PASSWORD: z.string().optional(),
   DISABLE_REDIS_WORKERS_IN_DEV: z.string().default("false"),
 
-  // Stripe
+  // Stripe Configuration
   STRIPE_SECRET_KEY: z.string().optional(),
+  STRIPE_PUBLISHABLE_KEY: z.string().optional(),
   STRIPE_WEBHOOK_SECRET: z.string().optional(),
   STRIPE_CONNECT_WEBHOOK_SECRET: z.string().optional(),
+  // Named test keys
+  STRIPE_TEST_SECRET_KEY: z.string().optional(),
+  STRIPE_TEST_PUBLISHABLE_KEY: z.string().optional(),
+  STRIPE_TEST_WEBHOOK_SECRET: z.string().optional(),
+  STRIPE_TEST_CONNECT_WEBHOOK_SECRET: z.string().optional(),
+  // Named live keys
+  STRIPE_LIVE_SECRET_KEY: z.string().optional(),
+  STRIPE_LIVE_PUBLISHABLE_KEY: z.string().optional(),
+  STRIPE_LIVE_WEBHOOK_SECRET: z.string().optional(),
+  STRIPE_LIVE_CONNECT_WEBHOOK_SECRET: z.string().optional(),
+  TEST_DATABASE_URL: z.string().optional(),
+  LIVE_DATABASE_URL: z.string().optional(),
 
   // Firebase
   FIREBASE_SERVICE_ACCOUNT_BASE64: z.string().optional(),
@@ -209,20 +228,39 @@ export const envVars = {
     SMS_ENABLED: String(parsedEnv.data.SMS_ENABLED).toLowerCase().trim() === "true",
   },
   STRIPE: {
-    CONNECT_WEBHOOK_SECRET: parsedEnv.data.STRIPE_CONNECT_WEBHOOK_SECRET,
+    SECRET_KEY: parsedEnv.data.STRIPE_TEST_SECRET_KEY || parsedEnv.data.STRIPE_SECRET_KEY,
+    PUBLISHABLE_KEY: parsedEnv.data.STRIPE_TEST_PUBLISHABLE_KEY || parsedEnv.data.STRIPE_PUBLISHABLE_KEY,
+    WEBHOOK_SECRET: parsedEnv.data.STRIPE_TEST_WEBHOOK_SECRET || parsedEnv.data.STRIPE_WEBHOOK_SECRET,
+    CONNECT_WEBHOOK_SECRET: parsedEnv.data.STRIPE_TEST_CONNECT_WEBHOOK_SECRET || parsedEnv.data.STRIPE_CONNECT_WEBHOOK_SECRET,
+    TEST: {
+      SECRET_KEY: parsedEnv.data.STRIPE_TEST_SECRET_KEY || parsedEnv.data.STRIPE_SECRET_KEY,
+      PUBLISHABLE_KEY: parsedEnv.data.STRIPE_TEST_PUBLISHABLE_KEY || parsedEnv.data.STRIPE_PUBLISHABLE_KEY,
+      WEBHOOK_SECRET: parsedEnv.data.STRIPE_TEST_WEBHOOK_SECRET || parsedEnv.data.STRIPE_WEBHOOK_SECRET,
+      CONNECT_WEBHOOK_SECRET: parsedEnv.data.STRIPE_TEST_CONNECT_WEBHOOK_SECRET || parsedEnv.data.STRIPE_CONNECT_WEBHOOK_SECRET,
+    },
+    LIVE: {
+      SECRET_KEY: parsedEnv.data.STRIPE_LIVE_SECRET_KEY,
+      PUBLISHABLE_KEY: parsedEnv.data.STRIPE_LIVE_PUBLISHABLE_KEY,
+      WEBHOOK_SECRET: parsedEnv.data.STRIPE_LIVE_WEBHOOK_SECRET,
+      CONNECT_WEBHOOK_SECRET: parsedEnv.data.STRIPE_LIVE_CONNECT_WEBHOOK_SECRET,
+    },
   },
+  STRIPE_SECRET_KEY: parsedEnv.data.STRIPE_TEST_SECRET_KEY || parsedEnv.data.STRIPE_SECRET_KEY,
+  STRIPE_PUBLISHABLE_KEY: parsedEnv.data.STRIPE_TEST_PUBLISHABLE_KEY || parsedEnv.data.STRIPE_PUBLISHABLE_KEY,
+  STRIPE_WEBHOOK_SECRET: parsedEnv.data.STRIPE_TEST_WEBHOOK_SECRET || parsedEnv.data.STRIPE_WEBHOOK_SECRET,
+  STRIPE_CONNECT_WEBHOOK_SECRET: parsedEnv.data.STRIPE_TEST_CONNECT_WEBHOOK_SECRET || parsedEnv.data.STRIPE_CONNECT_WEBHOOK_SECRET,
   RATE_LIMITER_ENABLED: String(parsedEnv.data.RATE_LIMITER_ENABLED).toLowerCase().trim() === "true",
   DISABLE_REDIS_WORKERS_IN_DEV: String(parsedEnv.data.DISABLE_REDIS_WORKERS_IN_DEV).toLowerCase().trim() === "true",
   SELF_PING_ENABLED: String(parsedEnv.data.SELF_PING_ENABLED).toLowerCase().trim() === "true",
   SELF_PING_INTERVAL: Number(parsedEnv.data.SELF_PING_INTERVAL) || 10,
 
   IAP: {
-    GOOGLE_PLAY_PACKAGE_NAME: parsedEnv.data.GOOGLE_PLAY_PACKAGE_NAME || "com.poolpay.app",
+    GOOGLE_PLAY_PACKAGE_NAME: parsedEnv.data.GOOGLE_PLAY_PACKAGE_NAME || "com.poolpay.rosca",
     GOOGLE_PLAY_SERVICE_ACCOUNT_PATH: parsedEnv.data.GOOGLE_PLAY_SERVICE_ACCOUNT_PATH,
     APPLE_SHARED_SECRET: parsedEnv.data.APPLE_SHARED_SECRET,
-    GOOGLE_PLAY_REGULAR_PRODUCT_ID: parsedEnv.data.GOOGLE_PLAY_REGULAR_PRODUCT_ID || "regular_membership",
-    GOOGLE_PLAY_VIP_PRODUCT_ID: parsedEnv.data.GOOGLE_PLAY_VIP_PRODUCT_ID || "vip_membership",
-    APPLE_REGULAR_PRODUCT_ID: parsedEnv.data.APPLE_REGULAR_PRODUCT_ID || "regular_membership",
-    APPLE_VIP_PRODUCT_ID: parsedEnv.data.APPLE_VIP_PRODUCT_ID || "vip_membership",
+    GOOGLE_PLAY_REGULAR_PRODUCT_ID: parsedEnv.data.GOOGLE_PLAY_REGULAR_PRODUCT_ID || "regular_yearly_subscription",
+    GOOGLE_PLAY_VIP_PRODUCT_ID: parsedEnv.data.GOOGLE_PLAY_VIP_PRODUCT_ID || "vip_yearly_subscription",
+    APPLE_REGULAR_PRODUCT_ID: parsedEnv.data.APPLE_REGULAR_PRODUCT_ID || "regular_yearly_subscription",
+    APPLE_VIP_PRODUCT_ID: parsedEnv.data.APPLE_VIP_PRODUCT_ID || "vip_yearly_subscription",
   },
 };

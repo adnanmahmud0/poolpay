@@ -81,10 +81,42 @@ const getContactSettings = async () => {
   };
 };
 
+const toggleEnvironment = async (environment: 'test' | 'production', userId: string) => {
+  const { switchDatabaseConnection } = await import("../../config/dbConnect");
+  const { seedSuperAdmin } = await import("../../utils/seedSuperAdmin");
+
+  // 1. Switch active database connection dynamically
+  await switchDatabaseConnection(environment);
+
+  // 2. Ensure super-admin exists in the newly active database
+  await seedSuperAdmin();
+
+  // 3. Ensure and update settings in the newly active database
+  const settings = await Settings.findOneAndUpdate(
+    {},
+    { appEnvironment: environment, updatedBy: userId },
+    { new: true, upsert: true }
+  );
+
+  logger.info(`[ENV] App environment switched to '${environment}' by admin ${userId}. Connected database updated.`);
+  return settings;
+};
+
+const getAppConfig = async () => {
+  const settings = await Settings.findOne().select("appEnvironment platformName");
+  return {
+    appEnvironment: settings?.appEnvironment || 'test',
+    platformName: settings?.platformName || 'PoolPay',
+    isTestMode: (settings?.appEnvironment || 'test') === 'test',
+  };
+};
+
 export const SettingsServices = {
   getSettings,
   updateSettings,
   updateSupportEmail,
   getAuthSettings,
   getContactSettings,
+  toggleEnvironment,
+  getAppConfig,
 };
