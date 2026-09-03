@@ -20,7 +20,10 @@ import {
   Phone,
   MessageSquare,
   ExternalLink,
-  Link2
+  Link2,
+  Sparkles,
+  CheckCircle2,
+  AlertTriangle
 } from "lucide-react";
 import { getAdvertisements, createAdvertisement, updateAdvertisement, deleteAdvertisement } from "@/lib/api-auth";
 import { toast } from "sonner";
@@ -40,6 +43,74 @@ interface Advertisement {
   endDate: string;
 }
 
+// Client-side image compressor: Resizes to max 1200x600 and converts to WebP for instant loading
+async function compressImageClientSide(
+  file: File,
+  maxWidth = 1200,
+  maxHeight = 600,
+  quality = 0.82
+): Promise<{ file: File; width: number; height: number; originalSizeKb: number; compressedSizeKb: number }> {
+  return new Promise((resolve) => {
+    const originalSizeKb = Math.round(file.size / 1024);
+    const img = new window.Image();
+    const objectUrl = URL.createObjectURL(file);
+
+    img.onload = () => {
+      URL.revokeObjectURL(objectUrl);
+      let { naturalWidth: width, naturalHeight: height } = img;
+
+      // Fit inside 1200x600 maintaining original ratio
+      if (width > maxWidth || height > maxHeight) {
+        const ratio = Math.min(maxWidth / width, maxHeight / height);
+        width = Math.round(width * ratio);
+        height = Math.round(height * ratio);
+      }
+
+      const canvas = document.createElement("canvas");
+      canvas.width = width;
+      canvas.height = height;
+      const ctx = canvas.getContext("2d");
+
+      if (!ctx) {
+        resolve({ file, width: img.naturalWidth, height: img.naturalHeight, originalSizeKb, compressedSizeKb: originalSizeKb });
+        return;
+      }
+
+      ctx.drawImage(img, 0, 0, width, height);
+
+      canvas.toBlob(
+        (blob) => {
+          if (!blob) {
+            resolve({ file, width: img.naturalWidth, height: img.naturalHeight, originalSizeKb, compressedSizeKb: originalSizeKb });
+            return;
+          }
+          const baseCleanName = file.name.substring(0, file.name.lastIndexOf('.')) || file.name;
+          const compressedFile = new File([blob], `${baseCleanName}.webp`, {
+            type: "image/webp",
+            lastModified: Date.now(),
+          });
+          const compressedSizeKb = Math.round(compressedFile.size / 1024);
+          resolve({
+            file: compressedFile,
+            width,
+            height,
+            originalSizeKb,
+            compressedSizeKb,
+          });
+        },
+        "image/webp",
+        quality
+      );
+    };
+
+    img.onerror = () => {
+      resolve({ file, width: 0, height: 0, originalSizeKb, compressedSizeKb: originalSizeKb });
+    };
+
+    img.src = objectUrl;
+  });
+}
+
 export default function AdsPage() {
   const [ads, setAds] = useState<Advertisement[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -48,6 +119,14 @@ export default function AdsPage() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [imageFile, setImageFile] = useState<File | null>(null);
   const [imagePreview, setImagePreview] = useState<string | null>(null);
+  const [imageMeta, setImageMeta] = useState<{
+    width: number;
+    height: number;
+    ratio: string;
+    ratioStatus: 'ideal' | 'warning' | 'neutral';
+    originalKb: number;
+    compressedKb: number;
+  } | null>(null);
 
   const [formData, setFormData] = useState({
     title: "",
@@ -78,15 +157,49 @@ export default function AdsPage() {
     fetchAds();
   }, []);
 
-  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file) {
-      setImageFile(file);
-      const reader = new FileReader();
-      reader.onloadend = () => {
-        setImagePreview(reader.result as string);
-      };
-      reader.readAsDataURL(file);
+      try {
+        const compressed = await compressImageClientSide(file, 1200, 600, 0.82);
+        setImageFile(compressed.file);
+
+        const calculatedRatio = (compressed.width / (compressed.height || 1)).toFixed(2);
+        const numRatio = parseFloat(calculatedRatio);
+        let ratioStatus: 'ideal' | 'warning' | 'neutral' = 'neutral';
+        if (numRatio >= 1.7 && numRatio <= 2.2) {
+          ratioStatus = 'ideal';
+        } else if (numRatio < 1.4 || numRatio > 2.5) {
+          ratioStatus = 'warning';
+        }
+
+        setImageMeta({
+          width: compressed.width,
+          height: compressed.height,
+          ratio: `${calculatedRatio}:1`,
+          ratioStatus,
+          originalKb: compressed.originalSizeKb,
+          compressedKb: compressed.compressedSizeKb,
+        });
+
+        const reader = new FileReader();
+        reader.onloadend = () => {
+          setImagePreview(reader.result as string);
+        };
+        reader.readAsDataURL(compressed.file);
+
+        if (compressed.originalSizeKb > compressed.compressedSizeKb) {
+          toast.success(`Image compressed: ${compressed.originalSizeKb} KB → ${compressed.compressedSizeKb} KB (WebP)`);
+        }
+      } catch (err) {
+        console.warn("Client compression error, using original file:", err);
+        setImageFile(file);
+        const reader = new FileReader();
+        reader.onloadend = () => {
+          setImagePreview(reader.result as string);
+        };
+        reader.readAsDataURL(file);
+      }
     }
   };
 
@@ -171,6 +284,7 @@ export default function AdsPage() {
     setEditingAd(ad);
     setImageFile(null);
     setImagePreview(ad.bannerImage);
+    setImageMeta(null);
     const resolvedActionType = ad.actionType || (ad.redirectUrl ? "link" : "none");
     const resolvedActionValue = ad.actionValue || ad.redirectUrl || "";
     setFormData({
@@ -190,6 +304,7 @@ export default function AdsPage() {
     setEditingAd(null);
     setImageFile(null);
     setImagePreview(null);
+    setImageMeta(null);
     setFormData({
       title: "",
       description: "",
@@ -341,28 +456,99 @@ export default function AdsPage() {
                   />
                 </div>
 
+                {/* Image Dimension & Aspect Ratio Suggestion Guide */}
+                <div className="col-span-2 bg-gradient-to-r from-indigo-50/80 via-blue-50/50 to-indigo-50/80 border border-indigo-100/80 rounded-2xl p-4 flex flex-col gap-2.5">
+                  <div className="flex items-center justify-between">
+                    <span className="text-xs font-bold text-indigo-900 uppercase tracking-wider flex items-center gap-1.5">
+                      <Sparkles className="w-3.5 h-3.5 text-indigo-600" />
+                      Recommended Dimensions & Ratio
+                    </span>
+                    <span className="text-[10px] font-bold bg-indigo-600 text-white px-2.5 py-0.5 rounded-full uppercase tracking-wider">
+                      Mobile Optimized
+                    </span>
+                  </div>
+                  <div className="grid grid-cols-3 gap-2 text-xs">
+                    <div className="bg-white/90 backdrop-blur-sm p-3 rounded-xl border border-indigo-100/60 shadow-xs">
+                      <p className="text-[10px] text-gray-400 font-semibold uppercase tracking-wider">Aspect Ratio</p>
+                      <p className="font-extrabold text-gray-900 text-sm mt-0.5">2:1 or 16:9</p>
+                      <p className="text-[10px] text-gray-500">Landscape Carousel</p>
+                    </div>
+                    <div className="bg-white/90 backdrop-blur-sm p-3 rounded-xl border border-indigo-100/60 shadow-xs">
+                      <p className="text-[10px] text-gray-400 font-semibold uppercase tracking-wider">Ideal Resolution</p>
+                      <p className="font-extrabold text-indigo-600 text-sm mt-0.5">1200 × 600 px</p>
+                      <p className="text-[10px] text-gray-500">Min 600 × 300 px</p>
+                    </div>
+                    <div className="bg-white/90 backdrop-blur-sm p-3 rounded-xl border border-indigo-100/60 shadow-xs">
+                      <p className="text-[10px] text-gray-400 font-semibold uppercase tracking-wider">Auto-Compress</p>
+                      <p className="font-extrabold text-emerald-600 text-sm mt-0.5">WebP 82%</p>
+                      <p className="text-[10px] text-gray-500">Instant 0ms Cache</p>
+                    </div>
+                  </div>
+                </div>
+
                 <div className="col-span-2 space-y-2">
-                  <label className="text-xs font-bold text-gray-500 uppercase">Banner Image</label>
-                  <div className="flex flex-col gap-4">
+                  <div className="flex items-center justify-between">
+                    <label className="text-xs font-bold text-gray-500 uppercase">Banner Image</label>
+                    <span className="text-[11px] text-gray-400 font-medium">Auto-compressed on upload</span>
+                  </div>
+
+                  <div className="flex flex-col gap-3">
                     {imagePreview ? (
-                      <div className="relative w-full h-48 bg-gray-100 rounded-2xl overflow-hidden border border-gray-200">
-                        <Image 
-                          src={imagePreview} 
-                          alt="Preview" 
-                          fill 
-                          unoptimized 
-                          className="object-cover" 
-                        />
-                        <button 
-                          type="button"
-                          onClick={() => {
-                            setImageFile(null);
-                            setImagePreview(null);
-                          }}
-                          className="absolute top-2 right-2 p-1.5 bg-white/80 backdrop-blur-sm rounded-full text-red-500 hover:bg-white transition-all shadow-sm"
-                        >
-                          <X className="w-4 h-4" />
-                        </button>
+                      <div className="space-y-2.5">
+                        <div className="relative w-full aspect-[2/1] max-h-56 bg-gray-950 rounded-2xl overflow-hidden border border-gray-200 shadow-inner group">
+                          <Image 
+                            src={imagePreview} 
+                            alt="Preview" 
+                            fill 
+                            unoptimized 
+                            className="object-cover transition-transform group-hover:scale-[1.02] duration-300" 
+                          />
+                          <div className="absolute top-3 right-3 flex items-center gap-2">
+                            <span className="px-2.5 py-1 text-[10px] font-bold bg-black/70 backdrop-blur-md text-white rounded-lg border border-white/10 shadow-sm">
+                              2:1 Mobile Frame
+                            </span>
+                            <button 
+                              type="button"
+                              onClick={() => {
+                                setImageFile(null);
+                                setImagePreview(null);
+                                setImageMeta(null);
+                              }}
+                              className="p-1.5 bg-white/90 hover:bg-white text-red-500 rounded-full shadow-md transition-all hover:scale-110"
+                              title="Remove image"
+                            >
+                              <X className="w-4 h-4" />
+                            </button>
+                          </div>
+                        </div>
+
+                        {/* Live Dimension & Ratio Inspector */}
+                        {imageMeta && (
+                          <div className={`text-xs p-3 rounded-xl border flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 ${
+                            imageMeta.ratioStatus === 'ideal' 
+                              ? 'bg-emerald-50/80 border-emerald-200 text-emerald-900' 
+                              : imageMeta.ratioStatus === 'warning'
+                              ? 'bg-amber-50/80 border-amber-200 text-amber-900'
+                              : 'bg-gray-50 border-gray-200 text-gray-800'
+                          }`}>
+                            <div className="flex items-center gap-2">
+                              {imageMeta.ratioStatus === 'ideal' ? (
+                                <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" />
+                              ) : (
+                                <AlertTriangle className="w-4 h-4 text-amber-600 shrink-0" />
+                              )}
+                              <span>
+                                <strong>{imageMeta.width} × {imageMeta.height} px</strong> (Ratio: {imageMeta.ratio}) —{" "}
+                                {imageMeta.ratioStatus === 'ideal' 
+                                  ? 'Ideal 2:1 ratio for mobile home screen'
+                                  : 'Image ratio differs from 2:1 and will be cropped horizontally in the app'}
+                              </span>
+                            </div>
+                            <span className="text-[11px] font-semibold bg-white/80 px-2 py-0.5 rounded-lg shrink-0 self-start sm:self-auto border border-black/5">
+                              {imageMeta.originalKb} KB → {imageMeta.compressedKb} KB (WebP)
+                            </span>
+                          </div>
+                        )}
                       </div>
                     ) : (
                       <div className="relative group cursor-pointer">
@@ -372,13 +558,14 @@ export default function AdsPage() {
                           onChange={handleFileChange}
                           className="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-10"
                         />
-                        <div className="w-full py-8 border-2 border-dashed border-gray-200 rounded-2xl flex flex-col items-center justify-center gap-2 group-hover:border-indigo-300 transition-all bg-gray-50/50">
-                          <div className="p-3 bg-white rounded-xl shadow-sm text-gray-400 group-hover:text-indigo-500 transition-colors">
-                            <ImageIcon className="w-6 h-6" />
+                        <div className="w-full py-10 aspect-[2.2/1] max-h-56 border-2 border-dashed border-gray-200 rounded-2xl flex flex-col items-center justify-center gap-2.5 group-hover:border-indigo-400 group-hover:bg-indigo-50/30 transition-all bg-gray-50/50">
+                          <div className="p-3.5 bg-white rounded-2xl shadow-xs text-gray-400 group-hover:text-indigo-600 group-hover:scale-110 transition-all">
+                            <ImageIcon className="w-7 h-7" />
                           </div>
                           <div className="text-center">
-                            <p className="text-sm font-bold text-gray-700">Click to upload banner</p>
-                            <p className="text-[10px] text-gray-400">PNG, JPG or WEBP (Max 5MB)</p>
+                            <p className="text-sm font-bold text-gray-800">Click to upload banner</p>
+                            <p className="text-xs text-gray-400 mt-0.5">Recommended: 1200 × 600 px (Aspect 2:1)</p>
+                            <p className="text-[10px] text-indigo-500 font-medium mt-1">Auto-compressed to WebP for instant app loading</p>
                           </div>
                         </div>
                       </div>

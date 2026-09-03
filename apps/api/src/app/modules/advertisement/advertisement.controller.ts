@@ -6,6 +6,7 @@ import { AdvertisementServices } from "./advertisement.service";
 import { storage } from "../../utils/storage/storageFactory";
 import AppError from "../../errorHelpers/AppError";
 import { Advertisement } from "./advertisement.model";
+import { optimizeUploadedImage } from "../../utils/imageOptimizer";
 
 import { JwtPayload } from "jsonwebtoken";
 
@@ -16,8 +17,15 @@ const createAdvertisement = catchAsync(async (req: Request, res: Response) => {
     throw new AppError(httpStatus.BAD_REQUEST, "Banner image is required");
   }
 
+  // Optimize and compress banner image to WebP before uploading
+  const optimizedFile = await optimizeUploadedImage(req.file, {
+    maxWidth: 1200,
+    maxHeight: 630,
+    quality: 82,
+  });
+
   // Upload to storage
-  const bannerImage = await storage.uploadFile(req.file, "advertisements");
+  const bannerImage = await storage.uploadFile(optimizedFile, "advertisements");
   req.body.bannerImage = bannerImage;
 
   const result = await AdvertisementServices.createAdvertisement(user.userId || user._id, req.body);
@@ -60,7 +68,13 @@ const updateAdvertisement = catchAsync(async (req: Request, res: Response) => {
       }
     }
 
-    const bannerImage = await storage.uploadFile(req.file, "advertisements");
+    const optimizedFile = await optimizeUploadedImage(req.file, {
+      maxWidth: 1200,
+      maxHeight: 630,
+      quality: 82,
+    });
+
+    const bannerImage = await storage.uploadFile(optimizedFile, "advertisements");
     req.body.bannerImage = bannerImage;
   }
 
