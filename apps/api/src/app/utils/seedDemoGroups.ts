@@ -125,15 +125,3 @@ export const seedDemoGroups = async () => {
   }
 };
 
-// If run directly via CLI
-if (require.main === module) {
-  (async () => {
-    if (envVars.DATABASE_URL.startsWith("mongodb+srv://")) {
-      dns.setServers(["8.8.8.8", "8.8.4.4"]);
-    }
-    await mongoose.connect(envVars.DATABASE_URL, { dbName: "poolPay-db" });
-    await seedDemoGroups();
-    await mongoose.disconnect();
-    process.exit(0);
-  })();
-}
