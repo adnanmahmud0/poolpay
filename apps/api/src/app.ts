@@ -24,6 +24,7 @@ import {
   getSmsConsentHTML,
 } from "./app/utils/legalPages";
 import path from "path";
+import fs from "fs";
 import { trimInput } from "./app/middlewares/trimInput";
 
 const app = express();
@@ -175,7 +176,10 @@ app.post(
 
 // Global input trimmer to remove leading/trailing spaces from all requests
 app.use(trimInput);
-app.use("/uploads", express.static(path.join(process.cwd(), "uploads")));
+const resolvedUploadsDir = fs.existsSync(path.join(process.cwd(), "uploads"))
+  ? path.join(process.cwd(), "uploads")
+  : path.join(process.cwd(), "apps/api/uploads");
+app.use("/uploads", express.static(resolvedUploadsDir));
 app.use("/public", express.static(path.join(process.cwd(), "public")));
 
 app.use(cookieParser());

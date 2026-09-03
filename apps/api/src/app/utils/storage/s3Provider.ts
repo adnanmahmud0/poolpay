@@ -3,6 +3,8 @@ import { IStorageProvider } from "./storage.interface";
 import { envVars } from "../../config/env";
 import AppError from "../../errorHelpers/AppError";
 import fs from "fs";
+import logger from "../../utils/logger";
+import { LocalStorageProvider } from "./localStorageProvider";
 
 export class S3Provider implements IStorageProvider {
   private s3: S3Client;
@@ -42,15 +44,34 @@ export class S3Provider implements IStorageProvider {
 
       await this.s3.send(new PutObjectCommand(uploadParams));
 
+      // Clean up tmp file
+      try {
+        if (fs.existsSync(file.path)) {
+          fs.unlinkSync(file.path);
+        }
+      } catch {}
+
       return `https://${bucketName}.s3.${envVars.AWS.AWS_REGION}.amazonaws.com/${fileName}`;
     } catch (error) {
       const message = error instanceof Error ? error.message : "Unknown error";
-      throw new AppError(500, `S3 upload failed: ${message}`);
+      logger.warn(`[STORAGE] S3 upload failed (${message}). Seamlessly falling back to LocalStorageProvider.`);
+      try {
+        const local = new LocalStorageProvider();
+        return await local.uploadFile(file, folder);
+      } catch (localError) {
+        throw new AppError(500, `Storage upload failed: ${message}`);
+      }
     }
   }
 
   async deleteFile(url: string): Promise<void> {
     try {
+      if (url.includes("/uploads/")) {
+        const local = new LocalStorageProvider();
+        await local.deleteFile(url);
+        return;
+      }
+
       const bucketName = envVars.AWS.AWS_BUCKET_NAME;
       const region = envVars.AWS.AWS_REGION;
 
