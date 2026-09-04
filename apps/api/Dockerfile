@@ -42,11 +42,12 @@ COPY --from=builder /app/apps/api/dist ./apps/api/dist
 COPY --from=builder /app/apps/api/package.json ./apps/api/package.json
 COPY --from=builder /app/apps/api/public ./apps/api/public
 
-# Create uploads directory and set permissions
-RUN mkdir -p /app/uploads /app/uploads/tmp && \
-    chown -R expressjs:nodejs /app/uploads
+# Create uploads and logs directories with proper permissions
+RUN mkdir -p /app/uploads /app/uploads/tmp /app/logs && \
+    chmod -R 755 /app/uploads /app/logs && \
+    chown -R expressjs:nodejs /app/uploads /app/logs
 
-VOLUME ["/app/uploads"]
+VOLUME ["/app/uploads", "/app/logs"]
 
 USER expressjs
 

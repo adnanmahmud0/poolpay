@@ -53,6 +53,7 @@ services:
       - REDIS_PORT=6379
     volumes:
       - api_uploads_prod:/app/uploads
+      - api_logs_prod:/app/logs
     ports:
       - "127.0.0.1:5000:5000"
     depends_on:
@@ -87,6 +88,8 @@ volumes:
   redis_data_prod:
     driver: local
   api_uploads_prod:
+    driver: local
+  api_logs_prod:
     driver: local
 
 networks:
