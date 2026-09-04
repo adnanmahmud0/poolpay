@@ -41,7 +41,6 @@ COPY --from=builder /app/node_modules ./node_modules
 COPY --from=builder /app/apps/api/dist ./apps/api/dist
 COPY --from=builder /app/apps/api/package.json ./apps/api/package.json
 COPY --from=builder /app/apps/api/public ./apps/api/public
-COPY --from=builder /app/apps/api/src/app/views ./apps/api/src/app/views
 
 # Create uploads directory and set permissions
 RUN mkdir -p /app/uploads /app/uploads/tmp && \
