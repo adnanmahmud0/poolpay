@@ -206,14 +206,14 @@ jobs:
           "
           echo "✅ Generated .env.production successfully"
 
-      - name: Securely Copy .env.production to EC2
+      - name: Securely Copy Deployment Files to EC2
         uses: appleboy/scp-action@v0.1.7
         with:
           host: ${{ secrets.EC2_HOST }}
           username: ${{ secrets.EC2_USER || 'ubuntu' }}
           key: ${{ secrets.EC2_SSH_KEY }}
           port: ${{ secrets.EC2_PORT || 22 }}
-          source: ".env.production"
+          source: ".env.production,docker-compose.prod.yml,nginx/poolpay.conf,deploy/deploy.sh,scripts/mongo-init.js"
           target: "/home/ubuntu/poolpay/"
 
       - name: Execute Deployment on EC2 via SSH
@@ -223,15 +223,17 @@ jobs:
           REPO_OWNER: ${{ needs.prepare.outputs.repo_owner }}
           GHCR_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           GHCR_ACTOR: ${{ github.actor }}
+          GITHUB_REPO: ${{ github.repository }}
         with:
           host: ${{ secrets.EC2_HOST }}
           username: ${{ secrets.EC2_USER || 'ubuntu' }}
           key: ${{ secrets.EC2_SSH_KEY }}
           port: ${{ secrets.EC2_PORT || 22 }}
-          envs: IMAGE_TAG,REPO_OWNER,GHCR_TOKEN,GHCR_ACTOR
+          envs: IMAGE_TAG,REPO_OWNER,GHCR_TOKEN,GHCR_ACTOR,GITHUB_REPO
           script: |
             set -euo pipefail
             echo "🚀 Connecting to EC2 host..."
+            mkdir -p /home/ubuntu/poolpay
             cd /home/ubuntu/poolpay
 
             # Rename uploaded environment file to .env
@@ -240,10 +242,14 @@ jobs:
               chmod 600 .env
             fi
 
-            # Update repository files (compose, nginx, deploy script)
-            if [ -d ".git" ]; then
-              git fetch origin main
-              git reset --hard origin/main
+            # Initialize or update git repository
+            if [ ! -d ".git" ]; then
+              echo "📦 Cloning repository..."
+              git clone "https://x-access-token:${GHCR_TOKEN}@github.com/${GITHUB_REPO}.git" . || true
+            else
+              git remote set-url origin "https://x-access-token:${GHCR_TOKEN}@github.com/${GITHUB_REPO}.git"
+              git fetch origin main || true
+              git reset --hard origin/main || true
             fi
 
             # Run zero-downtime deployment script
