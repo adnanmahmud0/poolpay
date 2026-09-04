@@ -246,9 +246,6 @@ jobs:
               git reset --hard origin/main
             fi
 
-            # Log into GHCR on the EC2 host to pull private images
-            echo "$GHCR_TOKEN" | docker login ghcr.io -u "$GHCR_ACTOR" --password-stdin
-
             # Run zero-downtime deployment script
             chmod +x deploy/deploy.sh
             ./deploy/deploy.sh "$IMAGE_TAG" "$REPO_OWNER"

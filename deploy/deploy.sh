@@ -46,8 +46,15 @@ if ! command -v certbot &> /dev/null; then
     sudo apt-get install -y certbot python3-certbot-nginx
 fi
 
-# Ensure docker service is running
+# Ensure docker service is running and accessible
 sudo systemctl enable --now docker
+sudo chmod 666 /var/run/docker.sock || true
+
+# Authenticate with GHCR if tokens are provided
+if [ -n "${GHCR_TOKEN:-}" ] && [ -n "${GHCR_ACTOR:-}" ]; then
+    echo "🔑 Logging into GitHub Container Registry..."
+    echo "$GHCR_TOKEN" | docker login ghcr.io -u "$GHCR_ACTOR" --password-stdin || true
+fi
 
 # 2. Configure Nginx
 echo "🌐 Configuring Nginx reverse proxy..."
