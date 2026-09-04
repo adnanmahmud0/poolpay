@@ -55,15 +55,14 @@ PoolPay uses **two webhook listeners** to keep contributions, group pots, transf
 
 Both webhooks point to your server's endpoint:
 ```text
-https://adnan5000.binarybards.online/api/v1/webhook/stripe
+https://api.poolpay.space/api/v1/webhook/stripe
 ```
-*(Or your custom domain e.g. `https://api.poolpay.space/api/v1/webhook/stripe`)*
 
 #### A. Create the Main Account Webhook
 1. In Stripe Dashboard (Live mode), go to **Developers ➔ Webhooks**.
 2. Make sure you are on the **Hosted endpoints** tab.
 3. Click **+ Add endpoint**:
-   - **Endpoint URL**: `https://adnan5000.binarybards.online/api/v1/webhook/stripe`
+   - **Endpoint URL**: `https://api.poolpay.space/api/v1/webhook/stripe`
    - **Description**: `PoolPay Production Payments`
    - **Listen to**: Select **Events on your account**
 4. Click **+ Select events** and check the following:
@@ -80,7 +79,7 @@ https://adnan5000.binarybards.online/api/v1/webhook/stripe
 
 #### B. Create the Stripe Connect Webhook
 1. In the same **Developers ➔ Webhooks** page, click **+ Add endpoint** again:
-   - **Endpoint URL**: `https://adnan5000.binarybards.online/api/v1/webhook/stripe`
+   - **Endpoint URL**: `https://api.poolpay.space/api/v1/webhook/stripe`
    - **Description**: `PoolPay Production Connect Payouts`
    - **Listen to**: Select **Events on Connected accounts** (radio button)
 2. Click **+ Select events** and check the following:

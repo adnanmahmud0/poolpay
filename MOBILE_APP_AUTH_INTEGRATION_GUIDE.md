@@ -13,9 +13,8 @@ This guide documents the complete Authentication API and Session Management inte
 
 | Environment | Base URL |
 | :--- | :--- |
-| **Live Server** | `https://adnan5000.binarybards.online` |
+| **Live Server (Production)** | `https://api.poolpay.space` |
 | **Local Development** | `http://localhost:5000` *(Android Emulator: `http://10.0.2.2:5000`)* |
-| **Production** | `https://api.poolpay.space` |
 
 ---
 

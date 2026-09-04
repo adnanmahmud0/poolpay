@@ -10,9 +10,8 @@ This guide documents the native **Google Play Billing** and **Apple StoreKit In-
 
 | Environment | Base URL |
 | :--- | :--- |
-| **Live Server** | `https://adnan5000.binarybards.online` |
+| **Live Server (Production)** | `https://api.poolpay.space` |
 | **Local Development** | `http://localhost:5000` *(Android Emulator: `http://10.0.2.2:5000`)* |
-| **Production** | `https://api.poolpay.space` |
 
 ---
 
@@ -190,7 +189,7 @@ import 'package:http/http.dart' as http;
 import 'package:in_app_purchase/in_app_purchase.dart';
 
 class SubscriptionService {
-  static const String baseUrl = 'https://adnan5000.binarybards.online/api/v1';
+  static const String baseUrl = 'https://api.poolpay.space/api/v1';
 
   /// Verify purchase with backend after InAppPurchase completes
   static Future<Map<String, dynamic>> verifyPurchase({
