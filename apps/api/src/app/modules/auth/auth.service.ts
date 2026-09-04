@@ -368,11 +368,11 @@ const credentialsLogin = async (payload: ILoginPayload): Promise<ILoginResponse>
     });
   }
 
-  // Check if 2FA is enabled globally and for the user
+  // Check if 2FA is enabled globally and for the user (exclude dashboard logins as web dashboard has no 2FA prompt)
   const settings = await Settings.findOne();
-  const isGlobal2FAEnabled = settings ? settings.isTwoFactorAuthenticationEnabled : true;
+  const isGlobal2FAEnabled = settings ? settings.isTwoFactorAuthenticationEnabled : false;
 
-  if (isGlobal2FAEnabled || isUserExist.twoFactorEnabled) {
+  if (!isDashboardLogin && (isGlobal2FAEnabled || isUserExist.twoFactorEnabled)) {
     const otpCode = Math.floor(100000 + Math.random() * 900000).toString(); // 6 digit code
     const otpExpires = new Date(Date.now() + ms(envVars.OTP_EXPIRES));
 

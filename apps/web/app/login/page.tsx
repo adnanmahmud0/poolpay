@@ -46,6 +46,11 @@ export default function LoginPage() {
       });
 
       if (response.success) {
+        if (!response.data?.accessToken) {
+          toast.error(response.message || "Authentication token missing. Please try again.");
+          return;
+        }
+
         localStorage.setItem("accessToken", response.data.accessToken);
         localStorage.setItem("refreshToken", response.data.refreshToken);
         localStorage.setItem("user", JSON.stringify(response.data.user));
