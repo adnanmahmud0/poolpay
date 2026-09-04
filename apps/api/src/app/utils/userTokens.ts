@@ -41,15 +41,25 @@ export const createUserTokens = (user: Partial<IUser>, sessionTimeoutMinutes?: n
 export const createNewAccessTokenWithRefreshToken = async (
   refreshToken: string
 ) => {
-  const verifiedRefreshToken = verifyToken(
-    refreshToken,
-    envVars.JWT_REFRESH_SECRET
-  ) as JwtPayload;
+  let verifiedRefreshToken: JwtPayload;
+  try {
+    verifiedRefreshToken = verifyToken(
+      refreshToken,
+      envVars.JWT_REFRESH_SECRET
+    ) as JwtPayload;
+  } catch (err: any) {
+    throw new AppError(
+      httpStatus.UNAUTHORIZED,
+      err?.name === "TokenExpiredError"
+        ? "Refresh token has expired"
+        : "Invalid refresh token"
+    );
+  }
 
   const isUserExist = await User.findById(verifiedRefreshToken.userId);
 
   if (!isUserExist) {
-    throw new AppError(httpStatus.BAD_REQUEST, "User does not exist");
+    throw new AppError(httpStatus.UNAUTHORIZED, "User does not exist");
   }
   if (isUserExist.status === UserStatus.BLOCKED) {
     throw new AppError(

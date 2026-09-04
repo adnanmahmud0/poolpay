@@ -67,6 +67,10 @@ export const globalErrorHandler: ErrorRequestHandler = async (
     statusCode = simplifiedError.statusCode as number;
     errorSources = simplifiedError.errorSources as TErrorSources[];
     message = simplifiedError.message;
+  } else if (error.name === "JsonWebTokenError" || error.name === "TokenExpiredError") {
+    statusCode = 401;
+    message = error.name === "TokenExpiredError" ? "Token has expired" : "Invalid token";
+    errorSources = [{ path: "", message }];
   } else if (error instanceof AppError) {
     statusCode = error.statusCode;
     message = error.message;
