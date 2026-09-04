@@ -132,7 +132,8 @@ if [ ! -d "/etc/letsencrypt/live/poolpay.space" ]; then
         -d admin.poolpay.space \
         --non-interactive \
         --agree-tos \
-        --register-unsafely-without-email || {
+        --email admin@poolpay.space \
+        --no-eff-email || {
             echo "⚠️ Certbot SSL certificate issuance will be retried on next deploy."
         }
     sudo nginx -t && sudo systemctl reload nginx || true

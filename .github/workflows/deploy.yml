@@ -265,19 +265,24 @@ jobs:
       - name: Check Backend API Health
         run: |
           echo "🔍 Verifying https://api.poolpay.space/health..."
-          for i in {1..15}; do
+          for i in {1..25}; do
             STATUS=$(curl -s -o /dev/null -w "%{http_code}" https://api.poolpay.space/health || true)
             if [ "$STATUS" = "200" ]; then
-              echo "✅ Backend API is live and responding with HTTP 200!"
+              echo "✅ Backend API is live on HTTPS and responding with HTTP 200!"
               exit 0
             fi
-            echo "Attempt $i: Status $STATUS, retrying in 4s..."
-            sleep 4
+            echo "Attempt $i/25: HTTPS Status $STATUS, retrying in 5s..."
+            sleep 5
           done
-          echo "⚠️ Health check timed out, please verify server logs."
+          echo "⚠️ HTTPS verification failed after 125s. Checking HTTP fallback..."
+          HTTP_STATUS=$(curl -s -o /dev/null -w "%{http_code}" http://api.poolpay.space/health || true)
+          echo "HTTP (Port 80) Status: $HTTP_STATUS"
+          echo "Detailed curl output:"
+          curl -v https://api.poolpay.space/health || true
           exit 1
 
       - name: Check Landing Page
         run: |
           echo "🔍 Verifying https://poolpay.space..."
-          curl -s -I https://poolpay.space | head -n 5 || true
+          curl -s -I https://poolpay.space | head -n 10 || true
+
