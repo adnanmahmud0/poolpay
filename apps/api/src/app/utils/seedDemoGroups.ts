@@ -1,5 +1,3 @@
-import dns from "node:dns/promises";
-import mongoose from "mongoose";
 import { envVars } from "../config/env";
 import { ContributionFrequency, GroupStatus } from "../modules/group/group.interface";
 import { Group } from "../modules/group/group.model";

@@ -13,7 +13,7 @@ services:
       - mongodb_data_prod:/data/db
       - ./scripts/mongo-init.js:/docker-entrypoint-initdb.d/mongo-init.js:ro
     ports:
-      # Expose locally to host only (or keep internal)
+      # Expose locally to host only
       - "127.0.0.1:27017:27017"
     networks:
       - poolpay-prod-network
@@ -23,10 +23,26 @@ services:
       timeout: 5s
       retries: 5
 
+  redis:
+    image: redis:7-alpine
+    container_name: poolpay_redis_prod
+    restart: always
+    command: redis-server --appendonly yes
+    volumes:
+      - redis_data_prod:/data
+    ports:
+      # Expose locally to host only
+      - "127.0.0.1:6379:6379"
+    networks:
+      - poolpay-prod-network
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
   api:
-    build:
-      context: .
-      dockerfile: apps/api/Dockerfile
+    image: ${API_IMAGE:-ghcr.io/adnanmahmud0/poolpay-api:latest}
     container_name: poolpay_api_prod
     restart: always
     env_file:
@@ -34,19 +50,25 @@ services:
     environment:
       - NODE_ENV=production
       - PORT=5000
+      - IP=0.0.0.0
+      - REDIS_HOST=redis
+      - REDIS_PORT=6379
+      - DATABASE_URL=mongodb://${MONGO_INITDB_ROOT_USERNAME:-admin}:${MONGO_INITDB_ROOT_PASSWORD:-PoolPaySecurePass2026!}@mongodb:27017/${MONGO_INITDB_DATABASE:-poolPay-db}?authSource=admin
       - MONGO_URI=mongodb://${MONGO_INITDB_ROOT_USERNAME:-admin}:${MONGO_INITDB_ROOT_PASSWORD:-PoolPaySecurePass2026!}@mongodb:27017/${MONGO_INITDB_DATABASE:-poolPay-db}?authSource=admin
+    volumes:
+      - api_uploads_prod:/app/uploads
     ports:
       - "127.0.0.1:5000:5000"
     depends_on:
       mongodb:
         condition: service_healthy
+      redis:
+        condition: service_healthy
     networks:
       - poolpay-prod-network
 
   web:
-    build:
-      context: .
-      dockerfile: apps/web/Dockerfile
+    image: ${WEB_IMAGE:-ghcr.io/adnanmahmud0/poolpay-web:latest}
     container_name: poolpay_web_prod
     restart: always
     env_file:
@@ -54,14 +76,21 @@ services:
     environment:
       - NODE_ENV=production
       - PORT=3000
-      - NEXT_PUBLIC_API_URL=${NEXT_PUBLIC_API_URL:-https://adnan5000.binarybards.online/api/v1}
+      - NEXT_PUBLIC_BASE_URL=${NEXT_PUBLIC_BASE_URL:-https://api.poolpay.space}
+      - NEXT_PUBLIC_API_URL=${NEXT_PUBLIC_API_URL:-https://api.poolpay.space/api/v1}
     ports:
-      - "127.0.0.1:3000:3000"
+      - "127.0.0.1:5001:3000"
+    depends_on:
+      - api
     networks:
       - poolpay-prod-network
 
 volumes:
   mongodb_data_prod:
+    driver: local
+  redis_data_prod:
+    driver: local
+  api_uploads_prod:
     driver: local
 
 networks:

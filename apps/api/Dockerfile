@@ -43,8 +43,17 @@ COPY --from=builder /app/apps/api/package.json ./apps/api/package.json
 COPY --from=builder /app/apps/api/public ./apps/api/public
 COPY --from=builder /app/apps/api/src/app/views ./apps/api/src/app/views
 
+# Create uploads directory and set permissions
+RUN mkdir -p /app/uploads /app/uploads/tmp && \
+    chown -R expressjs:nodejs /app/uploads
+
+VOLUME ["/app/uploads"]
+
 USER expressjs
 
 EXPOSE 5000
+
+HEALTHCHECK --interval=30s --timeout=10s --start-period=15s --retries=3 \
+  CMD node -e "fetch('http://localhost:5000/health').then(r => r.ok ? process.exit(0) : process.exit(1)).catch(() => process.exit(1))"
 
 CMD ["node", "apps/api/dist/server.js"]

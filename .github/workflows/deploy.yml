@@ -4,39 +4,276 @@ on:
   push:
     branches:
       - main
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  packages: write
+
+concurrency:
+  group: production-deploy
+  cancel-in-progress: false
 
 jobs:
-  deploy:
-    name: Build & Deploy to EC2
+  prepare:
+    name: Prepare Deployment Metadata
     runs-on: ubuntu-latest
+    outputs:
+      tag: ${{ steps.vars.outputs.tag }}
+      repo_owner: ${{ steps.vars.outputs.repo_owner }}
+    steps:
+      - name: Compute tags and lowercase owner
+        id: vars
+        run: |
+          TAG="sha-$(echo ${{ github.sha }} | cut -c1-7)"
+          OWNER="$(echo "${{ github.repository_owner }}" | tr '[:upper:]' '[:lower:]')"
+          echo "tag=${TAG}" >> $GITHUB_OUTPUT
+          echo "repo_owner=${OWNER}" >> $GITHUB_OUTPUT
+          echo "🏷️ Deployment Image Tag: ${TAG}"
+          echo "👤 Repository Owner: ${OWNER}"
 
+  build-api:
+    name: Build & Push API Image
+    needs: prepare
+    runs-on: ubuntu-latest
     steps:
       - name: Checkout Code
         uses: actions/checkout@v4
 
-      - name: Deploy to EC2 via SSH
-        uses: appleboy/ssh-action@v1.0.3
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Log in to GitHub Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Build and Push Backend API Image
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: apps/api/Dockerfile
+          push: true
+          tags: |
+            ghcr.io/${{ needs.prepare.outputs.repo_owner }}/poolpay-api:${{ needs.prepare.outputs.tag }}
+            ghcr.io/${{ needs.prepare.outputs.repo_owner }}/poolpay-api:latest
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+  build-web:
+    name: Build & Push Web Image
+    needs: prepare
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Log in to GitHub Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Build and Push Web Admin Image
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: apps/web/Dockerfile
+          push: true
+          build-args: |
+            NEXT_PUBLIC_BASE_URL=https://api.poolpay.space
+          tags: |
+            ghcr.io/${{ needs.prepare.outputs.repo_owner }}/poolpay-web:${{ needs.prepare.outputs.tag }}
+            ghcr.io/${{ needs.prepare.outputs.repo_owner }}/poolpay-web:latest
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+  deploy:
+    name: Deploy to EC2
+    needs: [prepare, build-api, build-web]
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Generate Production Environment File
+        env:
+          PORT: "5000"
+          IP: "0.0.0.0"
+          NODE_ENV: "production"
+          AUTH_SYSTEM: "custom"
+          FRONTEND_URL: "https://poolpay.space"
+          BACKEND_URL: "https://api.poolpay.space"
+          NEXT_PUBLIC_BASE_URL: "https://api.poolpay.space"
+          NEXT_PUBLIC_API_URL: "https://api.poolpay.space/api/v1"
+          NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY: ${{ secrets.STRIPE_LIVE_PUBLISHABLE_KEY || secrets.STRIPE_TEST_PUBLISHABLE_KEY }}
+          SELF_PING_ENABLED: "true"
+          RATE_LIMITER_ENABLED: "false"
+          STORAGE_PROVIDER: "aws"
+          EMAIL_PROVIDER: "resend"
+          SMTP_FORM: "no-reply@poolpay.space"
+          REDIS_HOST: "redis"
+          REDIS_PORT: "6379"
+          DISABLE_REDIS_WORKERS_IN_DEV: "false"
+          JWT_ACCESS_SECRET: ${{ secrets.JWT_ACCESS_SECRET }}
+          JWT_REFRESH_SECRET: ${{ secrets.JWT_REFRESH_SECRET }}
+          JWT_ACCESS_EXPIRES_IN: "1d"
+          JWT_REFRESH_EXPIRES_IN: "30d"
+          SESSION_TIMEOUT_MINUTES: "20"
+          RESET_PASS_EXPIRES: "10m"
+          OTP_EXPIRES: "2m"
+          BCRYPT_SALT_ROUND: "10"
+          EXPRESS_SESSION_SECRET: ${{ secrets.EXPRESS_SESSION_SECRET }}
+          SUPER_ADMIN_NAME: ${{ secrets.SUPER_ADMIN_NAME || 'Super Admin' }}
+          SUPER_ADMIN_EMAIL: ${{ secrets.SUPER_ADMIN_EMAIL || 'admin@poolpay.space' }}
+          SUPER_ADMIN_PASSWORD: ${{ secrets.SUPER_ADMIN_PASSWORD || 'PoolPayAdmin2026!' }}
+          GOOGLE_CLIENT_ID: ${{ secrets.GOOGLE_CLIENT_ID }}
+          GOOGLE_CLIENT_SECRET: ${{ secrets.GOOGLE_CLIENT_SECRET }}
+          GOOGLE_CALLBACK_URL: "https://api.poolpay.space/api/v1/auth/google/callback"
+          GOOGLE_PLAY_PACKAGE_NAME: ${{ secrets.GOOGLE_PLAY_PACKAGE_NAME || 'com.poolpay.rosca' }}
+          GOOGLE_PLAY_SERVICE_ACCOUNT_BASE64: ${{ secrets.GOOGLE_PLAY_SERVICE_ACCOUNT_BASE64 }}
+          GOOGLE_PLAY_REGULAR_PRODUCT_ID: "regular_yearly_subscription"
+          GOOGLE_PLAY_VIP_PRODUCT_ID: "vip_yearly_subscription"
+          APPLE_ISSUER_ID: ${{ secrets.APPLE_ISSUER_ID }}
+          APPLE_KEY_ID: ${{ secrets.APPLE_KEY_ID }}
+          APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+          APPLE_BUNDLE_ID: ${{ secrets.APPLE_BUNDLE_ID || 'com.poolpay.app' }}
+          APPLE_PRIVATE_KEY_BASE64: ${{ secrets.APPLE_PRIVATE_KEY_BASE64 }}
+          APPLE_REGULAR_PRODUCT_ID: "regular_yearly_subscription"
+          APPLE_VIP_PRODUCT_ID: "vip_yearly_subscription"
+          AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          AWS_REGION: ${{ secrets.AWS_REGION || 'eu-north-1' }}
+          AWS_BUCKET_NAME: ${{ secrets.AWS_BUCKET_NAME || 'poolpay' }}
+          RESEND_API_KEY: ${{ secrets.RESEND_API_KEY }}
+          STRIPE_TEST_SECRET_KEY: ${{ secrets.STRIPE_TEST_SECRET_KEY }}
+          STRIPE_TEST_PUBLISHABLE_KEY: ${{ secrets.STRIPE_TEST_PUBLISHABLE_KEY }}
+          STRIPE_TEST_WEBHOOK_SECRET: ${{ secrets.STRIPE_TEST_WEBHOOK_SECRET }}
+          STRIPE_TEST_CONNECT_WEBHOOK_SECRET: ${{ secrets.STRIPE_TEST_CONNECT_WEBHOOK_SECRET }}
+          STRIPE_LIVE_SECRET_KEY: ${{ secrets.STRIPE_LIVE_SECRET_KEY }}
+          STRIPE_LIVE_PUBLISHABLE_KEY: ${{ secrets.STRIPE_LIVE_PUBLISHABLE_KEY }}
+          STRIPE_LIVE_WEBHOOK_SECRET: ${{ secrets.STRIPE_LIVE_WEBHOOK_SECRET }}
+          STRIPE_LIVE_CONNECT_WEBHOOK_SECRET: ${{ secrets.STRIPE_LIVE_CONNECT_WEBHOOK_SECRET }}
+          TWILIO_ACCOUNT_SID: ${{ secrets.TWILIO_ACCOUNT_SID }}
+          TWILIO_AUTH_TOKEN: ${{ secrets.TWILIO_AUTH_TOKEN }}
+          TWILIO_PHONE_NUMBER: ${{ secrets.TWILIO_PHONE_NUMBER }}
+          TWILIO_MESSAGING_SERVICE_SID: ${{ secrets.TWILIO_MESSAGING_SERVICE_SID }}
+          SMS_ENABLED: "true"
+          ENCRYPTION_KEY: ${{ secrets.ENCRYPTION_KEY }}
+          FIREBASE_SERVICE_ACCOUNT_BASE64: ${{ secrets.FIREBASE_SERVICE_ACCOUNT_BASE64 }}
+          MONGO_INITDB_ROOT_USERNAME: "admin"
+          MONGO_INITDB_ROOT_PASSWORD: ${{ secrets.MONGO_PASSWORD || 'PoolPaySecurePass2026!' }}
+          MONGO_INITDB_DATABASE: "poolPay-db"
+          DATABASE_URL: mongodb://admin:${{ secrets.MONGO_PASSWORD || 'PoolPaySecurePass2026!' }}@mongodb:27017/poolPay-db?authSource=admin
+          TEST_DATABASE_URL: mongodb://admin:${{ secrets.MONGO_PASSWORD || 'PoolPaySecurePass2026!' }}@mongodb:27017/poolPay-db?authSource=admin
+          LIVE_DATABASE_URL: mongodb://admin:${{ secrets.MONGO_PASSWORD || 'PoolPaySecurePass2026!' }}@mongodb:27017/poolPay-db?authSource=admin
+        run: |
+          python3 -c "
+          import os
+          keys = [
+            'PORT', 'IP', 'NODE_ENV', 'AUTH_SYSTEM', 'FRONTEND_URL', 'BACKEND_URL',
+            'NEXT_PUBLIC_BASE_URL', 'NEXT_PUBLIC_API_URL', 'NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY',
+            'SELF_PING_ENABLED', 'RATE_LIMITER_ENABLED', 'STORAGE_PROVIDER', 'EMAIL_PROVIDER',
+            'SMTP_FORM', 'REDIS_HOST', 'REDIS_PORT', 'DISABLE_REDIS_WORKERS_IN_DEV',
+            'JWT_ACCESS_SECRET', 'JWT_REFRESH_SECRET', 'JWT_ACCESS_EXPIRES_IN', 'JWT_REFRESH_EXPIRES_IN',
+            'SESSION_TIMEOUT_MINUTES', 'RESET_PASS_EXPIRES', 'OTP_EXPIRES', 'BCRYPT_SALT_ROUND',
+            'EXPRESS_SESSION_SECRET', 'SUPER_ADMIN_NAME', 'SUPER_ADMIN_EMAIL', 'SUPER_ADMIN_PASSWORD',
+            'GOOGLE_CLIENT_ID', 'GOOGLE_CLIENT_SECRET', 'GOOGLE_CALLBACK_URL',
+            'GOOGLE_PLAY_PACKAGE_NAME', 'GOOGLE_PLAY_SERVICE_ACCOUNT_BASE64',
+            'GOOGLE_PLAY_REGULAR_PRODUCT_ID', 'GOOGLE_PLAY_VIP_PRODUCT_ID',
+            'APPLE_ISSUER_ID', 'APPLE_KEY_ID', 'APPLE_TEAM_ID', 'APPLE_BUNDLE_ID',
+            'APPLE_PRIVATE_KEY_BASE64', 'APPLE_REGULAR_PRODUCT_ID', 'APPLE_VIP_PRODUCT_ID',
+            'AWS_ACCESS_KEY_ID', 'AWS_SECRET_ACCESS_KEY', 'AWS_REGION', 'AWS_BUCKET_NAME',
+            'RESEND_API_KEY', 'STRIPE_TEST_SECRET_KEY', 'STRIPE_TEST_PUBLISHABLE_KEY',
+            'STRIPE_TEST_WEBHOOK_SECRET', 'STRIPE_TEST_CONNECT_WEBHOOK_SECRET',
+            'STRIPE_LIVE_SECRET_KEY', 'STRIPE_LIVE_PUBLISHABLE_KEY', 'STRIPE_LIVE_WEBHOOK_SECRET',
+            'STRIPE_LIVE_CONNECT_WEBHOOK_SECRET', 'TWILIO_ACCOUNT_SID', 'TWILIO_AUTH_TOKEN',
+            'TWILIO_PHONE_NUMBER', 'TWILIO_MESSAGING_SERVICE_SID', 'SMS_ENABLED',
+            'ENCRYPTION_KEY', 'FIREBASE_SERVICE_ACCOUNT_BASE64', 'MONGO_INITDB_ROOT_USERNAME',
+            'MONGO_INITDB_ROOT_PASSWORD', 'MONGO_INITDB_DATABASE', 'DATABASE_URL',
+            'TEST_DATABASE_URL', 'LIVE_DATABASE_URL'
+          ]
+          with open('.env.production', 'w') as f:
+            for k in keys:
+              val = os.environ.get(k, '')
+              f.write(f'{k}={val}\n')
+          "
+          echo "✅ Generated .env.production successfully"
+
+      - name: Securely Copy .env.production to EC2
+        uses: appleboy/scp-action@v0.1.7
         with:
           host: ${{ secrets.EC2_HOST }}
           username: ${{ secrets.EC2_USER || 'ubuntu' }}
           key: ${{ secrets.EC2_SSH_KEY }}
           port: ${{ secrets.EC2_PORT || 22 }}
+          source: ".env.production"
+          target: "/home/ubuntu/poolpay/"
+
+      - name: Execute Deployment on EC2 via SSH
+        uses: appleboy/ssh-action@v1.0.3
+        env:
+          IMAGE_TAG: ${{ needs.prepare.outputs.tag }}
+          REPO_OWNER: ${{ needs.prepare.outputs.repo_owner }}
+          GHCR_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GHCR_ACTOR: ${{ github.actor }}
+        with:
+          host: ${{ secrets.EC2_HOST }}
+          username: ${{ secrets.EC2_USER || 'ubuntu' }}
+          key: ${{ secrets.EC2_SSH_KEY }}
+          port: ${{ secrets.EC2_PORT || 22 }}
+          envs: IMAGE_TAG,REPO_OWNER,GHCR_TOKEN,GHCR_ACTOR
           script: |
-            set -e
-            echo "🚀 Starting PoolPay Production Deployment..."
-            
-            # Navigate to project root
+            set -euo pipefail
+            echo "🚀 Connecting to EC2 host..."
             cd /home/ubuntu/poolpay
-            
-            # Pull latest changes from main branch
-            git fetch origin main
-            git reset --hard origin/main
-            
-            # Build and restart containers using Docker Compose
-            docker compose -f docker-compose.prod.yml build --no-cache api web
-            docker compose -f docker-compose.prod.yml up -d --remove-orphans
-            
-            # Clean up dangling images
-            docker image prune -f
-            
-            echo "✅ Deployment completed successfully!"
+
+            # Rename uploaded environment file to .env
+            if [ -f ".env.production" ]; then
+              mv -f .env.production .env
+              chmod 600 .env
+            fi
+
+            # Update repository files (compose, nginx, deploy script)
+            if [ -d ".git" ]; then
+              git fetch origin main
+              git reset --hard origin/main
+            fi
+
+            # Log into GHCR on the EC2 host to pull private images
+            echo "$GHCR_TOKEN" | docker login ghcr.io -u "$GHCR_ACTOR" --password-stdin
+
+            # Run zero-downtime deployment script
+            chmod +x deploy/deploy.sh
+            ./deploy/deploy.sh "$IMAGE_TAG" "$REPO_OWNER"
+
+  verify:
+    name: Verify Production Health
+    needs: deploy
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check Backend API Health
+        run: |
+          echo "🔍 Verifying https://api.poolpay.space/health..."
+          for i in {1..15}; do
+            STATUS=$(curl -s -o /dev/null -w "%{http_code}" https://api.poolpay.space/health || true)
+            if [ "$STATUS" = "200" ]; then
+              echo "✅ Backend API is live and responding with HTTP 200!"
+              exit 0
+            fi
+            echo "Attempt $i: Status $STATUS, retrying in 4s..."
+            sleep 4
+          done
+          echo "⚠️ Health check timed out, please verify server logs."
+          exit 1
+
+      - name: Check Landing Page
+        run: |
+          echo "🔍 Verifying https://poolpay.space..."
+          curl -s -I https://poolpay.space | head -n 5 || true

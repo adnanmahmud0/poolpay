@@ -7,7 +7,7 @@ dotenv.config({ path: path.resolve(process.cwd(), "../../.env") });
 dotenv.config({ path: path.resolve(__dirname, "../../.env") });
 
 const nextConfig: NextConfig = {
-  ...(process.env.STANDALONE === "true" ? { output: "standalone" } : {}),
+  output: "standalone",
 };
 
 export default nextConfig;
