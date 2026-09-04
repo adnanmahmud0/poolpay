@@ -67,7 +67,7 @@ const envSchema = z.object({
   SMTP_PORT: z.string().optional(),
   SMTP_USER: z.string().optional(),
   SMTP_PASS: z.string().optional(),
-  SMTP_FORM: z.string().email().optional(),
+  SMTP_FORM: z.string().email().optional().or(z.literal("")),
 
   // Redis
   REDIS_HOST: z.string().default("127.0.0.1"),
@@ -96,8 +96,8 @@ const envSchema = z.object({
 
   // Firebase
   FIREBASE_SERVICE_ACCOUNT_BASE64: z.string().optional(),
-  SLACK_WEBHOOK_URL: z.string().url().optional(),
-  SENTRY_DSN: z.string().url().optional(),
+  SLACK_WEBHOOK_URL: z.string().url().optional().or(z.literal("")),
+  SENTRY_DSN: z.string().url().optional().or(z.literal("")),
 
   // Twilio
   TWILIO_ACCOUNT_SID: z.string().optional(),

@@ -102,6 +102,14 @@ if [ "$HEALTHY" = true ]; then
     echo "$IMAGE_TAG" > .current_tag
 else
     echo "❌ Health check failed after 60 seconds!"
+    echo "📋 Dumping Docker container status:"
+    docker compose -f docker-compose.prod.yml ps -a || true
+    echo "📋 Dumping Backend API container logs:"
+    docker compose -f docker-compose.prod.yml logs --tail=100 api || true
+    echo "📋 Dumping MongoDB container logs:"
+    docker compose -f docker-compose.prod.yml logs --tail=50 mongodb || true
+    echo "📋 Dumping Web container logs:"
+    docker compose -f docker-compose.prod.yml logs --tail=50 web || true
     if [ -f ".previous_tag" ]; then
         ROLLBACK_TAG="$(cat .previous_tag)"
         echo "🔄 Rolling back to previous version: ${ROLLBACK_TAG}..."

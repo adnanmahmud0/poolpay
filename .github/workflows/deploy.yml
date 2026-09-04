@@ -202,7 +202,8 @@ jobs:
           with open('.env.production', 'w') as f:
             for k in keys:
               val = os.environ.get(k, '')
-              f.write(f'{k}={val}\n')
+              if val.strip():
+                f.write(f'{k}={val}\n')
           "
           echo "✅ Generated .env.production successfully"
 
