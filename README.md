@@ -160,3 +160,10 @@ npm run app:run
 | `@repo/types`         | Shared TypeScript interfaces & DTOs            | `import type { ApiResponse, IUser } from "@repo/types"` |
 | `@repo/validators`    | Shared Zod validation schemas                  | `import { loginSchema } from "@repo/validators"`        |
 | `@repo/ui`            | Shared React component library                 | `import { Button } from "@repo/ui"`                     |
+
+---
+
+## 🚢 Production Deployment
+
+For complete, step-by-step instructions on deploying the full-stack monorepo (Express API, Next.js Dashboard, MongoDB, Redis, Nginx with SSL) via automated GitHub Actions CI/CD or manual Docker Compose, plus Flutter Mobile app release builds, refer to the [Production Deployment Guide](DEPLOYMENT_GUIDE.md).
+

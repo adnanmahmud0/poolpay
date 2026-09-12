@@ -68,39 +68,17 @@ export default function ReportsPage() {
   }
 
   return (
-    <div className="space-y-6 pb-20">
-      {/* Report Type Cards */}
-      {/* <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-        <ReportSummaryCard 
-          title="Financial Report"
-          description="Comprehensive overview of all transactions, contributions, and fund distributions"
-          icon={<DollarSign className="w-5 h-5 text-indigo-600" />}
-          bgColor="bg-indigo-50"
-        />
-        <ReportSummaryCard 
-          title="User Activity Report"
-          description="Detailed analysis of user engagement, registrations, and activity patterns"
-          icon={<Users className="w-5 h-5 text-emerald-600" />}
-          bgColor="bg-emerald-50"
-        />
-        <ReportSummaryCard 
-          title="Fund Distribution Report"
-          description="Track fund allocation, distribution cycles, and group performance metrics"
-          icon={<BarChart3 className="w-5 h-5 text-purple-600" />}
-          bgColor="bg-purple-50"
-        />
-      </div> */}
-
+    <div className="space-y-4 sm:space-y-6 pb-16 min-w-0">
       {/* Performance Analytics Section */}
-      <div className="bg-white p-8 rounded-2xl shadow-sm border border-gray-100/50 space-y-8">
+      <div className="bg-white p-4 sm:p-6 lg:p-8 rounded-2xl shadow-xs border border-gray-100 space-y-6 sm:space-y-8 min-w-0">
         <div className="flex items-center justify-between">
-          <h2 className="text-xl font-bold text-gray-900">Performance Analytics</h2>
+          <h2 className="text-lg sm:text-xl font-bold text-gray-900">Performance Analytics</h2>
         </div>
 
         {/* Chart Header */}
-        <div className="space-y-6">
+        <div className="space-y-4 sm:space-y-6">
           <div className="flex items-center justify-between">
-            <h3 className="text-sm font-semibold text-gray-700">Yearly Revenue Trend</h3>
+            <h3 className="text-xs sm:text-sm font-semibold text-gray-700">Yearly Revenue Trend</h3>
             <div className="flex items-center gap-2 bg-gray-50 px-3 py-1.5 rounded-lg border border-gray-100 cursor-pointer hover:bg-gray-100 transition-colors">
               <span className="text-xs font-medium text-gray-600">{selectedYear}</span>
               <ChevronDown className="w-3.5 h-3.5 text-gray-400" />
@@ -108,7 +86,7 @@ export default function ReportsPage() {
           </div>
 
           {/* Revenue Chart */}
-          <div className="h-[300px] w-full relative">
+          <div className="h-[240px] sm:h-[300px] w-full relative min-w-0">
             <ResponsiveContainer width="100%" height="100%">
               <AreaChart data={overview?.revenueTrend?.chartData || []} margin={{ top: 10, right: 10, left: 0, bottom: 0 }}>
                 <defs>
@@ -158,7 +136,7 @@ export default function ReportsPage() {
         </div>
 
         {/* Analytics Grid */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6">
           <GrowthStatCard
             title="New Users (This Month)"
             value={overview?.userGrowth?.newUsers?.count?.toLocaleString() || "0"}
@@ -184,7 +162,7 @@ export default function ReportsPage() {
 
         {/* Group Performance Metrics */}
         <div className="space-y-4 pt-4 border-t border-gray-50">
-          <h3 className="text-sm font-bold text-gray-900 mb-6">Group Performance Metrics</h3>
+          <h3 className="text-sm font-bold text-gray-900 mb-4 sm:mb-6">Group Performance Metrics</h3>
           <PerformanceBar label="Average Group Completion Rate" percentage={Math.round(overview?.groupPerformance?.averageGroupCompletionRate || 0)} color="bg-emerald-500" />
           <PerformanceBar label="On-Time Payment Rate" percentage={Math.round(overview?.groupPerformance?.onTimePaymentRate || 0)} color="bg-indigo-600" />
           <PerformanceBar label="Average Group Fill Rate" percentage={Math.round(overview?.groupPerformance?.averageGroupFillRate || 0)} color="bg-purple-600" />
@@ -192,14 +170,14 @@ export default function ReportsPage() {
       </div>
 
       {/* Revenue Categorization Section */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        <div className="bg-white p-8 rounded-2xl shadow-sm border border-gray-100/50">
-          <div className="flex items-center gap-3 mb-8">
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 sm:gap-6 min-w-0">
+        <div className="bg-white p-4 sm:p-6 lg:p-8 rounded-2xl shadow-xs border border-gray-100 min-w-0">
+          <div className="flex items-center gap-3 mb-6 sm:mb-8">
             <PieChartIcon className="w-5 h-5 text-indigo-600" />
-            <h2 className="text-lg font-bold text-gray-900">Revenue Categorization</h2>
+            <h2 className="text-base sm:text-lg font-bold text-gray-900">Revenue Categorization</h2>
           </div>
           
-          <div className="h-[250px] w-full mb-6">
+          <div className="h-[220px] sm:h-[250px] w-full mb-4 sm:mb-6 min-w-0">
             <ResponsiveContainer width="100%" height="100%">
               <PieChart>
                 <Pie
@@ -208,8 +186,8 @@ export default function ReportsPage() {
                     { name: 'VIP Membership', value: revenueSummary?.vipMembership || 0 },
                     { name: 'Platform Fees (1%)', value: revenueSummary?.platformFees || 0 },
                   ]}
-                  innerRadius={60}
-                  outerRadius={80}
+                  innerRadius={55}
+                  outerRadius={75}
                   paddingAngle={5}
                   dataKey="value"
                 >
@@ -232,7 +210,7 @@ export default function ReportsPage() {
           </div>
         </div>
 
-        <div className="bg-white p-8 rounded-2xl shadow-sm border border-gray-100/50 flex flex-col justify-between">
+        <div className="bg-white p-4 sm:p-6 lg:p-8 rounded-2xl shadow-xs border border-gray-100 flex flex-col justify-between min-w-0">
           <div className="space-y-6">
             <RevenueItem 
               icon={<Zap className="w-4 h-4 text-indigo-600" />}

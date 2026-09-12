@@ -101,22 +101,21 @@ export default function AuditLogsPage() {
   };
 
   return (
-    <div className="space-y-6">
-      <div className="flex items-center justify-between">
+    <div className="space-y-4 sm:space-y-6 min-w-0">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900">System Audit Logs</h1>
-          <p className="text-sm text-gray-500">Track and monitor all system-wide events and security actions</p>
+          <h1 className="text-xl sm:text-2xl font-bold text-gray-900">System Audit Logs</h1>
+          <p className="text-xs sm:text-sm text-gray-500">Track and monitor all system-wide events and security actions</p>
         </div>
-        
       </div>
 
-      <div className="bg-white rounded-3xl border border-gray-100/50 shadow-sm overflow-hidden">
+      <div className="bg-white rounded-2xl sm:rounded-3xl border border-gray-100 shadow-xs overflow-hidden min-w-0">
         {/* Filters */}
-        <div className="p-6 border-b border-gray-50 flex flex-col md:flex-row gap-4 items-center justify-between bg-gray-50/30">
-          <div className="flex items-center gap-3 w-full md:w-auto">
-            <Filter className="w-4 h-4 text-gray-400" />
+        <div className="p-4 sm:p-6 border-b border-gray-50 flex flex-col sm:flex-row gap-3 sm:gap-4 items-stretch sm:items-center justify-between bg-gray-50/30">
+          <div className="flex items-center gap-3 w-full sm:w-auto">
+            <Filter className="w-4 h-4 text-gray-400 shrink-0" />
             <select 
-              className="bg-white border border-gray-200 rounded-xl px-4 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/10 focus:border-indigo-500"
+              className="bg-white border border-gray-200 rounded-xl px-3 sm:px-4 py-2 text-xs sm:text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/10 focus:border-indigo-500 w-full sm:w-auto cursor-pointer"
               value={filterAction}
               onChange={(e) => {
                 setFilterAction(e.target.value);
@@ -129,7 +128,7 @@ export default function AuditLogsPage() {
             </select>
           </div>
           
-          <div className="text-xs font-bold text-gray-400 uppercase tracking-widest">
+          <div className="text-xs font-bold text-gray-400 uppercase tracking-widest text-right sm:text-left">
             Total Logs: {meta.total}
           </div>
         </div>
@@ -197,11 +196,11 @@ export default function AuditLogsPage() {
 
         {/* Pagination */}
         {meta.total > meta.limit && (
-          <div className="p-6 border-t border-gray-50 flex items-center justify-between bg-gray-50/20">
-            <p className="text-xs font-bold text-gray-400">
+          <div className="p-4 sm:p-6 border-t border-gray-50 flex flex-col sm:flex-row items-center justify-between gap-4 bg-gray-50/20">
+            <p className="text-xs font-bold text-gray-400 order-2 sm:order-1 text-center sm:text-left">
               Showing <span className="text-gray-900">{(page - 1) * meta.limit + 1}</span> to <span className="text-gray-900">{Math.min(page * meta.limit, meta.total)}</span> of <span className="text-gray-900">{meta.total}</span> logs
             </p>
-            <div className="flex items-center gap-1">
+            <div className="flex items-center gap-1 order-1 sm:order-2">
               <button 
                 onClick={() => setPage(p => Math.max(1, p - 1))}
                 disabled={page === 1}
@@ -224,7 +223,7 @@ export default function AuditLogsPage() {
                       <button
                         key={pageNum}
                         onClick={() => setPage(pageNum)}
-                        className={`w-8 h-8 rounded-lg text-xs font-bold transition-all ${
+                        className={`w-7 h-7 sm:w-8 sm:h-8 rounded-lg text-xs font-bold transition-all ${
                           page === pageNum 
                             ? "bg-[#1A2279] text-white shadow-md shadow-indigo-100" 
                             : "text-gray-400 hover:bg-gray-100 hover:text-gray-900"
@@ -237,7 +236,7 @@ export default function AuditLogsPage() {
                     pageNum === page - 2 || 
                     pageNum === page + 2
                   ) {
-                    return <span key={pageNum} className="text-gray-300">...</span>;
+                    return <span key={pageNum} className="text-gray-300 text-xs">...</span>;
                   }
                   return null;
                 })}

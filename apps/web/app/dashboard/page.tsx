@@ -129,63 +129,63 @@ export default function DashboardPage() {
   }
 
   return (
-    <div className="space-y-6 mx-auto">
+    <div className="space-y-4 sm:space-y-6 mx-auto w-full min-w-0">
 
       {/* Top Stat Cards Grid */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+      <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4 sm:gap-6">
 
         {/* Card 1: Users */}
-        <div className="bg-white p-5 rounded-2xl shadow-sm border border-gray-100/50 flex flex-col justify-between">
+        <div className="bg-white p-4 sm:p-5 rounded-2xl shadow-xs border border-gray-100 flex flex-col justify-between">
           <div className="flex justify-between items-start mb-4">
             <div className="bg-indigo-50 p-2.5 rounded-xl">
               <Users className="w-5 h-5 text-indigo-600" />
             </div>
           </div>
           <div>
-            <p className="text-gray-500 text-sm font-medium mb-1">Total Users</p>
-            <h3 className="text-2xl font-semibold text-gray-900 mb-2">{summary?.totalUsers || 0}</h3>
+            <p className="text-gray-500 text-xs sm:text-sm font-medium mb-1">Total Users</p>
+            <h3 className="text-xl sm:text-2xl font-semibold text-gray-900 mb-1 sm:mb-2">{summary?.totalUsers || 0}</h3>
             <p className="text-xs text-gray-400">{summary?.activeMembers || 0} active members</p>
           </div>
         </div>
 
         {/* Card 2: Groups */}
-        <div className="bg-white p-5 rounded-2xl shadow-sm border border-gray-100/50 flex flex-col justify-between">
+        <div className="bg-white p-4 sm:p-5 rounded-2xl shadow-xs border border-gray-100 flex flex-col justify-between">
           <div className="flex justify-between items-start mb-4">
             <div className="bg-emerald-50 p-2.5 rounded-xl">
               <Component className="w-5 h-5 text-emerald-600" />
             </div>
           </div>
           <div>
-            <p className="text-gray-500 text-sm font-medium mb-1">Total Groups</p>
-            <h3 className="text-2xl font-semibold text-gray-900 mb-2">{summary?.totalGroups || 0}</h3>
+            <p className="text-gray-500 text-xs sm:text-sm font-medium mb-1">Total Groups</p>
+            <h3 className="text-xl sm:text-2xl font-semibold text-gray-900 mb-1 sm:mb-2">{summary?.totalGroups || 0}</h3>
             <p className="text-xs text-gray-400">Manage all groups</p>
           </div>
         </div>
 
         {/* Card 3: Revenue */}
-        <div className="bg-white p-5 rounded-2xl shadow-sm border border-gray-100/50 flex flex-col justify-between">
+        <div className="bg-white p-4 sm:p-5 rounded-2xl shadow-xs border border-gray-100 flex flex-col justify-between">
           <div className="flex justify-between items-start mb-4">
             <div className="bg-blue-50 p-2.5 rounded-xl">
               <DollarSign className="w-5 h-5 text-blue-600" />
             </div>
           </div>
           <div>
-            <p className="text-gray-500 text-sm font-medium mb-1">Total Revenue</p>
-            <h3 className="text-2xl font-semibold text-gray-900 mb-2">${summary?.totalRevenue?.toLocaleString() || 0}</h3>
+            <p className="text-gray-500 text-xs sm:text-sm font-medium mb-1">Total Revenue</p>
+            <h3 className="text-xl sm:text-2xl font-semibold text-gray-900 mb-1 sm:mb-2">${summary?.totalRevenue?.toLocaleString() || 0}</h3>
             <p className="text-xs text-gray-400">Total earnings</p>
           </div>
         </div>
 
         {/* Card 4: Payouts */}
-        <div className="bg-white p-5 rounded-2xl shadow-sm border border-gray-100/50 flex flex-col justify-between">
+        <div className="bg-white p-4 sm:p-5 rounded-2xl shadow-xs border border-gray-100 flex flex-col justify-between">
           <div className="flex justify-between items-start mb-4">
             <div className="bg-orange-50 p-2.5 rounded-xl">
               <Clock className="w-5 h-5 text-orange-500" />
             </div>
           </div>
           <div>
-            <p className="text-gray-500 text-sm font-medium mb-1">Total Payouts</p>
-            <h3 className="text-2xl font-semibold text-gray-900 mb-2">${summary?.totalPayouts?.toLocaleString() || 0}</h3>
+            <p className="text-gray-500 text-xs sm:text-sm font-medium mb-1">Total Payouts</p>
+            <h3 className="text-xl sm:text-2xl font-semibold text-gray-900 mb-1 sm:mb-2">${summary?.totalPayouts?.toLocaleString() || 0}</h3>
             <p className="text-xs text-gray-400">Total distributions</p>
           </div>
         </div>
@@ -193,30 +193,21 @@ export default function DashboardPage() {
       </div>
 
       {/* Main Content Grid (Charts & Lists) */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 sm:gap-6">
 
         {/* Monthly Revenue Chart */}
-        <div className="lg:col-span-2 bg-white p-6 rounded-2xl shadow-sm border border-gray-100/50">
-          <div className="flex justify-between items-start mb-6">
+        <div className="lg:col-span-2 bg-white p-4 sm:p-6 rounded-2xl shadow-xs border border-gray-100 min-w-0">
+          <div className="flex justify-between items-start mb-4 sm:mb-6">
             <div>
-              <p className="text-gray-500 text-sm font-medium mb-1">Monthly Revenue</p>
-              {/* <div className="flex items-baseline gap-2">
-                <h3 className="text-2xl font-bold text-gray-900">${summary?.totalRevenue?.toLocaleString() || 0}</h3>
-                <span className="text-xs font-medium text-emerald-500">↑ 1.3%</span>
-              </div> */}
+              <p className="text-gray-500 text-xs sm:text-sm font-medium mb-1">Monthly Revenue</p>
             </div>
-            {/* <select className="bg-gray-50 border-none text-xs font-medium text-gray-500 rounded-lg px-3 py-1.5 focus:ring-0 cursor-pointer">
-              <option>October</option>
-              <option>November</option>
-              <option>December</option>
-            </select> */}
           </div>
 
-          <div className="h-[250px] w-full">
+          <div className="h-[220px] sm:h-[260px] w-full min-w-0">
             <ResponsiveContainer width="100%" height="100%">
               <AreaChart
                 data={revenueData}
-                margin={{ top: 10, right: 0, left: -20, bottom: 0 }}
+                margin={{ top: 10, right: 10, left: -20, bottom: 0 }}
               >
                 <defs>
                   <linearGradient id="colorRevenue" x1="0" y1="0" x2="0" y2="1">
@@ -257,14 +248,14 @@ export default function DashboardPage() {
         </div>
 
         {/* User Growth Column */}
-        <div className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100/50">
-          <div className="flex justify-between items-center mb-8">
-            <h3 className="font-semibold text-gray-900">User Growth</h3>
+        <div className="bg-white p-4 sm:p-6 rounded-2xl shadow-xs border border-gray-100 min-w-0">
+          <div className="flex justify-between items-center mb-6 sm:mb-8">
+            <h3 className="font-semibold text-gray-900 text-sm sm:text-base">User Growth</h3>
           </div>
 
-          <div className="space-y-6">
+          <div className="space-y-4 sm:space-y-6">
             <div>
-              <div className="flex justify-between text-sm mb-2">
+              <div className="flex justify-between text-xs sm:text-sm mb-2">
                 <span className="text-gray-500 font-medium">Active Users</span>
                 <span className="text-gray-900 font-semibold">{growthStats?.active || 0}</span>
               </div>
@@ -277,7 +268,7 @@ export default function DashboardPage() {
             </div>
 
             <div>
-              <div className="flex justify-between text-sm mb-2">
+              <div className="flex justify-between text-xs sm:text-sm mb-2">
                 <span className="text-gray-500 font-medium">Pending Users</span>
                 <span className="text-gray-900 font-semibold">{growthStats?.pending || 0}</span>
               </div>
@@ -290,7 +281,7 @@ export default function DashboardPage() {
             </div>
 
             <div>
-              <div className="flex justify-between text-sm mb-2">
+              <div className="flex justify-between text-xs sm:text-sm mb-2">
                 <span className="text-gray-500 font-medium">Suspended Users</span>
                 <span className="text-gray-900 font-semibold">{growthStats?.blocked || 0}</span>
               </div>
@@ -305,20 +296,20 @@ export default function DashboardPage() {
         </div>
 
         {/* Recent Users List */}
-        <div className="bg-white rounded-2xl shadow-sm border border-gray-100/50 overflow-hidden">
-          <div className="flex justify-between items-center p-6 border-b border-gray-50">
-            <h3 className="font-semibold text-gray-900">Recent Users</h3>
-            <Link href="/dashboard/users" className="text-[#1A227F] text-sm font-medium hover:underline">View All</Link>
+        <div className="bg-white rounded-2xl shadow-xs border border-gray-100 overflow-hidden min-w-0">
+          <div className="flex justify-between items-center p-4 sm:p-6 border-b border-gray-50">
+            <h3 className="font-semibold text-gray-900 text-sm sm:text-base">Recent Users</h3>
+            <Link href="/dashboard/users" className="text-[#1A227F] text-xs sm:text-sm font-medium hover:underline">View All</Link>
           </div>
           <div className="divide-y divide-gray-50">
             {recentUsers.length > 0 ? (
               recentUsers.map((user, idx) => (
-                <div key={user._id || `user-${idx}`} className="p-4 px-6 flex justify-between items-center hover:bg-gray-50/50 transition-colors">
-                  <div>
-                    <p className="text-sm font-medium text-gray-900">{user.fullName}</p>
-                    <p className="text-xs text-gray-500">{user.email}</p>
+                <div key={user._id || `user-${idx}`} className="p-3 sm:p-4 px-4 sm:px-6 flex justify-between items-center hover:bg-gray-50/50 transition-colors gap-2">
+                  <div className="min-w-0 flex-1">
+                    <p className="text-xs sm:text-sm font-medium text-gray-900 truncate">{user.fullName}</p>
+                    <p className="text-[11px] sm:text-xs text-gray-500 truncate">{user.email}</p>
                   </div>
-                  <span className={`px-2.5 py-1 text-[10px] font-semibold rounded-full capitalize ${user.status === 'active' ? 'bg-emerald-50 text-emerald-600' :
+                  <span className={`px-2 py-0.5 sm:px-2.5 sm:py-1 text-[10px] font-semibold rounded-full capitalize shrink-0 ${user.status === 'active' ? 'bg-emerald-50 text-emerald-600' :
                     user.status === 'suspended' ? 'bg-red-50 text-red-600' :
                       'bg-orange-50 text-orange-600'
                     }`}>
@@ -327,7 +318,7 @@ export default function DashboardPage() {
                 </div>
               ))
             ) : (
-              <div className="p-6 text-center text-gray-500 text-sm">
+              <div className="p-6 text-center text-gray-500 text-xs sm:text-sm">
                 No recent users found
               </div>
             )}
@@ -335,14 +326,14 @@ export default function DashboardPage() {
         </div>
 
         {/* Recent Activities List */}
-        <div className="lg:col-span-2 bg-white rounded-2xl shadow-sm border border-gray-100/50 overflow-hidden mt-6 lg:mt-0">
-          <div className="p-6 border-b border-gray-50">
-            <h3 className="font-semibold text-gray-900">Recent Activities</h3>
+        <div className="lg:col-span-2 bg-white rounded-2xl shadow-xs border border-gray-100 overflow-hidden min-w-0">
+          <div className="p-4 sm:p-6 border-b border-gray-50">
+            <h3 className="font-semibold text-gray-900 text-sm sm:text-base">Recent Activities</h3>
           </div>
-          <div className="p-6 space-y-6">
+          <div className="p-4 sm:p-6 space-y-4 sm:space-y-6">
             {activities.length > 0 ? (
               activities.map((activity, idx) => (
-                <div key={activity._id || `activity-${idx}`} className="flex gap-4 items-start">
+                <div key={activity._id || `activity-${idx}`} className="flex gap-3 sm:gap-4 items-start min-w-0">
                   <div className={`p-2 rounded-full shrink-0 ${activity.action.includes('LOGIN') ? 'bg-indigo-50' :
                     activity.action.includes('STATUS') ? 'bg-emerald-50' :
                       'bg-purple-50'
@@ -355,12 +346,12 @@ export default function DashboardPage() {
                       <PlayCircle className="w-4 h-4 text-purple-600" />
                     )}
                   </div>
-                  <div>
-                    <p className="text-sm text-gray-900">
+                  <div className="min-w-0 flex-1">
+                    <p className="text-xs sm:text-sm text-gray-900 break-words">
                       <span className="font-medium text-gray-600">{activity.userId?.fullName || 'System'}: </span>
                       {activity.details}
                     </p>
-                    <p className="text-xs text-gray-400 mt-1">
+                    <p className="text-[11px] sm:text-xs text-gray-400 mt-1">
                       {activity.createdAt ? (() => {
                         const date = new Date(activity.createdAt);
                         return isNaN(date.getTime()) ? 'Invalid date' : formatDistanceToNow(date, { addSuffix: true });
@@ -370,7 +361,7 @@ export default function DashboardPage() {
                 </div>
               ))
             ) : (
-              <div className="text-center text-gray-500 text-sm py-4">
+              <div className="text-center text-gray-500 text-xs sm:text-sm py-4">
                 No recent activities found
               </div>
             )}

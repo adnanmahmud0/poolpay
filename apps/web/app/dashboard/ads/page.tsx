@@ -319,17 +319,17 @@ export default function AdsPage() {
   };
 
   return (
-    <div className="space-y-6">
-      <div className="flex items-center justify-between">
+    <div className="space-y-4 sm:space-y-6 min-w-0">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 sm:gap-4">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900">Advertisement Management</h1>
-          <p className="text-sm text-gray-500">Manage platform-wide banners and promotions</p>
+          <h1 className="text-xl sm:text-2xl font-bold text-gray-900">Advertisement Management</h1>
+          <p className="text-xs sm:text-sm text-gray-500">Manage platform-wide banners and promotions</p>
         </div>
         <button 
           onClick={openCreateModal}
-          className="bg-[#1A2279] text-white px-6 py-3 rounded-xl font-bold hover:bg-indigo-900 transition-all shadow-lg shadow-indigo-100 flex items-center gap-2"
+          className="bg-[#1A2279] text-white px-4 sm:px-5 py-2.5 sm:py-3 rounded-xl font-bold hover:bg-indigo-900 transition-all shadow-md shadow-indigo-100 flex items-center justify-center gap-2 self-start sm:self-auto text-sm"
         >
-          <Plus className="w-5 h-5" />
+          <Plus className="w-4 h-4 sm:w-5 sm:h-5" />
           Create New Ad
         </button>
       </div>
@@ -340,9 +340,9 @@ export default function AdsPage() {
           <p className="text-gray-500 font-medium">Loading advertisements...</p>
         </div>
       ) : ads.length > 0 ? (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6">
           {ads.map((ad) => (
-            <div key={ad._id} className="bg-white rounded-2xl shadow-sm border border-gray-100/50 overflow-hidden group hover:shadow-md transition-all">
+            <div key={ad._id} className="bg-white rounded-2xl shadow-xs border border-gray-100 overflow-hidden group hover:shadow-md transition-all min-w-0">
               <div className="relative h-40 bg-gray-100">
                 {ad.bannerImage ? (
                   <Image 
@@ -365,10 +365,10 @@ export default function AdsPage() {
                   </span>
                 </div>
               </div>
-              <div className="p-6">
-                <div className="flex justify-between items-start mb-2">
-                  <h3 className="font-bold text-gray-900 line-clamp-1">{ad.title}</h3>
-                  <div className="flex items-center gap-1">
+              <div className="p-4 sm:p-6">
+                <div className="flex justify-between items-start mb-2 gap-2">
+                  <h3 className="font-bold text-gray-900 line-clamp-1 text-sm sm:text-base">{ad.title}</h3>
+                  <div className="flex items-center gap-1 shrink-0">
                     <button onClick={() => openEditModal(ad)} className="p-1.5 hover:bg-gray-100 rounded-lg text-gray-400 transition-colors">
                       <Edit2 className="w-4 h-4" />
                     </button>
@@ -411,29 +411,29 @@ export default function AdsPage() {
           ))}
         </div>
       ) : (
-        <div className="bg-white p-20 rounded-3xl border border-dashed border-gray-200 flex flex-col items-center justify-center text-center">
+        <div className="bg-white p-12 sm:p-20 rounded-3xl border border-dashed border-gray-200 flex flex-col items-center justify-center text-center">
           <div className="bg-gray-50 p-6 rounded-full mb-6">
             <Megaphone className="w-12 h-12 text-gray-300" />
           </div>
-          <h3 className="text-xl font-bold text-gray-900 mb-2">No Advertisements Yet</h3>
-          <p className="text-gray-500 max-w-sm">Start promoting groups or features by creating your first advertisement banner.</p>
+          <h3 className="text-lg sm:text-xl font-bold text-gray-900 mb-2">No Advertisements Yet</h3>
+          <p className="text-gray-500 text-xs sm:text-sm max-w-sm">Start promoting groups or features by creating your first advertisement banner.</p>
         </div>
       )}
 
       {/* Create/Edit Modal */}
       {isModalOpen && (
-        <div className="fixed inset-0 bg-black/40 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+        <div className="fixed inset-0 bg-black/40 backdrop-blur-sm z-50 flex items-center justify-center p-3 sm:p-4">
           <div className="bg-white w-full max-w-2xl max-h-[90vh] rounded-3xl shadow-2xl overflow-hidden animate-in fade-in zoom-in duration-300 flex flex-col">
-            <div className="bg-gradient-to-r from-[#4F5BDB] to-[#1A2279] p-6 text-white flex justify-between items-center shrink-0">
-              <h2 className="text-xl font-bold">{editingAd ? "Edit Advertisement" : "Create New Advertisement"}</h2>
+            <div className="bg-gradient-to-r from-[#4F5BDB] to-[#1A2279] p-4 sm:p-6 text-white flex justify-between items-center shrink-0">
+              <h2 className="text-lg sm:text-xl font-bold">{editingAd ? "Edit Advertisement" : "Create New Advertisement"}</h2>
               <button onClick={() => setIsModalOpen(false)} className="hover:opacity-80 transition-opacity">
                 <X className="w-6 h-6" />
               </button>
             </div>
             
-            <form onSubmit={handleSubmit} className="p-8 space-y-6 overflow-y-auto custom-scrollbar">
-              <div className="grid grid-cols-2 gap-6">
-                <div className="col-span-2 space-y-2">
+            <form onSubmit={handleSubmit} className="p-4 sm:p-6 lg:p-8 space-y-4 sm:space-y-6 overflow-y-auto custom-scrollbar">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 sm:gap-6">
+                <div className="col-span-1 sm:col-span-2 space-y-2">
                   <label className="text-xs font-bold text-gray-500 uppercase">Ad Title</label>
                   <input 
                     required
@@ -445,7 +445,7 @@ export default function AdsPage() {
                   />
                 </div>
                 
-                <div className="col-span-2 space-y-2">
+                <div className="col-span-1 sm:col-span-2 space-y-2">
                   <label className="text-xs font-bold text-gray-500 uppercase">Description</label>
                   <textarea 
                     rows={2}
@@ -457,17 +457,17 @@ export default function AdsPage() {
                 </div>
 
                 {/* Image Dimension & Aspect Ratio Suggestion Guide */}
-                <div className="col-span-2 bg-gradient-to-r from-indigo-50/80 via-blue-50/50 to-indigo-50/80 border border-indigo-100/80 rounded-2xl p-4 flex flex-col gap-2.5">
-                  <div className="flex items-center justify-between">
+                <div className="col-span-1 sm:col-span-2 bg-gradient-to-r from-indigo-50/80 via-blue-50/50 to-indigo-50/80 border border-indigo-100/80 rounded-2xl p-4 flex flex-col gap-2.5">
+                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
                     <span className="text-xs font-bold text-indigo-900 uppercase tracking-wider flex items-center gap-1.5">
                       <Sparkles className="w-3.5 h-3.5 text-indigo-600" />
                       Recommended Dimensions & Ratio
                     </span>
-                    <span className="text-[10px] font-bold bg-indigo-600 text-white px-2.5 py-0.5 rounded-full uppercase tracking-wider">
+                    <span className="text-[10px] font-bold bg-indigo-600 text-white px-2.5 py-0.5 rounded-full uppercase tracking-wider self-start sm:self-auto">
                       Mobile Optimized
                     </span>
                   </div>
-                  <div className="grid grid-cols-3 gap-2 text-xs">
+                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 text-xs">
                     <div className="bg-white/90 backdrop-blur-sm p-3 rounded-xl border border-indigo-100/60 shadow-xs">
                       <p className="text-[10px] text-gray-400 font-semibold uppercase tracking-wider">Aspect Ratio</p>
                       <p className="font-extrabold text-gray-900 text-sm mt-0.5">2:1 or 16:9</p>

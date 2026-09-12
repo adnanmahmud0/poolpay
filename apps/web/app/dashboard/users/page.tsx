@@ -119,7 +119,7 @@ export default function UsersPage() {
   return (
     <div className="space-y-6">
       {/* Top Stat Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+      <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4 sm:gap-6">
         <StatCard title="Total Users" value={stats.total} color="indigo" />
         <StatCard title="Active" value={stats.active} color="emerald" />
         <StatCard title="Pending" value={stats.pending} color="orange" />
@@ -127,9 +127,9 @@ export default function UsersPage() {
       </div>
 
       {/* Main Unified Card */}
-      <div className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100/50">
+      <div className="bg-white p-4 sm:p-6 rounded-2xl shadow-xs border border-gray-100 min-w-0">
         {/* Search and Filters */}
-        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-8">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 sm:gap-4 mb-6 sm:mb-8">
           <div className="relative flex-1 max-w-lg">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
             <input
@@ -140,12 +140,12 @@ export default function UsersPage() {
               onChange={(e) => setSearchQuery(e.target.value)}
             />
           </div>
-          <div className="flex items-center gap-2 overflow-x-auto pb-2 md:pb-0">
+          <div className="flex items-center gap-1.5 sm:gap-2 overflow-x-auto pb-1 sm:pb-0 no-scrollbar">
             {["All", "Active", "Pending", "Suspended"].map((tab) => (
               <button
                 key={tab}
                 onClick={() => setActiveTab(tab)}
-                className={`px-4 py-2 rounded-lg text-sm font-medium transition-all whitespace-nowrap ${activeTab === tab
+                className={`px-3 sm:px-4 py-1.5 sm:py-2 rounded-lg text-xs sm:text-sm font-medium transition-all whitespace-nowrap ${activeTab === tab
                     ? "bg-[#1A2279] text-white shadow-md shadow-indigo-100"
                     : "bg-gray-50 text-gray-500 hover:bg-gray-100"
                   }`}
@@ -295,8 +295,11 @@ export default function UsersPage() {
         </div>
 
         {/* Pagination */}
-        <div className="flex items-center justify-end px-6 py-6 border-t border-gray-50 mt-4">
-          <div className="flex items-center gap-2">
+        <div className="flex flex-col sm:flex-row items-center justify-between gap-4 px-3 sm:px-6 py-4 sm:py-6 border-t border-gray-50 mt-4">
+          <div className="text-xs text-gray-400 order-2 sm:order-1">
+            Showing Page {meta.page} of {totalPages || 1} ({meta.total} users)
+          </div>
+          <div className="flex items-center gap-2 order-1 sm:order-2">
             <button
               onClick={() => handlePageChange(Math.max(1, meta.page - 1))}
               disabled={meta.page === 1 || isLoading}
@@ -313,8 +316,8 @@ export default function UsersPage() {
                     key={pageNum}
                     onClick={() => handlePageChange(pageNum)}
                     disabled={isLoading}
-                    className={`w-9 h-9 flex items-center justify-center rounded-lg text-sm font-medium transition-all ${meta.page === pageNum
-                        ? "bg-[#1A2279] text-white shadow-lg shadow-indigo-100 scale-110"
+                    className={`w-8 h-8 sm:w-9 sm:h-9 flex items-center justify-center rounded-lg text-xs sm:text-sm font-medium transition-all ${meta.page === pageNum
+                        ? "bg-[#1A2279] text-white shadow-lg shadow-indigo-100 scale-105"
                         : "text-gray-500 hover:bg-gray-50"
                       }`}
                   >
@@ -347,9 +350,9 @@ function StatCard({ title, value, color }: { title: string; value: number; color
   };
 
   return (
-    <div className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100/50">
-      <p className="text-gray-500 text-sm font-medium mb-1">{title}</p>
-      <h3 className={`text-2xl font-bold ${colors[color].split(' ')[0]}`}>{value}</h3>
+    <div className="bg-white p-4 sm:p-5 rounded-2xl shadow-xs border border-gray-100">
+      <p className="text-gray-500 text-xs sm:text-sm font-medium mb-1">{title}</p>
+      <h3 className={`text-xl sm:text-2xl font-bold ${colors[color].split(' ')[0]}`}>{value}</h3>
     </div>
   );
 }

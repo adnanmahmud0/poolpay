@@ -168,12 +168,16 @@ export default function GroupsPage() {
   };
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-4 sm:space-y-6 min-w-0">
       {/* Page Header */}
-      <div className="flex justify-between items-center">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+        <div>
+          <h1 className="text-xl sm:text-2xl font-bold text-gray-900">Savings Groups</h1>
+          <p className="text-xs sm:text-sm text-gray-500">Monitor and manage all rotating savings circles</p>
+        </div>
         <button 
           onClick={() => setIsModalOpen(true)}
-          className="bg-[#1A2279] text-white px-4 py-2 rounded-lg text-sm font-medium flex items-center gap-2 hover:bg-indigo-900 transition-all shadow-md shadow-indigo-100"
+          className="bg-[#1A2279] text-white px-4 py-2.5 rounded-xl text-sm font-semibold flex items-center justify-center gap-2 hover:bg-indigo-900 transition-all shadow-md shadow-indigo-100 self-start sm:self-auto"
         >
           <Plus className="w-4 h-4" />
           <span>Create Group</span>
@@ -181,7 +185,7 @@ export default function GroupsPage() {
       </div>
 
       {/* Top Stat Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+      <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4 sm:gap-6">
         <StatCard title="Total Groups" value={stats.totalGroups} color="indigo" />
         <StatCard title="Active" value={stats.activeGroups} color="emerald" />
         <StatCard title="Upcoming" value={stats.upcomingGroups} color="orange" />
@@ -189,8 +193,8 @@ export default function GroupsPage() {
       </div>
 
       {/* Filter Bar */}
-      <div className="bg-white p-4 rounded-2xl shadow-sm border border-gray-100/50">
-        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+      <div className="bg-white p-4 rounded-2xl shadow-xs border border-gray-100 min-w-0">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 sm:gap-4">
           <div className="relative flex-1 max-w-lg">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
             <input
@@ -201,11 +205,11 @@ export default function GroupsPage() {
               className="w-full pl-10 pr-4 py-2 bg-gray-50/50 border border-gray-100 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-[#1A2279]/10 focus:border-[#1A2279] transition-all"
             />
           </div>
-          <div className="flex items-center gap-3 overflow-x-auto">
+          <div className="flex items-center gap-2 sm:gap-3 overflow-x-auto pb-1 sm:pb-0 no-scrollbar">
             <select
               value={meta.limit}
               onChange={(e) => handleLimitChange(Number(e.target.value))}
-              className="px-3 py-2 bg-gray-50 border border-gray-100 rounded-xl text-sm font-medium focus:outline-none focus:ring-2 focus:ring-[#1A2279]/10 focus:border-[#1A2279] transition-all cursor-pointer"
+              className="px-2.5 sm:px-3 py-1.5 sm:py-2 bg-gray-50 border border-gray-100 rounded-xl text-xs sm:text-sm font-medium focus:outline-none focus:ring-2 focus:ring-[#1A2279]/10 focus:border-[#1A2279] transition-all cursor-pointer shrink-0"
             >
               <option value={3}>3 / page</option>
               <option value={6}>6 / page</option>
@@ -216,7 +220,7 @@ export default function GroupsPage() {
               <button
                 key={tab}
                 onClick={() => setActiveTab(tab)}
-                className={`px-4 py-2 rounded-lg text-sm font-medium transition-all whitespace-nowrap ${
+                className={`px-3 sm:px-4 py-1.5 sm:py-2 rounded-lg text-xs sm:text-sm font-medium transition-all whitespace-nowrap ${
                   activeTab === tab
                     ? "bg-[#1A2279] text-white shadow-md shadow-indigo-100"
                     : "bg-gray-50 text-gray-500 hover:bg-gray-100"
@@ -310,8 +314,8 @@ export default function GroupsPage() {
 
       {/* Group Details Modal Overlay */}
       {isDetailModalOpen && (
-        <div className="fixed inset-0 bg-black/40 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-          <div className="bg-white w-full max-w-lg rounded-3xl shadow-2xl overflow-hidden animate-in fade-in zoom-in duration-300">
+        <div className="fixed inset-0 bg-black/40 backdrop-blur-sm z-50 flex items-center justify-center p-3 sm:p-4">
+          <div className="bg-white w-full max-w-lg max-h-[90vh] rounded-3xl shadow-2xl overflow-hidden animate-in fade-in zoom-in duration-300 flex flex-col">
             {isDetailLoading ? (
               <div className="flex flex-col items-center justify-center py-20">
                 <Loader2 className="w-8 h-8 text-[#1A2279] animate-spin mb-4" />
@@ -319,64 +323,52 @@ export default function GroupsPage() {
               </div>
             ) : selectedGroup ? (
               <>
-                <div className="bg-gradient-to-r from-[#4F5BDB] to-[#1A2279] p-6 text-white relative">
+                <div className="bg-gradient-to-r from-[#4F5BDB] to-[#1A2279] p-4 sm:p-6 text-white relative shrink-0">
                   <div className="flex items-center justify-between mb-2">
                     <span className="px-2 py-0.5 bg-white/20 rounded text-[10px] font-bold uppercase tracking-wider">{selectedGroup.status}</span>
                     <button onClick={() => setIsDetailModalOpen(false)} className="hover:opacity-80 transition-opacity">
                       <X className="w-5 h-5" />
                     </button>
                   </div>
-                  <h2 className="text-2xl font-bold mb-1">{selectedGroup.name}</h2>
-                  <p className="text-indigo-100 text-sm line-clamp-2">{selectedGroup.description}</p>
+                  <h2 className="text-xl sm:text-2xl font-bold mb-1">{selectedGroup.name}</h2>
+                  <p className="text-indigo-100 text-xs sm:text-sm line-clamp-2">{selectedGroup.description}</p>
                 </div>
 
-                <div className="p-6 space-y-6">
-                  <div className="grid grid-cols-2 gap-4">
-                    <div className="p-4 bg-gray-50 rounded-2xl border border-gray-100">
+                <div className="p-4 sm:p-6 space-y-4 sm:space-y-6 overflow-y-auto custom-scrollbar">
+                  <div className="grid grid-cols-2 gap-3 sm:gap-4">
+                    <div className="p-3 sm:p-4 bg-gray-50 rounded-2xl border border-gray-100">
                       <p className="text-xs text-gray-500 font-medium mb-1">Contribution</p>
-                      <p className="text-xl font-bold text-gray-900">${selectedGroup.contributionAmount}</p>
+                      <p className="text-lg sm:text-xl font-bold text-gray-900">${selectedGroup.contributionAmount}</p>
                       <p className="text-[10px] text-gray-400 font-bold uppercase">{selectedGroup.contributionFrequency}</p>
                     </div>
-                    <div className="p-4 bg-gray-50 rounded-2xl border border-gray-100">
+                    <div className="p-3 sm:p-4 bg-gray-50 rounded-2xl border border-gray-100">
                       <p className="text-xs text-gray-500 font-medium mb-1">Total Pool</p>
-                      <p className="text-xl font-bold text-emerald-600">${selectedGroup.poolAmount}</p>
+                      <p className="text-lg sm:text-xl font-bold text-emerald-600">${selectedGroup.poolAmount}</p>
                       <p className="text-[10px] text-gray-400 font-bold uppercase">Payout</p>
                     </div>
                   </div>
 
-                  <div className="space-y-4">
-                    <div className="flex items-center justify-between p-3 bg-gray-50 rounded-xl border border-gray-100">
-                      <div className="flex items-center gap-3">
-                        <Info className="w-4 h-4 text-[#1A2279]" />
-                        <span className="text-sm font-medium text-gray-600">Invite Code</span>
+                  <div className="space-y-3 sm:space-y-4">
+                    <div className="flex items-center justify-between p-3 bg-gray-50 rounded-xl border border-gray-100 gap-2">
+                      <div className="flex items-center gap-2 sm:gap-3 min-w-0">
+                        <Info className="w-4 h-4 text-[#1A2279] shrink-0" />
+                        <span className="text-xs sm:text-sm font-medium text-gray-600 truncate">Invite Code</span>
                       </div>
-                      <span className="text-sm font-mono font-bold text-[#1A2279] bg-white px-3 py-1 rounded-lg border border-indigo-100">{selectedGroup.inviteCode}</span>
+                      <span className="text-xs sm:text-sm font-mono font-bold text-[#1A2279] bg-white px-2.5 sm:px-3 py-1 rounded-lg border border-indigo-100 shrink-0">{selectedGroup.inviteCode}</span>
                     </div>
                     
-                    <div className="flex items-center justify-between p-3 bg-gray-50 rounded-xl border border-gray-100">
-                      <div className="flex items-center gap-3">
-                        <Users className="w-4 h-4 text-[#1A2279]" />
-                        <span className="text-sm font-medium text-gray-600">Current Members</span>
+                    <div className="flex items-center justify-between p-3 bg-gray-50 rounded-xl border border-gray-100 gap-2">
+                      <div className="flex items-center gap-2 sm:gap-3 min-w-0">
+                        <Users className="w-4 h-4 text-[#1A2279] shrink-0" />
+                        <span className="text-xs sm:text-sm font-medium text-gray-600 truncate">Current Members</span>
                       </div>
-                      <span className="text-sm font-bold text-gray-900">{selectedGroup.currentMembers} / {selectedGroup.totalMembers}</span>
+                      <span className="text-xs sm:text-sm font-bold text-gray-900 shrink-0">{selectedGroup.currentMembers} / {selectedGroup.totalMembers}</span>
                     </div>
 
-                    {/* <div className="flex items-center justify-between p-3 bg-gray-50 rounded-xl border border-gray-100">
-                      <div className="flex items-center gap-3">
-                        <Calendar className="w-4 h-4 text-[#1A2279]" />
-                        <span className="text-sm font-medium text-gray-600">Start Date</span>
-                      </div>
-                      <span className="text-sm font-bold text-gray-900">
-                        {selectedGroup.startDate ? (() => {
-                          const date = new Date(selectedGroup.startDate);
-                          return isNaN(date.getTime()) ? 'Invalid Date' : format(date, 'MMMM dd, yyyy');
-                        })() : 'N/A'}
-                      </span>
-                    </div> */}
                     {selectedGroup.status === 'upcoming' && selectedGroup.currentMembers === selectedGroup.totalMembers && (
                       <button 
                         onClick={() => handleStartGroup(selectedGroup._id)}
-                        className="w-full py-4 bg-emerald-600 text-white rounded-2xl font-bold hover:bg-emerald-700 transition-all shadow-lg shadow-emerald-100"
+                        className="w-full py-3 sm:py-4 bg-emerald-600 text-white rounded-2xl font-bold hover:bg-emerald-700 transition-all shadow-lg shadow-emerald-100 text-sm"
                       >
                         Manual Start
                       </button>
@@ -385,7 +377,7 @@ export default function GroupsPage() {
 
                   <button 
                     onClick={() => setIsDetailModalOpen(false)}
-                    className="w-full py-4 bg-gray-100 text-gray-700 rounded-2xl font-bold hover:bg-gray-200 transition-all shadow-sm"
+                    className="w-full py-3 sm:py-4 bg-gray-100 text-gray-700 rounded-2xl font-bold hover:bg-gray-200 transition-all shadow-sm text-sm"
                   >
                     Close Details
                   </button>
@@ -398,13 +390,13 @@ export default function GroupsPage() {
 
       {/* Create Group Modal Overlay */}
       {isModalOpen && (
-        <div className="fixed inset-0 bg-black/40 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-          <div className="bg-white w-full max-w-md rounded-b-2xl shadow-2xl overflow-hidden animate-in fade-in zoom-in duration-300">
+        <div className="fixed inset-0 bg-black/40 backdrop-blur-sm z-50 flex items-center justify-center p-3 sm:p-4">
+          <div className="bg-white w-full max-w-md max-h-[90vh] rounded-2xl shadow-2xl overflow-hidden animate-in fade-in zoom-in duration-300 flex flex-col">
             {/* Modal Header */}
-            <div className="bg-gradient-to-r from-[#4F5BDB] to-[#1A2279] p-4 text-white relative rounded-b-3xl">
+            <div className="bg-gradient-to-r from-[#4F5BDB] to-[#1A2279] p-4 text-white relative rounded-b-3xl shrink-0">
               <div className="flex items-center justify-center gap-2">
                 <ChevronLeft className="w-5 h-5 absolute left-4 cursor-pointer hover:opacity-80" onClick={() => currentStep > 1 ? setCurrentStep(s => s - 1) : setIsModalOpen(false)} />
-                <h2 className="text-lg font-semibold">Create Group</h2>
+                <h2 className="text-base sm:text-lg font-semibold">Create Group</h2>
               </div>
               <button onClick={() => setIsModalOpen(false)} className="absolute right-4 top-1/2 -translate-y-1/2 hover:opacity-80">
                 <X className="w-5 h-5" />
@@ -412,22 +404,22 @@ export default function GroupsPage() {
             </div>
 
             {/* Stepper */}
-            <div className="flex items-center justify-between px-10 py-6">
+            <div className="flex items-center justify-between px-6 sm:px-10 py-4 sm:py-6 shrink-0">
               {[1, 2, 3].map((step) => (
                 <div key={step} className="flex items-center">
-                  <div className={`w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold transition-all ${
+                  <div className={`w-7 h-7 sm:w-8 sm:h-8 rounded-full flex items-center justify-center text-xs font-bold transition-all ${
                     currentStep === step ? "bg-[#1A2279] text-white ring-4 ring-indigo-50" : 
                     currentStep > step ? "bg-emerald-500 text-white" : "bg-gray-100 text-gray-400"
                   }`}>
-                    {currentStep > step ? <CheckCircle2 className="w-5 h-5" /> : step}
+                    {currentStep > step ? <CheckCircle2 className="w-4 h-4 sm:w-5 sm:h-5" /> : step}
                   </div>
-                  {step < 3 && <div className={`h-0.5 w-12 mx-2 ${currentStep > step ? "bg-emerald-500" : "bg-gray-100"}`}></div>}
+                  {step < 3 && <div className={`h-0.5 w-8 sm:w-12 mx-1 sm:mx-2 ${currentStep > step ? "bg-emerald-500" : "bg-gray-100"}`}></div>}
                 </div>
               ))}
             </div>
 
             {/* Modal Content */}
-            <div className="px-8 pb-8">
+            <div className="px-5 sm:px-8 pb-6 sm:pb-8 overflow-y-auto custom-scrollbar">
               {currentStep === 1 && (
                 <div className="space-y-6 animate-in slide-in-from-right duration-300">
                   <div className="text-center">

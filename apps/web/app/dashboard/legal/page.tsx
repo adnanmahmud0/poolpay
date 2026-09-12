@@ -180,27 +180,27 @@ export default function LegalManagementPage() {
   return (
     <div className="space-y-6 max-w-6xl mx-auto pb-16">
       {/* Header */}
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 bg-white p-6 rounded-2xl border border-gray-100 shadow-sm">
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 bg-white p-4 sm:p-6 rounded-2xl border border-gray-100 shadow-sm">
         <div>
           <div className="flex items-center gap-3">
-            <div className="p-2.5 bg-indigo-50 text-[#1A227F] rounded-xl">
-              <ShieldCheck className="w-7 h-7" />
+            <div className="p-2.5 bg-indigo-50 text-[#1A227F] rounded-xl shrink-0">
+              <ShieldCheck className="w-6 h-6 sm:w-7 sm:h-7" />
             </div>
             <div>
-              <h1 className="text-2xl font-bold text-gray-900">Legal & Policies Management</h1>
-              <p className="text-sm text-gray-500 mt-0.5">
+              <h1 className="text-xl sm:text-2xl font-bold text-gray-900">Legal & Policies Management</h1>
+              <p className="text-xs sm:text-sm text-gray-500 mt-0.5">
                 Update compliance documents, user agreements, and privacy terms shown on mobile and web.
               </p>
             </div>
           </div>
         </div>
 
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-3 shrink-0">
           <a
             href="/legal"
             target="_blank"
             rel="noopener noreferrer"
-            className="flex items-center gap-2 px-4 py-2.5 bg-gray-50 hover:bg-gray-100 text-gray-700 font-medium rounded-xl border border-gray-200 transition text-sm"
+            className="flex items-center justify-center w-full sm:w-auto gap-2 px-4 py-2.5 bg-gray-50 hover:bg-gray-100 text-gray-700 font-medium rounded-xl border border-gray-200 transition text-xs sm:text-sm"
           >
             <ExternalLink className="w-4 h-4 text-gray-500" />
             <span>Public Legal Hub</span>
@@ -220,7 +220,7 @@ export default function LegalManagementPage() {
             <button
               key={tab.slug}
               onClick={() => handleTabChange(tab.slug)}
-              className={`flex items-center gap-2.5 px-4 py-3 rounded-xl font-medium text-sm transition shrink-0 ${
+              className={`flex items-center gap-2.5 px-3.5 sm:px-4 py-2.5 sm:py-3 rounded-xl font-medium text-xs sm:text-sm transition shrink-0 ${
                 isActive
                   ? "bg-[#1A227F] text-white shadow-md shadow-indigo-900/10"
                   : "bg-white text-gray-600 hover:text-gray-900 hover:bg-gray-50 border border-gray-100"
@@ -247,8 +247,8 @@ export default function LegalManagementPage() {
       ) : (
         <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
           {/* Document Metadata Bar */}
-          <div className="px-6 py-4 bg-gray-50/70 border-b border-gray-100 flex flex-wrap items-center justify-between gap-4">
-            <div className="flex flex-wrap items-center gap-4 text-xs text-gray-500">
+          <div className="px-4 sm:px-6 py-4 bg-gray-50/70 border-b border-gray-100 flex flex-wrap items-center justify-between gap-4">
+            <div className="flex flex-wrap items-center gap-3 sm:gap-4 text-xs text-gray-500">
               <span className="flex items-center gap-1.5 font-medium text-gray-700">
                 <FileText className="w-3.5 h-3.5 text-gray-400" />
                 Slug: <code className="bg-white px-2 py-0.5 rounded border border-gray-200 text-gray-800">{activeSlug}</code>
@@ -285,9 +285,9 @@ export default function LegalManagementPage() {
             </div>
           </div>
 
-          <div className="p-6 space-y-6">
+          <div className="p-4 sm:p-6 space-y-6">
             {/* Top row: Title, Version, and Published switch */}
-            <div className="grid grid-cols-1 md:grid-cols-12 gap-5">
+            <div className="grid grid-cols-1 md:grid-cols-12 gap-4 sm:gap-5">
               <div className="md:col-span-7 space-y-1.5">
                 <label className="block text-xs font-semibold uppercase tracking-wider text-gray-600">
                   Document Title
@@ -374,7 +374,7 @@ export default function LegalManagementPage() {
                 </div>
 
                 {!previewMode && (
-                  <div className="flex items-center gap-1 text-gray-600">
+                  <div className="flex items-center gap-1 text-gray-600 flex-wrap">
                     <button
                       type="button"
                       onClick={() => insertFormatting("## ")}
@@ -413,10 +413,10 @@ export default function LegalManagementPage() {
 
               {previewMode ? (
                 /* Live Preview Area */
-                <div className="min-h-[420px] p-6 bg-gray-50/60 rounded-xl border border-gray-200/80 overflow-y-auto max-h-[600px] prose prose-indigo max-w-none text-gray-800">
+                <div className="min-h-[360px] sm:min-h-[420px] p-4 sm:p-6 bg-gray-50/60 rounded-xl border border-gray-200/80 overflow-y-auto max-h-[600px] prose prose-indigo max-w-none text-gray-800">
                   <div className="border-b border-gray-200 pb-4 mb-6">
-                    <h2 className="text-2xl font-bold text-gray-900 m-0">{title || "Untitled Document"}</h2>
-                    {summary && <p className="text-gray-500 text-sm mt-1">{summary}</p>}
+                    <h2 className="text-xl sm:text-2xl font-bold text-gray-900 m-0">{title || "Untitled Document"}</h2>
+                    {summary && <p className="text-gray-500 text-xs sm:text-sm mt-1">{summary}</p>}
                     <div className="flex items-center gap-3 text-xs text-gray-400 mt-2">
                       <span>Version {version}</span>
                       <span>•</span>
@@ -424,19 +424,19 @@ export default function LegalManagementPage() {
                     </div>
                   </div>
 
-                  <div className="space-y-4 text-sm leading-relaxed whitespace-pre-wrap font-sans">
+                  <div className="space-y-4 text-xs sm:text-sm leading-relaxed whitespace-pre-wrap font-sans">
                     {content ? (
                       content.split("\n\n").map((block, idx) => {
                         if (block.startsWith("## ")) {
                           return (
-                            <h3 key={idx} className="text-lg font-bold text-gray-900 pt-3 border-t border-gray-100">
+                            <h3 key={idx} className="text-base sm:text-lg font-bold text-gray-900 pt-3 border-t border-gray-100">
                               {block.replace("## ", "")}
                             </h3>
                           );
                         }
                         if (block.startsWith("### ")) {
                           return (
-                            <h4 key={idx} className="text-base font-semibold text-gray-800 pt-2">
+                            <h4 key={idx} className="text-sm sm:text-base font-semibold text-gray-800 pt-2">
                               {block.replace("### ", "")}
                             </h4>
                           );
@@ -468,19 +468,19 @@ export default function LegalManagementPage() {
                   id="legal-content-editor"
                   value={content}
                   onChange={(e) => setContent(e.target.value)}
-                  rows={16}
+                  rows={14}
                   placeholder="Enter policy content using Markdown formatting (## Headings, - Bullet lists, **bold**, etc.)..."
-                  className="w-full px-4 py-3 rounded-xl border border-gray-200 focus:outline-none focus:ring-2 focus:ring-[#1A227F]/20 focus:border-[#1A227F] text-sm text-gray-800 font-mono transition leading-relaxed"
+                  className="w-full px-3.5 sm:px-4 py-3 rounded-xl border border-gray-200 focus:outline-none focus:ring-2 focus:ring-[#1A227F]/20 focus:border-[#1A227F] text-xs sm:text-sm text-gray-800 font-mono transition leading-relaxed"
                 />
               )}
             </div>
 
             {/* Bottom Actions */}
-            <div className="flex items-center justify-between pt-4 border-t border-gray-100">
+            <div className="flex flex-col-reverse sm:flex-row sm:items-center justify-between gap-3 pt-4 border-t border-gray-100">
               <button
                 type="button"
                 onClick={fetchPolicies}
-                className="flex items-center gap-1.5 px-4 py-2.5 text-xs font-medium text-gray-500 hover:text-gray-700 hover:bg-gray-50 rounded-xl transition"
+                className="flex items-center justify-center gap-1.5 px-4 py-2.5 text-xs font-medium text-gray-500 hover:text-gray-700 hover:bg-gray-50 rounded-xl transition w-full sm:w-auto"
               >
                 <RotateCcw className="w-3.5 h-3.5" />
                 Discard & Reset
@@ -490,7 +490,7 @@ export default function LegalManagementPage() {
                 type="button"
                 onClick={handleSave}
                 disabled={saving}
-                className="flex items-center gap-2 px-6 py-2.5 bg-[#1A227F] hover:bg-[#151c68] text-white font-medium rounded-xl shadow-sm transition disabled:opacity-50 text-sm"
+                className="flex items-center justify-center gap-2 px-6 py-2.5 bg-[#1A227F] hover:bg-[#151c68] text-white font-medium rounded-xl shadow-sm transition disabled:opacity-50 text-xs sm:text-sm w-full sm:w-auto"
               >
                 {saving ? (
                   <>

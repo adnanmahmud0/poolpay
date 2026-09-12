@@ -299,21 +299,21 @@ export default function SettingsPage() {
   }
 
   return (
-    <div className="space-y-6 pb-12">
+    <div className="space-y-4 sm:space-y-6 pb-12 min-w-0">
 
       {/* ── Environment Mode Card ── */}
-      <div className="bg-white rounded-2xl border border-gray-200 overflow-hidden">
-        <div className="px-6 py-5 border-b border-gray-100 flex items-center gap-3">
+      <div className="bg-white rounded-2xl border border-gray-200 overflow-hidden min-w-0">
+        <div className="px-4 sm:px-6 py-4 sm:py-5 border-b border-gray-100 flex flex-wrap items-center gap-2 sm:gap-3">
           <FlaskConical className="w-5 h-5 text-gray-500" />
-          <h2 className="text-base font-semibold text-gray-900">Environment Mode</h2>
-          <span className={`ml-2 inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-bold ${
+          <h2 className="text-sm sm:text-base font-semibold text-gray-900">Environment Mode</h2>
+          <span className={`inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-bold ${
             appEnvironment === 'test' ? 'bg-amber-100 text-amber-700 border border-amber-300' : 'bg-emerald-100 text-emerald-700 border border-emerald-300'
           }`}>
             {appEnvironment === 'test' ? '⚠️ SANDBOX' : '🟢 LIVE'}
           </span>
         </div>
-        <div className="p-6">
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
+        <div className="p-4 sm:p-6">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-6">
             {/* TEST card */}
             <button
               onClick={() => handleToggleEnvironment('test')}
@@ -374,10 +374,10 @@ export default function SettingsPage() {
 
       {/* ── Production Confirmation Modal ── */}
       {showEnvConfirm && (
-        <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
-          <div className="bg-white rounded-2xl shadow-2xl max-w-md w-full p-6">
+        <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-3 sm:p-4">
+          <div className="bg-white rounded-2xl shadow-2xl max-w-md w-full p-4 sm:p-6 animate-in fade-in zoom-in duration-200">
             <div className="flex items-center gap-3 mb-4">
-              <div className="w-10 h-10 rounded-full bg-red-100 flex items-center justify-center">
+              <div className="w-10 h-10 rounded-full bg-red-100 flex items-center justify-center shrink-0">
                 <CheckCircle2 className="w-5 h-5 text-red-600" />
               </div>
               <h3 className="text-lg font-bold text-gray-900">Switch to PRODUCTION?</h3>
@@ -390,17 +390,17 @@ export default function SettingsPage() {
               <li>⚠️ Stripe Live keys will be active</li>
               <li>⚠️ All payments will be processed immediately</li>
             </ul>
-            <div className="flex gap-3">
+            <div className="flex flex-col sm:flex-row gap-3">
               <button
                 onClick={() => setShowEnvConfirm(false)}
-                className="flex-1 px-4 py-2 border border-gray-300 rounded-lg text-sm font-medium text-gray-700 hover:bg-gray-50"
+                className="w-full sm:flex-1 px-4 py-2.5 border border-gray-300 rounded-lg text-sm font-medium text-gray-700 hover:bg-gray-50 order-2 sm:order-1"
               >
                 Cancel
               </button>
               <button
                 onClick={() => applyEnvSwitch('production')}
                 disabled={isTogglingEnv}
-                className="flex-1 px-4 py-2 bg-red-600 hover:bg-red-700 text-white rounded-lg text-sm font-medium disabled:opacity-50"
+                className="w-full sm:flex-1 px-4 py-2.5 bg-red-600 hover:bg-red-700 text-white rounded-lg text-sm font-medium disabled:opacity-50 order-1 sm:order-2"
               >
                 {isTogglingEnv ? 'Switching...' : 'Yes, Switch to LIVE'}
               </button>
@@ -627,11 +627,11 @@ export default function SettingsPage() {
       </SettingsSection>
 
       {/* Action Buttons */}
-      <div className="flex justify-end mt-8">
+      <div className="flex justify-end mt-6 sm:mt-8">
         <button 
           onClick={handleSaveAll}
           disabled={isSaving || savingSection !== null}
-          className="bg-[#1A2279] text-white px-8 py-3 rounded-xl font-bold hover:bg-indigo-900 transition-all shadow-lg shadow-indigo-100 flex items-center gap-2 disabled:opacity-70 disabled:cursor-not-allowed"
+          className="w-full sm:w-auto bg-[#1A2279] text-white px-8 py-3 rounded-xl font-bold hover:bg-indigo-900 transition-all shadow-lg shadow-indigo-100 flex items-center justify-center gap-2 disabled:opacity-70 disabled:cursor-not-allowed text-sm"
         >
           {isSaving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
           {isSaving ? "Saving All..." : "Save All Settings"}
@@ -644,58 +644,58 @@ export default function SettingsPage() {
 function SettingsSection({ 
   title, 
   icon, 
-  children,
-  onSave,
-  isSaving,
-  saveLabel = "Save Changes"
+  children, 
+  onSave, 
+  isSaving, 
+  saveLabel = "Save Changes" 
 }: { 
   title: string; 
   icon: React.ReactNode; 
-  children: React.ReactNode;
-  onSave?: () => void;
-  isSaving?: boolean;
-  saveLabel?: string;
-}) {
-  return (
-    <div className="bg-white rounded-2xl border border-gray-100/50 shadow-sm overflow-hidden">
-      <div className="px-8 py-5 border-b border-gray-100 flex items-center justify-between gap-3">
-        <div className="flex items-center gap-3">
-          {icon}
-          <h2 className="text-lg font-bold text-gray-900">{title}</h2>
-        </div>
-        {onSave && (
+  children: React.ReactNode; 
+  onSave?: () => void; 
+  isSaving?: boolean; 
+  saveLabel?: string; 
+}) { 
+  return ( 
+    <div className="bg-white rounded-2xl border border-gray-100 shadow-xs overflow-hidden min-w-0"> 
+      <div className="px-4 sm:px-6 lg:px-8 py-4 sm:py-5 border-b border-gray-100 flex flex-col sm:flex-row sm:items-center justify-between gap-3"> 
+        <div className="flex items-center gap-3"> 
+          {icon} 
+          <h2 className="text-base sm:text-lg font-bold text-gray-900">{title}</h2> 
+        </div> 
+        {onSave && ( 
           <button 
-            type="button"
-            onClick={onSave}
-            disabled={isSaving}
-            className="bg-[#1A2279] text-white px-4 py-2 rounded-xl text-xs font-semibold hover:bg-indigo-900 transition-all shadow-sm shadow-indigo-100 flex items-center gap-2 disabled:opacity-60 disabled:cursor-not-allowed"
-          >
-            {isSaving ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Save className="w-3.5 h-3.5" />}
-            {isSaving ? "Saving..." : saveLabel}
-          </button>
-        )}
-      </div>
-      <div className="p-8">
-        {children}
-      </div>
-      {onSave && (
-        <div className="px-8 py-3.5 bg-gray-50/60 border-t border-gray-100 flex flex-col sm:flex-row items-center justify-between gap-3">
-          <p className="text-xs text-gray-500">
-            Save updates to <span className="font-semibold text-gray-700">{title}</span> independently.
-          </p>
+            type="button" 
+            onClick={onSave} 
+            disabled={isSaving} 
+            className="bg-[#1A2279] text-white px-4 py-2 rounded-xl text-xs font-semibold hover:bg-indigo-900 transition-all shadow-xs flex items-center justify-center gap-2 self-start sm:self-auto disabled:opacity-60 disabled:cursor-not-allowed" 
+          > 
+            {isSaving ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Save className="w-3.5 h-3.5" />} 
+            {isSaving ? "Saving..." : saveLabel} 
+          </button> 
+        )} 
+      </div> 
+      <div className="p-4 sm:p-6 lg:p-8"> 
+        {children} 
+      </div> 
+      {onSave && ( 
+        <div className="px-4 sm:px-6 lg:px-8 py-3.5 bg-gray-50/60 border-t border-gray-100 flex flex-col sm:flex-row items-center justify-between gap-3"> 
+          <p className="text-xs text-gray-500 text-center sm:text-left"> 
+            Save updates to <span className="font-semibold text-gray-700">{title}</span> independently. 
+          </p> 
           <button 
-            type="button"
-            onClick={onSave}
-            disabled={isSaving}
-            className="w-full sm:w-auto bg-[#1A2279] text-white px-5 py-2.5 rounded-xl text-xs font-bold hover:bg-indigo-900 transition-all shadow-sm shadow-indigo-100 flex items-center justify-center gap-2 disabled:opacity-60 disabled:cursor-not-allowed"
-          >
-            {isSaving ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Save className="w-3.5 h-3.5" />}
-            {isSaving ? "Saving..." : saveLabel}
-          </button>
-        </div>
-      )}
-    </div>
-  );
+            type="button" 
+            onClick={onSave} 
+            disabled={isSaving} 
+            className="w-full sm:w-auto bg-[#1A2279] text-white px-5 py-2.5 rounded-xl text-xs font-bold hover:bg-indigo-900 transition-all shadow-xs flex items-center justify-center gap-2 disabled:opacity-60 disabled:cursor-not-allowed" 
+          > 
+            {isSaving ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Save className="w-3.5 h-3.5" />} 
+            {isSaving ? "Saving..." : saveLabel} 
+          </button> 
+        </div> 
+      )} 
+    </div> 
+  ); 
 }
 
 function InputGroup({ label, value, onChange, type = "text", icon }: { label: string; value: string; onChange: (e: React.ChangeEvent<HTMLInputElement>) => void, type?: string, icon?: React.ReactNode }) {

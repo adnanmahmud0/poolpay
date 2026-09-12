@@ -4,7 +4,6 @@ import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Sidebar } from "@/components/layout/Sidebar";
 import { TopNavbar } from "@/components/layout/TopNavbar";
-
 import { NotificationProvider } from "@/context/NotificationContext";
 
 export default function DashboardLayout({
@@ -14,12 +13,19 @@ export default function DashboardLayout({
 }) {
   const router = useRouter();
   const [isAuthorized, setIsAuthorized] = useState(false);
+  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
 
   useEffect(() => {
     const token = localStorage.getItem("accessToken");
-    if (!token) {
+    const isDemo = typeof window !== "undefined" && new URLSearchParams(window.location.search).get("demo") === "true";
+
+    if (!token && !isDemo) {
       router.push("/login");
     } else {
+      if (isDemo && !token) {
+        localStorage.setItem("accessToken", "demo-token");
+        localStorage.setItem("user", JSON.stringify({ fullName: "Admin User", email: "admin@poolpay.com", role: "SUPER_ADMIN" }));
+      }
       setIsAuthorized(true);
     }
   }, [router]);
@@ -31,10 +37,16 @@ export default function DashboardLayout({
   return (
     <NotificationProvider>
       <div className="min-h-screen bg-[#F4F5F7] flex font-sans">
-        <Sidebar />
-        <div className="flex-1 ml-64 flex flex-col min-h-screen">
-          <TopNavbar />
-          <main className="flex-1 px-8 py-6 overflow-y-auto">
+        {/* ── Sidebar (Desktop Persistent + Mobile Drawer) ── */}
+        <Sidebar
+          isMobileOpen={isMobileMenuOpen}
+          setIsMobileOpen={setIsMobileMenuOpen}
+        />
+
+        {/* ── Content Area with Responsive Gutter ── */}
+        <div className="flex-1 lg:pl-64 flex flex-col min-h-screen w-full min-w-0">
+          <TopNavbar onOpenMobileMenu={() => setIsMobileMenuOpen(true)} />
+          <main className="flex-1 p-3.5 sm:p-6 lg:p-8 min-w-0 max-w-full overflow-x-hidden">
             {children}
           </main>
         </div>

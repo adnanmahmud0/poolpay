@@ -85,9 +85,9 @@ export default function FundsPage() {
   }
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-4 sm:space-y-6 min-w-0">
       {/* Top Stat Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6">
         <StatCard
           title="Total Funds"
           value={`$${summary?.totalFunds?.toLocaleString() || 0}`}
@@ -109,7 +109,7 @@ export default function FundsPage() {
       </div>
 
       {/* Main Unified Card */}
-      <div className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100/50">
+      <div className="bg-white p-4 sm:p-6 rounded-2xl shadow-xs border border-gray-100 min-w-0">
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-8">
           <div className="flex items-center gap-2 bg-gray-50 p-1 rounded-xl border border-gray-100">
             {["Group Funds"].map((tab) => (
@@ -268,8 +268,11 @@ export default function FundsPage() {
 
         {/* Pagination */}
         {meta.totalPage > 1 && (
-          <div className="flex items-center justify-end px-6 py-6 border-t border-gray-50 mt-4">
-            <div className="flex items-center gap-2">
+          <div className="flex flex-col sm:flex-row items-center justify-between gap-4 px-3 sm:px-6 py-4 sm:py-6 border-t border-gray-50 mt-4">
+            <div className="text-xs text-gray-400 order-2 sm:order-1">
+              Page {page} of {meta.totalPage}
+            </div>
+            <div className="flex items-center gap-2 order-1 sm:order-2">
               <button
                 onClick={() => setPage(p => Math.max(1, p - 1))}
                 disabled={page === 1}
@@ -282,7 +285,7 @@ export default function FundsPage() {
                   <button
                     key={p}
                     onClick={() => setPage(p)}
-                    className={`w-9 h-9 flex items-center justify-center rounded-lg text-sm font-medium transition-all ${page === p
+                    className={`w-8 h-8 sm:w-9 sm:h-9 flex items-center justify-center rounded-lg text-xs sm:text-sm font-medium transition-all ${page === p
                         ? "bg-[#1A2279] text-white shadow-lg shadow-indigo-100"
                         : "text-gray-500 hover:bg-gray-50"
                       }`}
@@ -314,14 +317,14 @@ function StatCard({ title, value, icon, color }: { title: string; value: string;
   };
 
   return (
-    <div className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100/50 flex flex-col justify-center h-32">
-      <div className="flex gap-4 items-center">
-        <div className={`${bgColors[color]} w-12 h-12 rounded-xl flex items-center justify-center shrink-0`}>
+    <div className="bg-white p-4 sm:p-6 rounded-2xl shadow-xs border border-gray-100 flex flex-col justify-center min-h-[96px] sm:h-32">
+      <div className="flex gap-3 sm:gap-4 items-center">
+        <div className={`${bgColors[color]} w-10 h-10 sm:w-12 sm:h-12 rounded-xl flex items-center justify-center shrink-0`}>
           {icon}
         </div>
-        <div>
-          <p className="text-gray-500 text-sm font-medium mb-1">{title}</p>
-          <h3 className="text-2xl font-bold text-gray-900">{value}</h3>
+        <div className="min-w-0">
+          <p className="text-gray-500 text-xs sm:text-sm font-medium mb-0.5 sm:mb-1 truncate">{title}</p>
+          <h3 className="text-xl sm:text-2xl font-bold text-gray-900 truncate">{value}</h3>
         </div>
       </div>
     </div>
