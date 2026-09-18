@@ -5,6 +5,8 @@ import { UserControllers } from "./user.controller";
 import { Role } from "./user.interface";
 import { updateUserZodSchema, UserValidation } from "./user.validation";
 import { multerUpload } from "../../config/multer.config";
+import { DeletionRequestControllers } from "../deletionRequest/deletionRequest.controller";
+import { DeletionRequestValidation } from "../deletionRequest/deletionRequest.validation";
 
 const router = Router();
 router.get(
@@ -18,6 +20,13 @@ router.get(
   "/my-stats",
   checkAuth(...Object.values(Role)),
   UserControllers.getMyFinancialStats
+);
+
+router.post(
+  "/delete-account-request",
+  checkAuth(...Object.values(Role)),
+  validateRequest(DeletionRequestValidation.createDeletionRequestSchema),
+  DeletionRequestControllers.createDeletionRequest
 );
 
 router.get(

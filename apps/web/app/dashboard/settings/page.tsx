@@ -50,6 +50,7 @@ interface SettingsState {
   supportWhatsapp?: string;
   sessionTimeoutMinutes: number;
   isUserRegistrationEnabled: boolean;
+  isUserAutoApprovalEnabled: boolean;
   isSocialLoginEnabled: boolean;
   isTwoFactorAuthenticationEnabled: boolean;
   isEmailNotificationEnabled: boolean;
@@ -70,6 +71,7 @@ const defaultSettings: SettingsState = {
   supportWhatsapp: "+16079004569",
   sessionTimeoutMinutes: 20,
   isUserRegistrationEnabled: true,
+  isUserAutoApprovalEnabled: true,
   isSocialLoginEnabled: true,
   isTwoFactorAuthenticationEnabled: false,
   isEmailNotificationEnabled: true,
@@ -209,6 +211,7 @@ export default function SettingsPage() {
       const response = await updateAccessAuthSettings({
         sessionTimeoutMinutes: Number(settings.sessionTimeoutMinutes),
         isUserRegistrationEnabled: Boolean(settings.isUserRegistrationEnabled),
+        isUserAutoApprovalEnabled: Boolean(settings.isUserAutoApprovalEnabled),
         isTwoFactorAuthenticationEnabled: Boolean(settings.isTwoFactorAuthenticationEnabled),
       });
       if (response.success) {
@@ -524,6 +527,12 @@ export default function SettingsPage() {
             description="Allow new users to sign up on the platform" 
             enabled={Boolean(settings?.isUserRegistrationEnabled)} 
             onToggle={() => toggleSetting('isUserRegistrationEnabled')} 
+          />
+          <ToggleGroup 
+            title="Auto-Approve New Users" 
+            description="Automatically approve new user registrations (if disabled, new users require admin approval before they can log in)" 
+            enabled={Boolean(settings?.isUserAutoApprovalEnabled)} 
+            onToggle={() => toggleSetting('isUserAutoApprovalEnabled')} 
           />
           <ToggleGroup 
             title="Two-Factor Authentication" 

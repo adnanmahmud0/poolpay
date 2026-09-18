@@ -11,6 +11,8 @@ export enum NotificationType {
   GROUP_STARTED = "group_started",
   GROUP_COMPLETED = "group_completed",
   PAYOUT_RECEIVED = "payout_received",
+  ACCOUNT_DELETION = "account_deletion",
+  GENERAL = "general",
 }
 
 export interface INotification {

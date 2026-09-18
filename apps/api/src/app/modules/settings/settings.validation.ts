@@ -22,6 +22,7 @@ const updateSettingsSchema = z.object({
     minContribution: z.number().min(0).optional(),
     maxContribution: z.number().min(0).optional(),
     isUserRegistrationEnabled: z.boolean().optional(),
+    isUserAutoApprovalEnabled: z.boolean().optional(),
     isSocialLoginEnabled: z.boolean().optional(),
     isTwoFactorAuthenticationEnabled: z.boolean().optional(),
     isEmailNotificationEnabled: z.boolean().optional(),

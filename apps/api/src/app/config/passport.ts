@@ -24,7 +24,7 @@ passport.use(
         }
 
         if (user.status === UserStatus.PENDING) {
-          return done(null, false, { message: "User account is pending approval" });
+          return done(null, false, { message: "Your account is pending admin approval. Please wait for an administrator to approve your account before logging in." });
         }
 
         if (user.status === UserStatus.BLOCKED) {

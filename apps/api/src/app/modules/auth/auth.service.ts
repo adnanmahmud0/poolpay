@@ -85,13 +85,16 @@ const register = async (payload: Partial<IUser>) => {
   const verificationCodeExpires = new Date(Date.now() + 3600000); // 1 hour
   const verificationLastSent = new Date();
 
-  // Set default status to pending (needs super admin approval)
+  const isAutoApprove = settings?.isUserAutoApprovalEnabled ?? true;
+  const initialStatus = isAutoApprove ? UserStatus.ACTIVE : UserStatus.PENDING;
+
+  // Set status based on platform auto-approval setting
   const newUser = await User.create({
     ...payload,
     phone: normalizedPhone || payload.phone,
     phoneHash: phoneHash || undefined,
     password: hashedPassword,
-    status: UserStatus.PENDING,
+    status: initialStatus,
     role: Role.USER,
     authProviders: [AuthProvider.EMAIL],
     isVerified: false,
@@ -100,7 +103,7 @@ const register = async (payload: Partial<IUser>) => {
     verificationLastSent,
   });
 
-  await logActivity(newUser._id, "USER_REGISTER", `User registered with email ${newUser.email}`);
+  await logActivity(newUser._id, "USER_REGISTER", `User registered with email ${newUser.email} (${isAutoApprove ? "Auto-approved" : "Pending approval"})`);
 
   await sendEmail({
     to: newUser.email,
@@ -121,8 +124,10 @@ const register = async (payload: Partial<IUser>) => {
 
   // Notify Admins about new registration
   const admins = await User.find({ role: { $in: [Role.ADMIN, Role.SUPER_ADMIN] } });
-  const adminTitle = "New User Registered";
-  const adminBody = `${newUser.fullName} has registered and is pending approval.`;
+  const adminTitle = isAutoApprove ? "New User Registered" : "New User Pending Approval";
+  const adminBody = isAutoApprove
+    ? `${newUser.fullName} has registered and was automatically approved.`
+    : `${newUser.fullName} has registered and is pending approval.`;
 
   const notificationsToInsert = [];
 
@@ -203,7 +208,11 @@ const verifyEmail = async (identifier: string, code: string) => {
   user.otpCooldownUntil = undefined;
   await user.save();
 
-  return { message: "Email verified successfully. Please wait for an admin to approve your account." };
+  const message = user.status === UserStatus.ACTIVE
+    ? "Email verified successfully. You can now login to your account."
+    : "Email verified successfully. Your account is pending admin approval before you can log in.";
+
+  return { message, status: user.status };
 };
 
 const resendVerificationCode = async (identifier: string) => {
@@ -310,12 +319,15 @@ const credentialsLogin = async (payload: ILoginPayload): Promise<ILoginResponse>
   if (isUserExist.status === UserStatus.PENDING) {
     throw new AppError(
       httpStatus.FORBIDDEN,
-      "Registration successful but your account is pending approval by an admin. Please wait."
+      "Your account is pending admin approval. Please wait for an administrator to approve your account before logging in."
     );
   }
 
-  if (isUserExist.status === UserStatus.BLOCKED) {
-    throw new AppError(httpStatus.FORBIDDEN, "Your account has been blocked");
+  if (isUserExist.status === UserStatus.BLOCKED || isUserExist.status === UserStatus.SUSPENDED) {
+    throw new AppError(
+      httpStatus.FORBIDDEN,
+      "Your account has been suspended or blocked. Please contact support."
+    );
   }
 
   // Check Lockout

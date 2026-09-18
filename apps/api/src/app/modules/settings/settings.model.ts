@@ -16,6 +16,7 @@ export interface ISettings {
   supportPhone?: string;
   supportWhatsapp?: string;
   isUserRegistrationEnabled: boolean;
+  isUserAutoApprovalEnabled: boolean;
   isSocialLoginEnabled: boolean;
   isTwoFactorAuthenticationEnabled: boolean;
   isEmailNotificationEnabled: boolean;
@@ -49,6 +50,7 @@ const settingsSchema = new Schema<ISettingsDocument>(
     supportPhone: { type: String, default: "+16079004569" },
     supportWhatsapp: { type: String, default: "+16079004569" },
     isUserRegistrationEnabled: { type: Boolean, default: true },
+    isUserAutoApprovalEnabled: { type: Boolean, default: true },
     isSocialLoginEnabled: { type: Boolean, default: true },
     isTwoFactorAuthenticationEnabled: { type: Boolean, default: true },
     isEmailNotificationEnabled: { type: Boolean, default: true },

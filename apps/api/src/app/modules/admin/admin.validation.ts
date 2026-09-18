@@ -27,6 +27,7 @@ const updateSettingsSchema = z.object({
     minContribution: z.number().min(0).optional(),
     maxContribution: z.number().min(0).optional(),
     isUserRegistrationEnabled: z.boolean().optional(),
+    isUserAutoApprovalEnabled: z.boolean().optional(),
     isTwoFactorAuthenticationEnabled: z.boolean().optional(),
     isEmailNotificationEnabled: z.boolean().optional(),
     isSMSNotificationEnabled: z.boolean().optional(),
@@ -62,6 +63,7 @@ const updateAccessAuthSettingsSchema = z.object({
   body: z.object({
     sessionTimeoutMinutes: z.number().min(1).max(1440).optional(),
     isUserRegistrationEnabled: z.boolean().optional(),
+    isUserAutoApprovalEnabled: z.boolean().optional(),
     isTwoFactorAuthenticationEnabled: z.boolean().optional(),
   }),
 });

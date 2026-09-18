@@ -5,6 +5,8 @@ import { Role } from "../user/user.interface";
 
 import { AdminValidation } from "./admin.validation";
 import validateRequest from "../../middlewares/validateRequest";
+import { DeletionRequestControllers } from "../deletionRequest/deletionRequest.controller";
+import { DeletionRequestValidation } from "../deletionRequest/deletionRequest.validation";
 
 const router = Router();
 
@@ -66,6 +68,24 @@ router.patch(
   checkAuth(Role.ADMIN, Role.SUPER_ADMIN),
   validateRequest(AdminValidation.updateUserStatusSchema),
   AdminControllers.updateUserStatus
+);
+
+// Account Deletion Requests
+router.get(
+  "/deletion-requests",
+  checkAuth(Role.ADMIN, Role.SUPER_ADMIN),
+  DeletionRequestControllers.getAllDeletionRequests
+);
+router.post(
+  "/deletion-requests/:id/confirm",
+  checkAuth(Role.ADMIN, Role.SUPER_ADMIN),
+  DeletionRequestControllers.confirmDeletionRequest
+);
+router.post(
+  "/deletion-requests/:id/reject",
+  checkAuth(Role.ADMIN, Role.SUPER_ADMIN),
+  validateRequest(DeletionRequestValidation.rejectDeletionRequestSchema),
+  DeletionRequestControllers.rejectDeletionRequest
 );
 
 // Groups

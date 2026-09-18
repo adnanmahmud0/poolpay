@@ -283,3 +283,25 @@ export const updateLegalPolicy = async (slug: string, payload: LegalPolicyPayloa
   return response.data;
 };
 
+/** Account Deletion Requests */
+export const getDeletionRequests = async (params: {
+  page?: number;
+  limit?: number;
+  status?: string;
+  search?: string;
+}) => {
+  const response = await axiosInstance.get("/api/v1/admin/deletion-requests", { params });
+  return response.data;
+};
+
+export const confirmDeletionRequest = async (id: string) => {
+  const response = await axiosInstance.post(`/api/v1/admin/deletion-requests/${id}/confirm`);
+  return response.data;
+};
+
+export const rejectDeletionRequest = async (id: string, adminNote?: string) => {
+  const response = await axiosInstance.post(`/api/v1/admin/deletion-requests/${id}/reject`, { adminNote });
+  return response.data;
+};
+
+
