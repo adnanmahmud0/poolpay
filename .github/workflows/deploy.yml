@@ -643,20 +643,38 @@ jobs:
               raw_lines = env_ver.replace('\r\n', '\n').replace('\r', '\n').split('\n')
               cleaned_lines = []
               keys_present = set()
+              in_multiline_skip = False
 
               for line in raw_lines:
                   stripped = line.strip()
+
+                  # Skip lines inside multiline server key blocks (e.g. EC2_SSH_KEY="...")
+                  if in_multiline_skip:
+                      if stripped.endswith('"') or stripped.endswith("'") or 'END ' in stripped:
+                          in_multiline_skip = False
+                      continue
+
                   # Keep comments and empty lines
                   if not stripped or stripped.startswith('#'):
                       cleaned_lines.append(line)
                       continue
+
                   if '=' in stripped:
                       key, val = stripped.split('=', 1)
                       key = key.strip()
                       val = val.strip()
 
-                      # Exclude SSH private key from Docker .env file for cleanliness
-                      if key in ['EC2_SSH_KEY', 'EC2_SSH_KEY_BASE64']:
+                      # Exclude server connection variables from Docker .env
+                      if key in ['EC2_HOST', 'EC2_USER', 'EC2_SSH_KEY', 'EC2_SSH_KEY_BASE64', 'EC2_PORT']:
+                          if (val.startswith('"') and not (val.endswith('"') and len(val) > 1)) or \
+                             (val.startswith("'") and not (val.endswith("'") and len(val) > 1)) or \
+                             '-----BEGIN' in val:
+                              in_multiline_skip = True
+                          continue
+
+                      # Strict key validation: must be a valid environment identifier
+                      if not re.match(r'^[A-Za-z_][A-Za-z0-9_]*$', key):
+                          print(f'⚠️ Skipping invalid non-identifier key: {key}')
                           continue
 
                       # Overrides and Docker networking adaptations:
