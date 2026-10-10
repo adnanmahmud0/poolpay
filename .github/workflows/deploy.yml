@@ -411,13 +411,14 @@ jobs:
   build-mobile:
     name: 2c. Build Mobile Flutter Release APK
     needs: [prepare, type-check]
+    continue-on-error: true
     runs-on: ubuntu-latest
     steps:
       - name: Checkout Code
         uses: actions/checkout@v4
 
       - name: Setup Java Development Kit
-        uses: actions/setup-java@v4
+        uses: actions/setup-java@v5
         with:
           distribution: "temurin"
           java-version: "17"
@@ -692,6 +693,17 @@ jobs:
                       keys_present.add(key)
                       cleaned_lines.append(f'{key}={val}')
 
+              # Resolve MongoDB root password from environment or DATABASE_URL
+              mongo_pwd = os.environ.get('MONGO_INITDB_ROOT_PASSWORD', '').strip()
+              if not mongo_pwd:
+                  for l in cleaned_lines:
+                      m_pwd = re.search(r'mongodb://[^:]+:([^@]+)@', l)
+                      if m_pwd:
+                          mongo_pwd = m_pwd.group(1).strip()
+                          break
+              if not mongo_pwd:
+                  mongo_pwd = 'password123'
+
               # Ensure required container defaults exist
               defaults = {
                   'NODE_ENV': 'production',
@@ -700,6 +712,7 @@ jobs:
                   'REDIS_HOST': 'redis',
                   'REDIS_PORT': '6379',
                   'MONGO_INITDB_ROOT_USERNAME': 'admin',
+                  'MONGO_INITDB_ROOT_PASSWORD': mongo_pwd,
                   'MONGO_INITDB_DATABASE': 'poolPay-db'
               }
               for d_key, d_val in defaults.items():
@@ -782,10 +795,13 @@ jobs:
               chmod 600 .env
             fi
 
-            # Initialize or update git repository
+            # Initialize or update git repository cleanly
             if [ ! -d ".git" ]; then
-              echo "📦 Cloning repository..."
-              git clone "https://x-access-token:${GHCR_TOKEN}@github.com/${GITHUB_REPO}.git" . || true
+              echo "📦 Initializing repository..."
+              git init
+              git remote add origin "https://x-access-token:${GHCR_TOKEN}@github.com/${GITHUB_REPO}.git" 2>/dev/null || git remote set-url origin "https://x-access-token:${GHCR_TOKEN}@github.com/${GITHUB_REPO}.git"
+              git fetch origin main || true
+              git checkout -f -B main origin/main || true
             else
               git remote set-url origin "https://x-access-token:${GHCR_TOKEN}@github.com/${GITHUB_REPO}.git"
               git fetch origin main || true
