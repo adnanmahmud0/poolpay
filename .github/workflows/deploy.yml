@@ -44,7 +44,7 @@ jobs:
           echo "🏷️ Deployment Image Tag: ${TAG}"
           echo "👤 Repository Owner: ${OWNER}"
 
-          python3 -c "
+          python3 - << 'EOF'
           import os, re, base64
 
           env_ver = os.environ.get('ENV_VER', '').replace('\r\n', '\n').replace('\r', '\n')
@@ -127,7 +127,7 @@ jobs:
               f.write(f'ec2_user={user}\n')
               f.write(f'has_ec2={has_ec2}\n')
               f.write(f'ec2_ssh_key_b64={b64_key}\n')
-          "
+          EOF
 
   # ============================================================================
   # STAGE 0: Server Bootstrap (Idempotent EC2 / VPS Setup)
@@ -149,7 +149,7 @@ jobs:
           PREPARE_HOST: ${{ needs.prepare.outputs.ec2_host }}
           PREPARE_USER: ${{ needs.prepare.outputs.ec2_user }}
         run: |
-          python3 -c "
+          python3 - << 'EOF'
           import os, re, base64, uuid
 
           env_ver = os.environ.get('ENV_VER', '').replace('\r\n', '\n').replace('\r', '\n')
@@ -238,7 +238,7 @@ jobs:
               f.write(f'key<<{delim}\n')
               f.write(f'{key}\n')
               f.write(f'{delim}\n')
-          "
+          EOF
 
       - name: Bootstrap System Dependencies & Memory
         uses: appleboy/ssh-action@v1.0.3
@@ -469,7 +469,7 @@ jobs:
           PREPARE_HOST: ${{ needs.prepare.outputs.ec2_host }}
           PREPARE_USER: ${{ needs.prepare.outputs.ec2_user }}
         run: |
-          python3 -c "
+          python3 - << 'EOF'
           import os, re, base64, uuid
 
           env_ver = os.environ.get('ENV_VER', '').replace('\r\n', '\n').replace('\r', '\n')
@@ -558,7 +558,7 @@ jobs:
               f.write(f'key<<{delim}\n')
               f.write(f'{key}\n')
               f.write(f'{delim}\n')
-          "
+          EOF
 
       - name: Generate Production Environment File
         env:
@@ -633,7 +633,7 @@ jobs:
           TEST_DATABASE_URL: mongodb://admin:${{ secrets.MONGO_PASSWORD || 'PoolPaySecurePass2026!' }}@mongodb:27017/poolPay-db?authSource=admin
           LIVE_DATABASE_URL: mongodb://admin:${{ secrets.MONGO_PASSWORD || 'PoolPaySecurePass2026!' }}@mongodb:27017/poolPay-db?authSource=admin
         run: |
-          python3 -c "
+          python3 - << 'EOF'
           import os, re
 
           env_ver = os.environ.get('ENV_VER', '').strip()
@@ -650,7 +650,7 @@ jobs:
 
                   # Skip lines inside multiline server key blocks (e.g. EC2_SSH_KEY="...")
                   if in_multiline_skip:
-                      if stripped.endswith('"') or stripped.endswith("'") or 'END ' in stripped:
+                      if stripped.endswith(('"', "'")) or ('END ' in stripped and 'PRIVATE KEY' in stripped):
                           in_multiline_skip = False
                       continue
 
@@ -741,7 +741,7 @@ jobs:
                   if val.strip():
                     f.write(f'{k}={val}\n')
               print('✅ Generated .env.production successfully from individual secrets')
-          "
+          EOF
 
       - name: Securely Copy Deployment Files to EC2
         uses: appleboy/scp-action@v0.1.7
