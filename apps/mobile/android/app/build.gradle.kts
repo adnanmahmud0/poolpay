@@ -61,8 +61,8 @@ android {
     }
 
     packaging {
-        jniLibs {
-            keepDebugSymbols.add("**/*.so")
+        resources {
+            excludes.add("META-INF/*.version")
         }
     }
 }

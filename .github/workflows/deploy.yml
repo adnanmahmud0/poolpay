@@ -439,6 +439,7 @@ jobs:
     needs: [prepare, type-check]
     continue-on-error: true
     runs-on: ubuntu-latest
+    timeout-minutes: 30
     steps:
       - name: Checkout Code
         uses: actions/checkout@v4
@@ -448,6 +449,8 @@ jobs:
         with:
           distribution: "temurin"
           java-version: "17"
+          cache: "gradle"
+          cache-dependency-path: apps/mobile/android/gradle/wrapper/gradle-wrapper.properties
 
       - name: Setup Flutter SDK
         uses: subosito/flutter-action@v2
@@ -461,6 +464,8 @@ jobs:
           flutter pub get
 
       - name: Build Android Release APK
+        env:
+          GRADLE_OPTS: "-Dorg.gradle.jvmargs=-Xmx3072m -XX:MaxMetaspaceSize=512m -Dorg.gradle.daemon=false -Dorg.gradle.workers.max=2"
         run: |
           cd apps/mobile
           flutter build apk --release
@@ -469,7 +474,7 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: poolpay-release-apk
-          path: apps/mobile/build/app/outputs/flutter-apk/app-release.apk
+          path: apps/mobile/build/app/outputs/flutter-apk/*.apk
           retention-days: 30
 
   # ============================================================================
