@@ -1,0 +1,16 @@
+{
+  "name": "@repo/mobile",
+  "version": "1.0.0",
+  "private": true,
+  "description": "PoolPay Flutter Cross-Platform Mobile Application",
+  "scripts": {
+    "dev": "flutter run",
+    "build": "flutter build apk --release",
+    "build:apk": "flutter build apk --release",
+    "build:appbundle": "flutter build appbundle --release",
+    "build:ios": "flutter build ipa --release",
+    "lint": "flutter analyze",
+    "test": "flutter test",
+    "clean": "flutter clean"
+  }
+}

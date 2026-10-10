@@ -5,6 +5,7 @@ services:
     image: mongo:7.0
     container_name: poolpay_mongodb_prod
     restart: always
+    command: ["mongod", "--wiredTigerCacheSizeGB", "0.25"]
     env_file:
       - .env
     volumes:
@@ -39,9 +40,9 @@ services:
       timeout: 5s
       retries: 5
 
-  api:
-    image: ${API_IMAGE:-ghcr.io/adnanmahmud0/poolpay-api:latest}
-    container_name: poolpay_api_prod
+  backend:
+    image: ${BACKEND_IMAGE:-${API_IMAGE:-ghcr.io/adnanmahmud0/poolpay-backend:latest}}
+    container_name: poolpay_backend_prod
     restart: always
     env_file:
       - .env
@@ -52,8 +53,8 @@ services:
       - REDIS_HOST=redis
       - REDIS_PORT=6379
     volumes:
-      - api_uploads_prod:/app/uploads
-      - api_logs_prod:/app/logs
+      - backend_uploads_prod:/app/uploads
+      - backend_logs_prod:/app/logs
     ports:
       - "127.0.0.1:5000:5000"
     depends_on:
@@ -64,9 +65,9 @@ services:
     networks:
       - poolpay-prod-network
 
-  web:
-    image: ${WEB_IMAGE:-ghcr.io/adnanmahmud0/poolpay-web:latest}
-    container_name: poolpay_web_prod
+  admin:
+    image: ${ADMIN_IMAGE:-${WEB_IMAGE:-ghcr.io/adnanmahmud0/poolpay-admin:latest}}
+    container_name: poolpay_admin_prod
     restart: always
     env_file:
       - .env
@@ -78,7 +79,7 @@ services:
     ports:
       - "127.0.0.1:5001:3000"
     depends_on:
-      - api
+      - backend
     networks:
       - poolpay-prod-network
 
@@ -87,9 +88,9 @@ volumes:
     driver: local
   redis_data_prod:
     driver: local
-  api_uploads_prod:
+  backend_uploads_prod:
     driver: local
-  api_logs_prod:
+  backend_logs_prod:
     driver: local
 
 networks:

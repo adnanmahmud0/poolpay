@@ -1,0 +1,42 @@
+আমাদের Flutter অ্যাপে Firebase Push Notification (FCM) setup করার জন্য নিচের কাজগুলো করতে হবে।
+১️⃣ Firebase Android Configuration
+আমি Firebase project এ Android app already create করেছি।
+তোমাকে google-services.json file manually add করতে হবে না, কারণ আমরা এটা .env থেকে Base64 decode করে build time এ generate করবো।
+তোমার কাজ হবে নিশ্চিত করা যে Android project এ Firebase configuration ঠিকভাবে integrate করা আছে।
+করণীয়:
+android/build.gradle এ Google services classpath add আছে কিনা check করবে
+android/app/build.gradle এ apply plugin: 'com.google.gms.google-services' add আছে কিনা check করবে
+minSdkVersion কমপক্ষে 21 আছে কিনা verify করবে
+২️⃣ google-services.json Base64 Decode System
+আমাদের project এ google-services.json file git এ রাখা হবে না।
+Build এর আগে .env file থেকে Base64 decode করে android/app/google-services.json auto generate হবে।
+তোমাকে নিশ্চিত করতে হবে:
+android/app/build.gradle এ preBuild এর আগে decode script run হয়
+google-services.json file runtime এর আগে automatically create হচ্ছে
+৩️⃣ Firebase Messaging Setup (Flutter Side)
+Flutter project এ Firebase Messaging properly configure করতে হবে।
+Required packages:
+firebase_core
+firebase_messaging
+করণীয়:
+Firebase.initializeApp() app start এ call করতে হবে
+FCM permission request করতে হবে
+Device FCM token collect করতে হবে
+Token backend API তে send করতে হবে এবং update করতে হবে
+৪️⃣ Notification Handling
+Notification receive হলে app এর ভেতরে handle করতে হবে।
+করণীয়:
+Foreground notification handle
+Background notification handle
+App terminated state notification handle
+৫️⃣ FCM Token Backend এ পাঠানো
+User login হওয়ার পরে:
+Device FCM token collect করতে হবে
+Token backend API তে POST করতে হবে
+Token refresh হলে আবার backend এ update করতে হবে
+৬️⃣ Testing Requirement
+Testing এর সময় নিচেরগুলো verify করতে হবে:
+App install হলে token generate হচ্ছে
+Backend থেকে notification পাঠালে device এ receive হচ্ছে
+Foreground এবং background দুই অবস্থাতেই notification আসছে
+যদি Firebase বা Android build সংক্রান্ত কোনো issue আসে, আমাকে error log share করবে।

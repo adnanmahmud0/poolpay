@@ -1,0 +1,116 @@
+স্কিমটি `poolpay` করে দিচ্ছি এবং আপনার Flutter ডেভেলপারকে কি কি করতে হবে তার একদম ক্লিয়ার গাইড দিচ্ছি। আসলে Flutter ফ্রন্টএন্ডে কিছু "অবশ্যই" করতে হবে, অন্যথায় Stripe থেকে ইউজার আপনার অ্যাপে ফিরে আসতে পারবে না।
+ 
+### ১. পোস্টম্যান আপডেট (`poolpay` স্কিম):
+আমি পোস্টম্যান কালেকশন আপডেট করে দিচ্ছি যাতে স্যাম্পল ডাটা `poolpay://` থাকে।
+ 
+### ২. Flutter ডেভেলপারকে যা করতে হবে (একদম নির্দিষ্ট গাইড):
+ 
+ডেভেলপারকে বলবেন এই ৩টি কাজ করতে:
+ 
+#### **A. Android কনফিগারেশন (`AndroidManifest.xml`):**
+`android/app/src/main/AndroidManifest.xml` ফাইলে `activity` ট্যাগের ভেতরে এই `intent-filter` টি যোগ করতে হবে:
+```xml
+<intent-filter>
+<action android:name="android.intent.action.VIEW" />
+<category android:name="android.intent.category.DEFAULT" />
+<category android:name="android.intent.category.BROWSABLE" />
+<data android:scheme="poolpay" />
+</intent-filter>
+```
+ 
+#### **B. iOS কনফিগারেশন (`Info.plist`):**
+`ios/Runner/Info.plist` ফাইলে এটি যোগ করতে হবে:
+```xml
+<key>CFBundleURLTypes</key>
+<array>
+<dict>
+<key>CFBundleTypeRole</key>
+<string>Editor</string>
+<key>CFBundleURLSchemes</key>
+<array>
+<string>poolpay</string>
+</array>
+</dict>
+</array>
+```
+ 
+#### **C. Flutter কোড (লিঙ্ক লিসেন করা):**
+অ্যাপ যখন এই লিঙ্ক (`poolpay://stripe-connect/return`) দিয়ে ওপেন হবে, তখন সেটি ধরার জন্য `uni_links` বা অন্য কোনো প্যাকেজ ব্যবহার করতে হবে।
+```dart
+// স্যাম্পল লজিক
+void initDeepLinks() {
+  uriLinkStream.listen((Uri? uri) {
+    if (uri != null && uri.scheme == 'poolpay') {
+      // এইখানে আপনার এপিআই কল করতে হবে
+      checkStripeStatus();
+    }
+  });
+}
+```
+ 
+---
+ 
+### ৩. কেন এটি প্রয়োজন? (ডেভেলপারকে বোঝানোর জন্য):
+Stripe একটি ওয়েবসাইট। ওয়েবসাইট থেকে যখন ইউজার ব্যাকে ক্লিক করে বা অনবোর্ডিং শেষ করে, তখন মোবাইল ওএস (Android/iOS) জানে না যে কোন অ্যাপ ওপেন করতে হবে। যখন আমরা `poolpay://` ইউআরএল ব্যবহার করি এবং অ্যাপে সেটি কনফিগার করি, তখনই ওএস বুঝতে পারে যে এই লিঙ্কটি আপনার অ্যাপের জন্য।
+ 
+আমি এখন পোস্টম্যান ফাইলটি আপডেট করে দিচ্ছি।
+ 
+#### [MODIFY] `postman_collection.json` (Line 424)
+ 
+একটু অপেক্ষা করুন।
+ 
+Edited postman_collection.json
+ 
+সব কিছু আপডেট করা হয়েছে। স্কিম এখন `poolpay://` এবং আপনার Flutter ডেভেলপারের জন্য একদম নির্দিষ্ট ইনস্ট্রাকশন নিচে দেওয়া হলো।
+ 
+আপনার ডেভেলপারকে এই মেসেজটি কপি করে দিন:
+ 
+---
+ 
+### **Flutter Onboarding Return Handling Guide (poolpay scheme)**
+ 
+Stripe অনবোর্ডিং শেষে ইউজারকে অটোমেটিক অ্যাপে ফিরিয়ে আনতে এবং পেমেন্ট স্ট্যাটাস ভেরিফাই করতে নিচের ৩টি স্টেপ অবশ্যই সম্পন্ন করতে হবে:
+ 
+#### **১. Android কনফিগারেশন:**
+`android/app/src/main/AndroidManifest.xml` ফাইলে আপনার মেইন অ্যাক্টিভিটির ভেতরে এই `intent-filter`টি যোগ করুন:
+```xml
+<intent-filter>
+<action android:name="android.intent.action.VIEW" />
+<category android:name="android.intent.category.DEFAULT" />
+<category android:name="android.intent.category.BROWSABLE" />
+<data android:scheme="poolpay" />
+</intent-filter>
+```
+ 
+#### **২. iOS কনফিগারেশন:**
+`ios/Runner/Info.plist` ফাইলে নিচের কি-টি যোগ করুন:
+```xml
+<key>CFBundleURLTypes</key>
+<array>
+<dict>
+<key>CFBundleTypeRole</key>
+<string>Editor</string>
+<key>CFBundleURLSchemes</key>
+<array>
+<string>poolpay</string>
+</array>
+</dict>
+</array>
+```
+ 
+#### **৩. এপিআই ইমপ্লিমেন্টেশন:**
+- **Step 1:** `POST /api/v1/stripe/connect/account-link` কল করার সময় বডিতে নিচের ডাটা পাঠান:
+  ```json
+  {
+    "returnUrl": "poolpay://stripe-connect/return",
+    "refreshUrl": "poolpay://stripe-connect/refresh"
+  }
+  ```
+- **Step 2:** ইউজার যখন অ্যাপে ফিরে আসবে (যেমন: `uni_links` প্যাকেজ দিয়ে লিঙ্কটি ধরবেন), তখন সাথে সাথে `GET /api/v1/stripe/connect/status` এপিআই কল করবেন। এটি কল করলেই ব্যাকএন্ডে ইউজারের স্ট্যাটাস আপডেট হবে এবং আপনি সাকসেস/ফেইল বুঝতে পারবেন।
+ 
+---
+ 
+**ব্যাকএন্ডে কি কি করা হয়েছে:**
+- `createAccountLink` এপিআই এখন কাস্টম `returnUrl` এবং `refreshUrl` সাপোর্ট করে।
+- পোস্টম্যান কালেকশন `poolpay://` স্কিম দিয়ে আপডেট করা হয়েছে।
+- `getConnectStatus` এপিআই-তে ডিটেইল এরর মেসেজ এবং রিকোয়ারমেন্টস যুক্ত করা হয়েছে।

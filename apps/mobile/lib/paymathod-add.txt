@@ -1,0 +1,191 @@
+### Flutter Developer Integration Guide: Payment Methods & Payout System (Updated)
+
+This guide explains how to integrate Stripe for both **saving payment methods (cards & bank accounts)** and **handling payouts via Stripe Connect**.
+
+---
+
+## 1. Setup Requirements
+
+* Packages: `flutter_stripe`, `url_launcher`, `http` 
+* Stripe Key: Use **Publishable Key only** in Flutter (never use Secret Key)
+* Initialization:
+
+```dart
+Stripe.publishableKey = "your_publishable_key";
+await Stripe.instance.applySettings();
+```
+
+---
+
+## 2. Payment Method UI (Updated Requirement)
+
+The app must provide **two options**:
+
+1. Add Debit/Credit Card
+2. Link Bank Account
+
+### Payment Method Type Mapping:
+
+```ts
+export enum PaymentMethodType {
+  CARD = "card",
+  BANK = "bank",
+}
+```
+
+* If user adds card → `"type": "card"`
+* If user links bank → `"type": "bank"`
+
+---
+
+## 3. Saving Payment Methods (Multiple მხარდაჭერა)
+
+Users can add **multiple payment methods**.
+
+### Flow:
+
+1. User selects option (Card / Bank)
+2. Collect required info
+3. Create PaymentMethod using Stripe
+4. Receive `paymentMethod.id` (e.g., `pm_xxx`)
+5. Send to backend with correct type
+
+---
+
+### API: Add Payment Method
+
+**POST /api/v1/payment-methods**
+
+```json
+{
+  "paymentMethodId": "pm_...",
+  "type": "card" | "bank",
+  "isDefault": true,
+  "autoPayEnabled": true
+}
+```
+
+### Notes:
+
+* Do NOT send raw card/bank details to backend
+* Only send `paymentMethodId`
+* One payment method can be marked as default
+* Allow user to:
+
+  * Add multiple methods
+  * Set default
+  * Delete methods
+
+---
+
+## 4. Card Integration (Stripe)
+
+* Use `CardField` or `CardFormField`
+* Create PaymentMethod:
+
+```dart
+final paymentMethod = await Stripe.instance.createPaymentMethod(
+  params: PaymentMethodParams.card(
+    paymentMethodData: PaymentMethodData(),
+  ),
+);
+```
+
+---
+
+## 5. Bank Account Integration
+
+* Use Stripe-supported bank linking (e.g., Financial Connections or setup flow)
+* Generate a PaymentMethod or token via Stripe
+* Send resulting ID to backend with `"type": "bank"`
+
+---
+
+## 6. List & Manage Payment Methods
+
+### APIs:
+
+* GET /api/v1/payment-methods → List all methods
+* DELETE /api/v1/payment-methods/ → Remove method
+
+### UI আচরণ:
+
+* Show all added methods in a list
+* Highlight default method
+* Allow:
+
+  * Set as default
+  * Delete method
+
+---
+
+## 7. Payout Onboarding (Stripe Connect)
+
+Users must connect Stripe account to receive payouts.
+
+### Step A: Get Onboarding Link
+
+POST /api/v1/stripe/connect/account-link
+
+Response:
+
+```json
+{
+  "data": "https://connect.stripe.com/setup/..."
+}
+```
+
+### Step B:
+
+* Open URL using `url_launcher`
+* User completes onboarding
+
+### Step C: Check Status
+
+GET /api/v1/stripe/connect/status
+
+* If `connected = true` → user ready for payouts
+
+---
+
+## 8. Payout Dashboard Access
+
+GET /api/v1/stripe/connect/login-link
+
+* Open returned link in browser
+* User can manage bank info & payouts
+
+---
+
+## 9. Transactions History
+
+GET /api/v1/transactions/my-transactions
+
+* `"type": "CONTRIBUTION"` → payments
+* `"type": "PAYOUT"` → earnings
+
+---
+
+## 10. Important Notes
+
+* Handle 3D Secure (SCA):
+
+```dart
+Stripe.instance.handleNextAction(clientSecret);
+```
+
+* Do not call APIs multiple times while loading
+* Support deep linking for redirect URLs
+* Maintain loading + error states
+
+---
+
+## Final Goal
+
+Build a complete system where users can:
+
+* Add multiple cards and bank accounts
+* Select default payment method
+* Enable auto-pay
+* Connect Stripe account for payouts
+* View transactions and manage payouts

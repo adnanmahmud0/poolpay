@@ -9,8 +9,10 @@ IMAGE_TAG="${1:-latest}"
 REPO_OWNER="${2:-adnanmahmud0}"
 REPO_OWNER_LOWER="$(echo "$REPO_OWNER" | tr '[:upper:]' '[:lower:]')"
 
-export API_IMAGE="ghcr.io/${REPO_OWNER_LOWER}/poolpay-api:${IMAGE_TAG}"
-export WEB_IMAGE="ghcr.io/${REPO_OWNER_LOWER}/poolpay-web:${IMAGE_TAG}"
+export BACKEND_IMAGE="ghcr.io/${REPO_OWNER_LOWER}/poolpay-backend:${IMAGE_TAG}"
+export ADMIN_IMAGE="ghcr.io/${REPO_OWNER_LOWER}/poolpay-admin:${IMAGE_TAG}"
+export API_IMAGE="$BACKEND_IMAGE"
+export WEB_IMAGE="$ADMIN_IMAGE"
 export IMAGE_TAG
 
 WORKDIR="/home/ubuntu/poolpay"
@@ -20,7 +22,7 @@ echo "=================================================="
 echo "🚀 Starting PoolPay Deployment: ${IMAGE_TAG}"
 echo "=================================================="
 
-# 1. System Dependency Bootstrap (runs quickly if already installed)
+# 1. System Dependency Bootstrap (Idempotent)
 echo "📦 Checking system dependencies..."
 if ! command -v docker &> /dev/null; then
     echo "Installing Docker..."
@@ -69,8 +71,8 @@ if [ -f "nginx/poolpay.conf" ]; then
 fi
 
 # 3. Pull new images
-echo "📥 Pulling images: ${API_IMAGE} and ${WEB_IMAGE}..."
-docker compose -f docker-compose.prod.yml pull api web || {
+echo "📥 Pulling images: ${BACKEND_IMAGE} and ${ADMIN_IMAGE}..."
+docker compose -f docker-compose.prod.yml pull backend admin || {
     echo "❌ Failed to pull Docker images from GHCR. Check registry authentication."
     exit 1
 }
@@ -105,17 +107,19 @@ else
     echo "📋 Dumping Docker container status:"
     docker compose -f docker-compose.prod.yml ps -a || true
     echo "📋 Dumping Backend API container logs:"
-    docker compose -f docker-compose.prod.yml logs --tail=100 api || true
+    docker compose -f docker-compose.prod.yml logs --tail=100 backend || true
     echo "📋 Dumping MongoDB container logs:"
     docker compose -f docker-compose.prod.yml logs --tail=50 mongodb || true
-    echo "📋 Dumping Web container logs:"
-    docker compose -f docker-compose.prod.yml logs --tail=50 web || true
+    echo "📋 Dumping Admin container logs:"
+    docker compose -f docker-compose.prod.yml logs --tail=50 admin || true
     if [ -f ".previous_tag" ]; then
         ROLLBACK_TAG="$(cat .previous_tag)"
         echo "🔄 Rolling back to previous version: ${ROLLBACK_TAG}..."
         export IMAGE_TAG="$ROLLBACK_TAG"
-        export API_IMAGE="ghcr.io/${REPO_OWNER_LOWER}/poolpay-api:${ROLLBACK_TAG}"
-        export WEB_IMAGE="ghcr.io/${REPO_OWNER_LOWER}/poolpay-web:${ROLLBACK_TAG}"
+        export BACKEND_IMAGE="ghcr.io/${REPO_OWNER_LOWER}/poolpay-backend:${ROLLBACK_TAG}"
+        export ADMIN_IMAGE="ghcr.io/${REPO_OWNER_LOWER}/poolpay-admin:${ROLLBACK_TAG}"
+        export API_IMAGE="$BACKEND_IMAGE"
+        export WEB_IMAGE="$ADMIN_IMAGE"
         docker compose -f docker-compose.prod.yml up -d --remove-orphans
     fi
     exit 1
@@ -133,7 +137,9 @@ if [ ! -d "/etc/letsencrypt/live/poolpay.space" ]; then
         --non-interactive \
         --agree-tos \
         --email admin@poolpay.space \
-        --no-eff-email || {
+        --no-eff-email \
+        --redirect \
+        --expand || {
             echo "⚠️ Certbot SSL certificate issuance will be retried on next deploy."
         }
     sudo nginx -t && sudo systemctl reload nginx || true

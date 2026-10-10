@@ -17,7 +17,6 @@ coverage
 # Next.js & Web builds
 .next/
 out/
-build/
 
 # Backend & Package builds
 dist/
@@ -25,13 +24,22 @@ winston/
 uploads/
 *.log
 
-# Mobile Flutter App (Standalone, not under monorepo control)
-/derival81/
-
-# Original standalone repos / backups
-/derival81-pool-pay-api/
-/derival81-pool-pay-dashboard/
-/fullstack-turborepo-starter-kit/
+# Flutter & Dart (apps/mobile)
+.dart_tool/
+.flutter-plugins
+.flutter-plugins-dependencies
+.packages
+build/
+ephemeral/
+Generated.xcconfig
+flutter_export_environment.sh
+apps/mobile/android/.gradle/
+apps/mobile/android/local.properties
+apps/mobile/ios/Pods/
+apps/mobile/ios/.symlinks/
+apps/mobile/ios/Flutter/Generated.xcconfig
+apps/mobile/ios/Flutter/app.flx
+apps/mobile/ios/Flutter/flutter_assets/
 
 # Misc / OS
 .DS_Store

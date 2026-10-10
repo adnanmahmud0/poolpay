@@ -1,0 +1,61 @@
+---
+ 
+### **Prompt 1: Flutter Mobile App (Deep Integration Guide)**
+ 
+**Context:**
+
+Integrate the hardened **PoolPay Fintech Backend** into the Flutter Mobile App. You must strictly follow the business rules and pricing tiers defined below.
+ 
+**1. Membership System Details:**
+
+Implement a tiered subscription model with **Yearly Auto-Renewal**:
+
+- **GUEST (Free):** 
+
+    - Basic access: Register, Login, Join groups via invite.
+
+    - **Restrictions:** CANNOT create groups, CANNOT complete Stripe onboarding, CANNOT receive commissions.
+
+- **REGULAR ($5.00/Year):** 
+
+    - **Limit:** Can create and manage **maximum 1 active group**.
+
+    - **Features:** Eligible for Stripe onboarding and can receive **1% creator commission**.
+
+- **VIP ($10.00/Year):** 
+
+    - **Limit:** Can create **unlimited active groups**.
+
+    - **Features:** Full premium access, eligible for **1% creator commission**, and exclusive badges.
+
+- **Subscription Logic:** 
+
+    - Upgrades are **immediate**. Downgrades are **scheduled** (active until current billing year ends).
+
+    - Implement a **7-day grace period** warning if a renewal payment fails.
+ 
+**2. Authentication & 2FA Security:**
+
+- Create an OTP screen that detects the `channel` (SMS or Email) from the backend response.
+
+- Standardize all phone inputs to **E.164** (e.g., +8801...).
+
+- **Brute-force UI:** If a user fails OTP 5 times, show a **15-minute lockout timer**.
+
+- Implement a **2-minute resend cooldown** button with a countdown.
+ 
+**3. Financial & Status Tracking:**
+
+- Update transaction/turn status badges with: `pending`, `processing`, `paid`, `failed`, `late`, `manual_review`, and `recovery_required`.
+
+- If a status is `recovery_required` or `manual_review`, show a "Payment Under Investigation" UI.
+
+- **Commission Display:** Clearly show the **1% Platform Fee** and **1% Creator Fee** in the payout history. Never assume values; always fetch from `/settings`.
+ 
+**4. Advertisement Carousel:**
+
+- Implement a dynamic homepage slider fetching ads from `/api/v1/advertisements/active`.
+
+- Sort by `priority` and handle automatic transitions every 5 seconds.
+
+ 

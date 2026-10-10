@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "242742534531",
+    "project_id": "poolpay-e80df",
+    "storage_bucket": "poolpay-e80df.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:242742534531:android:8a442e192a3f3591ce56b6",
+        "android_client_info": {
+          "package_name": "com.poolpay.rosca"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyBwT6b42xh3TKlE7-kBjkSlwrEbpnPwEWM"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

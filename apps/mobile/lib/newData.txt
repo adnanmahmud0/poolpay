@@ -1,0 +1,24 @@
+Master Prompt for Antigravity AI (Flutter App Refactor - Final Version)
+"Please refactor the PoolPay Flutter application to sync with the latest backend API changes. The backend now handles role-based data filtering, so you only need to focus on displaying the information provided by the API:
+1. Authentication Refactor (Dual-Login & Profile):
+Update the LoginService: Change the request payload key from email to identifier. This field now accepts both email and phone number.
+Update RegistrationService: Add a required phone field. Replace the single fullName input with two separate fields: firstName and lastName.
+Update the UserModel to include firstName, lastName, and phone properties.
+2. Financial Stats Screen (Personal Wallet):
+Create/Update the 'My Earnings' or 'Wallet Stats' screen.
+Integrate the GET /api/v1/user/my-stats endpoint.
+Display totalPayout (Total Earnings) and the turnHistory list.
+Important: The backend now sends pre-filtered netAmount for regular members, so just display the amount field directly from the history objects.
+3. Group Activation & Lifecycle Logic:
+On the GroupDetailsScreen, implement the 'Start Group' button logic.
+The button must only be enabled for the Admin/Creator when currentMembers == totalMembers.
+If a group's startDate has passed but it hasn't started, change its status label to 'Delayed: Awaiting Members'.
+4. Notification & Bonus Alerts:
+Update the notification listener to handle GROUP_COMPLETED and PAYMENT_DUE types.
+For PAYMENT_DUE notifications, if the message mentions a bonus, display a success/gift icon (💰) in the notification list.
+5. Stripe Connect Onboarding:
+Ensure the account creation flow uses business_type: individual.
+Implement a profile refresh trigger as soon as the app returns from the Stripe onboarding deep link.
+6. Model Consistency:
+Check the isDetailed flag in the stats response; if false (default for members), hide any complex fee breakdown UI that was previously planned.
+Scan the codebase now and apply these changes to the models, services, and UI screens."

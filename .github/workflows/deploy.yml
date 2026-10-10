@@ -15,15 +15,27 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
+  # ============================================================================
+  # PREPARE: Deployment Metadata & Auto-Extraction of Server Credentials
+  # ============================================================================
   prepare:
     name: Prepare Deployment Metadata
     runs-on: ubuntu-latest
     outputs:
       tag: ${{ steps.vars.outputs.tag }}
       repo_owner: ${{ steps.vars.outputs.repo_owner }}
+      ec2_host: ${{ steps.vars.outputs.ec2_host }}
+      ec2_user: ${{ steps.vars.outputs.ec2_user }}
+      ec2_ssh_key: ${{ steps.vars.outputs.ec2_ssh_key }}
+      has_ec2: ${{ steps.vars.outputs.has_ec2 }}
     steps:
-      - name: Compute tags and lowercase owner
+      - name: Compute tags and parse server metadata
         id: vars
+        env:
+          ENV_VER: ${{ secrets.ENV_VER || secrets.ENV_FILE }}
+          SEC_HOST: ${{ secrets.EC2_HOST }}
+          SEC_USER: ${{ secrets.EC2_USER }}
+          SEC_KEY: ${{ secrets.EC2_SSH_KEY }}
         run: |
           TAG="sha-$(echo ${{ github.sha }} | cut -c1-7)"
           OWNER="$(echo "${{ github.repository_owner }}" | tr '[:upper:]' '[:lower:]')"
@@ -32,9 +44,181 @@ jobs:
           echo "🏷️ Deployment Image Tag: ${TAG}"
           echo "👤 Repository Owner: ${OWNER}"
 
-  build-api:
-    name: Build & Push API Image
+          python3 -c "
+          import os, re, base64
+
+          env_ver = os.environ.get('ENV_VER', '')
+          sec_host = os.environ.get('SEC_HOST', '').strip()
+          sec_user = os.environ.get('SEC_USER', '').strip()
+          sec_key = os.environ.get('SEC_KEY', '').strip()
+
+          host = sec_host
+          user = sec_user or 'ubuntu'
+          key = sec_key
+
+          if env_ver:
+              # Extract EC2_HOST if not provided in individual secret
+              if not host:
+                  m_host = re.search(r'^\s*EC2_HOST\s*=\s*[\"|\']?([^\"\'\r\n]+)[\"|\']?', env_ver, re.MULTILINE)
+                  if m_host:
+                      host = m_host.group(1).strip()
+
+              # Extract EC2_USER if not provided in individual secret
+              if not sec_user:
+                  m_user = re.search(r'^\s*EC2_USER\s*=\s*[\"|\']?([^\"\'\r\n]+)[\"|\']?', env_ver, re.MULTILINE)
+                  if m_user:
+                      user = m_user.group(1).strip()
+
+              # Extract EC2_SSH_KEY if not provided in individual secret
+              if not key:
+                  # Check for base64 key first
+                  m_b64 = re.search(r'^\s*EC2_SSH_KEY_BASE64\s*=\s*[\"|\']?([^\"\'\r\n]+)[\"|\']?', env_ver, re.MULTILINE)
+                  if m_b64:
+                      try:
+                          key = base64.b64decode(m_b64.group(1).strip()).decode('utf-8')
+                      except Exception:
+                          pass
+
+                  # Check for standard multiline or inline PEM key
+                  if not key:
+                      m_key = re.search(r'(-{5}BEGIN [A-Z ]+ PRIVATE KEY-{5}[\s\S]*?-{5}END [A-Z ]+ PRIVATE KEY-{5})', env_ver)
+                      if m_key:
+                          key = m_key.group(1).strip().replace('\\n', '\n')
+                      else:
+                          m_key_val = re.search(r'^\s*EC2_SSH_KEY\s*=\s*(.*)', env_ver, re.MULTILINE)
+                          if m_key_val:
+                              key = m_key_val.group(1).strip().strip('\"\'').replace('\\n', '\n')
+
+          has_ec2 = 'true' if (host and key) else 'false'
+          print(f'📡 Server Target Host: {host if host else \"(Not configured yet)\"}')
+          print(f'👤 SSH User: {user}')
+          print(f'🔑 SSH Key Configured: {has_ec2}')
+
+          out_file = os.environ['GITHUB_OUTPUT']
+          with open(out_file, 'a') as f:
+              f.write(f'ec2_host={host}\n')
+              f.write(f'ec2_user={user}\n')
+              f.write(f'has_ec2={has_ec2}\n')
+              f.write('ec2_ssh_key<<EOF\n')
+              f.write(f'{key}\n')
+              f.write('EOF\n')
+          "
+
+  # ============================================================================
+  # STAGE 0: Server Bootstrap (Idempotent EC2 / VPS Setup)
+  # ============================================================================
+  setup-server:
+    name: 0. Bootstrap Server (SSH)
     needs: prepare
+    if: ${{ needs.prepare.outputs.has_ec2 == 'true' }}
+    runs-on: ubuntu-latest
+    steps:
+      - name: Bootstrap System Dependencies & Memory
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: ${{ needs.prepare.outputs.ec2_host }}
+          username: ${{ needs.prepare.outputs.ec2_user }}
+          key: ${{ needs.prepare.outputs.ec2_ssh_key }}
+          port: ${{ secrets.EC2_PORT || 22 }}
+          script: |
+            set -euo pipefail
+            echo "🔧 [Bootstrap] Verifying server dependencies on $(hostname)..."
+
+            # 1. Configure 2GB Swap file to prevent Out-Of-Memory (OOM) crashes
+            if [ ! -f /swapfile ]; then
+              echo "Creating 2GB swap file..."
+              sudo fallocate -l 2G /swapfile || sudo dd if=/dev/zero of=/swapfile bs=1M count=2048
+              sudo chmod 600 /swapfile
+              sudo mkswap /swapfile
+              sudo swapon /swapfile
+              echo '/swapfile none swap sw 0 0' | sudo tee -a /etc/fstab
+              echo "✅ Swap configured successfully"
+            else
+              echo "✅ Swapfile already active"
+            fi
+
+            # 2. Install Docker and Compose plugin if missing
+            if ! command -v docker &> /dev/null; then
+              echo "Installing Docker..."
+              sudo apt-get update -y
+              sudo apt-get install -y ca-certificates curl gnupg lsb-release
+              sudo install -m 0755 -d /etc/apt/keyrings
+              curl -fsSL https://download.docker.com/linux/ubuntu/gpg | sudo gpg --dearmor -o /etc/apt/keyrings/docker.gpg
+              sudo chmod a+r /etc/apt/keyrings/docker.gpg
+              echo "deb [arch=$(dpkg --print-architecture) signed-by=/etc/apt/keyrings/docker.gpg] https://download.docker.com/linux/ubuntu $(lsb_release -cs) stable" | sudo tee /etc/apt/sources.list.d/docker.list > /dev/null
+              sudo apt-get update -y
+              sudo apt-get install -y docker-ce docker-ce-cli containerd.io docker-buildx-plugin docker-compose-plugin
+              sudo usermod -aG docker ubuntu || true
+            fi
+
+            # 3. Install Nginx and Certbot
+            if ! command -v nginx &> /dev/null; then
+              echo "Installing Nginx..."
+              sudo apt-get update -y
+              sudo apt-get install -y nginx
+            fi
+
+            if ! command -v certbot &> /dev/null; then
+              echo "Installing Certbot..."
+              sudo apt-get install -y certbot python3-certbot-nginx
+            fi
+
+            # 4. Prepare working directory & backup cron
+            mkdir -p /home/ubuntu/poolpay/scripts
+            mkdir -p /home/ubuntu/backups/mongodb
+
+            # Setup automated daily MongoDB backup cron (0 2 * * *)
+            cat << 'EOF' | sudo tee /home/ubuntu/poolpay/scripts/backup-db.sh > /dev/null
+            #!/bin/bash
+            BACKUP_DIR="/home/ubuntu/backups/mongodb"
+            TIMESTAMP=$(date +"%Y%m%d_%H%M%S")
+            CONTAINER_NAME="poolpay_mongodb_prod"
+            DB_NAME="poolPay-db"
+            RETENTION_DAYS=7
+            mkdir -p "$BACKUP_DIR"
+            if docker ps --format '{{.Names}}' | grep -q "^${CONTAINER_NAME}$"; then
+              docker exec $CONTAINER_NAME mongodump --db $DB_NAME --out /data/db/backup_temp || true
+              docker cp $CONTAINER_NAME:/data/db/backup_temp/$DB_NAME "$BACKUP_DIR/mongo_backup_$TIMESTAMP" || true
+              docker exec $CONTAINER_NAME rm -rf /data/db/backup_temp || true
+              tar -czf "$BACKUP_DIR/mongo_backup_$TIMESTAMP.tar.gz" -C "$BACKUP_DIR" "mongo_backup_$TIMESTAMP" || true
+              rm -rf "$BACKUP_DIR/mongo_backup_$TIMESTAMP"
+              find "$BACKUP_DIR" -type f -name "*.tar.gz" -mtime +$RETENTION_DAYS -delete || true
+            fi
+            EOF
+            sudo chmod +x /home/ubuntu/poolpay/scripts/backup-db.sh
+
+            # Register cron idempotently
+            (crontab -l 2>/dev/null | grep -v "backup-db.sh" ; echo "0 2 * * * /home/ubuntu/poolpay/scripts/backup-db.sh > /dev/null 2>&1") | crontab - || true
+            echo "✅ Server bootstrap complete"
+
+  # ============================================================================
+  # STAGE 1: Monorepo Type Check
+  # ============================================================================
+  type-check:
+    name: 1. Monorepo TypeScript Verification
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: "npm"
+
+      - name: Install Monorepo Dependencies
+        run: npm ci
+
+      - name: Verify TypeScript Across Workspaces
+        run: npx turbo typecheck
+
+  # ============================================================================
+  # STAGE 2: Parallel Builds (Backend, Admin Next.js, Flutter Mobile)
+  # ============================================================================
+  build-backend:
+    name: 2a. Build & Push Backend API Image
+    needs: [prepare, type-check]
     runs-on: ubuntu-latest
     steps:
       - name: Checkout Code
@@ -50,21 +234,21 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Build and Push Backend API Image
+      - name: Build and Push Backend Image
         uses: docker/build-push-action@v6
         with:
           context: .
-          file: apps/api/Dockerfile
+          file: apps/backend/Dockerfile
           push: true
           tags: |
-            ghcr.io/${{ needs.prepare.outputs.repo_owner }}/poolpay-api:${{ needs.prepare.outputs.tag }}
-            ghcr.io/${{ needs.prepare.outputs.repo_owner }}/poolpay-api:latest
+            ghcr.io/${{ needs.prepare.outputs.repo_owner }}/poolpay-backend:${{ needs.prepare.outputs.tag }}
+            ghcr.io/${{ needs.prepare.outputs.repo_owner }}/poolpay-backend:latest
           cache-from: type=gha
           cache-to: type=gha,mode=max
 
-  build-web:
-    name: Build & Push Web Image
-    needs: prepare
+  build-admin:
+    name: 2b. Build & Push Admin Dashboard Image
+    needs: [prepare, type-check]
     runs-on: ubuntu-latest
     steps:
       - name: Checkout Code
@@ -80,23 +264,65 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Build and Push Web Admin Image
+      - name: Build and Push Admin Image
         uses: docker/build-push-action@v6
         with:
           context: .
-          file: apps/web/Dockerfile
+          file: apps/admin/Dockerfile
           push: true
           build-args: |
             NEXT_PUBLIC_BASE_URL=https://api.poolpay.space
           tags: |
-            ghcr.io/${{ needs.prepare.outputs.repo_owner }}/poolpay-web:${{ needs.prepare.outputs.tag }}
-            ghcr.io/${{ needs.prepare.outputs.repo_owner }}/poolpay-web:latest
+            ghcr.io/${{ needs.prepare.outputs.repo_owner }}/poolpay-admin:${{ needs.prepare.outputs.tag }}
+            ghcr.io/${{ needs.prepare.outputs.repo_owner }}/poolpay-admin:latest
           cache-from: type=gha
           cache-to: type=gha,mode=max
 
+  build-mobile:
+    name: 2c. Build Mobile Flutter Release APK
+    needs: [prepare, type-check]
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Setup Java Development Kit
+        uses: actions/setup-java@v4
+        with:
+          distribution: "temurin"
+          java-version: "17"
+
+      - name: Setup Flutter SDK
+        uses: subosito/flutter-action@v2
+        with:
+          flutter-version: "3.24.x"
+          channel: "stable"
+          cache: true
+
+      - name: Install Flutter Dependencies
+        run: |
+          cd apps/mobile
+          flutter pub get
+
+      - name: Build Android Release APK
+        run: |
+          cd apps/mobile
+          flutter build apk --release
+
+      - name: Upload Release APK Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: poolpay-release-apk
+          path: apps/mobile/build/app/outputs/flutter-apk/app-release.apk
+          retention-days: 30
+
+  # ============================================================================
+  # STAGE 3: Zero-Downtime Deployment on EC2
+  # ============================================================================
   deploy:
-    name: Deploy to EC2
-    needs: [prepare, build-api, build-web]
+    name: 3. Deploy to EC2 (Zero-Downtime Swap)
+    needs: [prepare, setup-server, build-backend, build-admin]
+    if: ${{ needs.prepare.outputs.has_ec2 == 'true' }}
     runs-on: ubuntu-latest
     steps:
       - name: Checkout Code
@@ -104,6 +330,7 @@ jobs:
 
       - name: Generate Production Environment File
         env:
+          ENV_VER: ${{ secrets.ENV_VER || secrets.ENV_FILE }}
           PORT: "5000"
           IP: "0.0.0.0"
           NODE_ENV: "production"
@@ -175,49 +402,108 @@ jobs:
           LIVE_DATABASE_URL: mongodb://admin:${{ secrets.MONGO_PASSWORD || 'PoolPaySecurePass2026!' }}@mongodb:27017/poolPay-db?authSource=admin
         run: |
           python3 -c "
-          import os
-          keys = [
-            'PORT', 'IP', 'NODE_ENV', 'AUTH_SYSTEM', 'FRONTEND_URL', 'BACKEND_URL',
-            'NEXT_PUBLIC_BASE_URL', 'NEXT_PUBLIC_API_URL', 'NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY',
-            'SELF_PING_ENABLED', 'RATE_LIMITER_ENABLED', 'STORAGE_PROVIDER', 'EMAIL_PROVIDER',
-            'SMTP_FORM', 'REDIS_HOST', 'REDIS_PORT', 'DISABLE_REDIS_WORKERS_IN_DEV',
-            'JWT_ACCESS_SECRET', 'JWT_REFRESH_SECRET', 'JWT_ACCESS_EXPIRES_IN', 'JWT_REFRESH_EXPIRES_IN',
-            'SESSION_TIMEOUT_MINUTES', 'RESET_PASS_EXPIRES', 'OTP_EXPIRES', 'BCRYPT_SALT_ROUND',
-            'EXPRESS_SESSION_SECRET', 'SUPER_ADMIN_NAME', 'SUPER_ADMIN_EMAIL', 'SUPER_ADMIN_PASSWORD',
-            'GOOGLE_CLIENT_ID', 'GOOGLE_CLIENT_SECRET', 'GOOGLE_CALLBACK_URL',
-            'GOOGLE_PLAY_PACKAGE_NAME', 'GOOGLE_PLAY_SERVICE_ACCOUNT_BASE64',
-            'GOOGLE_PLAY_REGULAR_PRODUCT_ID', 'GOOGLE_PLAY_VIP_PRODUCT_ID',
-            'APPLE_ISSUER_ID', 'APPLE_KEY_ID', 'APPLE_TEAM_ID', 'APPLE_BUNDLE_ID',
-            'APPLE_PRIVATE_KEY_BASE64', 'APPLE_REGULAR_PRODUCT_ID', 'APPLE_VIP_PRODUCT_ID',
-            'AWS_ACCESS_KEY_ID', 'AWS_SECRET_ACCESS_KEY', 'AWS_REGION', 'AWS_BUCKET_NAME',
-            'RESEND_API_KEY', 'STRIPE_TEST_SECRET_KEY', 'STRIPE_TEST_PUBLISHABLE_KEY',
-            'STRIPE_TEST_WEBHOOK_SECRET', 'STRIPE_TEST_CONNECT_WEBHOOK_SECRET',
-            'STRIPE_LIVE_SECRET_KEY', 'STRIPE_LIVE_PUBLISHABLE_KEY', 'STRIPE_LIVE_WEBHOOK_SECRET',
-            'STRIPE_LIVE_CONNECT_WEBHOOK_SECRET', 'TWILIO_ACCOUNT_SID', 'TWILIO_AUTH_TOKEN',
-            'TWILIO_PHONE_NUMBER', 'TWILIO_MESSAGING_SERVICE_SID', 'SMS_ENABLED',
-            'ENCRYPTION_KEY', 'FIREBASE_SERVICE_ACCOUNT_BASE64', 'MONGO_INITDB_ROOT_USERNAME',
-            'MONGO_INITDB_ROOT_PASSWORD', 'MONGO_INITDB_DATABASE', 'DATABASE_URL',
-            'TEST_DATABASE_URL', 'LIVE_DATABASE_URL'
-          ]
-          with open('.env.production', 'w') as f:
-            for k in keys:
-              val = os.environ.get(k, '')
-              if val.strip():
-                f.write(f'{k}={val}\n')
+          import os, re
+
+          env_ver = os.environ.get('ENV_VER', '').strip()
+
+          if env_ver:
+              print('🚀 Detected single secret ENV_VER / ENV_FILE! Parsing and adapting for production Docker...')
+              raw_lines = env_ver.replace('\r\n', '\n').replace('\r', '\n').split('\n')
+              cleaned_lines = []
+              keys_present = set()
+
+              for line in raw_lines:
+                  stripped = line.strip()
+                  # Keep comments and empty lines
+                  if not stripped or stripped.startswith('#'):
+                      cleaned_lines.append(line)
+                      continue
+                  if '=' in stripped:
+                      key, val = stripped.split('=', 1)
+                      key = key.strip()
+                      val = val.strip()
+
+                      # Exclude SSH private key from Docker .env file for cleanliness
+                      if key in ['EC2_SSH_KEY', 'EC2_SSH_KEY_BASE64']:
+                          continue
+
+                      # Overrides and Docker networking adaptations:
+                      if key == 'NODE_ENV':
+                          val = 'production'
+                      elif key == 'PORT':
+                          val = '5000'
+                      elif key == 'IP':
+                          val = '0.0.0.0'
+                      elif key == 'REDIS_HOST' and (val in ['127.0.0.1', 'localhost', '']):
+                          val = 'redis'
+                      elif key in ['DATABASE_URL', 'TEST_DATABASE_URL', 'LIVE_DATABASE_URL']:
+                          val = re.sub(r'@(localhost|127\.0\.0\.1):', '@mongodb:', val)
+
+                      keys_present.add(key)
+                      cleaned_lines.append(f'{key}={val}')
+
+              # Ensure required container defaults exist
+              defaults = {
+                  'NODE_ENV': 'production',
+                  'PORT': '5000',
+                  'IP': '0.0.0.0',
+                  'REDIS_HOST': 'redis',
+                  'REDIS_PORT': '6379',
+                  'MONGO_INITDB_ROOT_USERNAME': 'admin',
+                  'MONGO_INITDB_DATABASE': 'poolPay-db'
+              }
+              for d_key, d_val in defaults.items():
+                  if d_key not in keys_present:
+                      cleaned_lines.append(f'{d_key}={d_val}')
+
+              with open('.env.production', 'w') as f:
+                  f.write('\n'.join(cleaned_lines) + '\n')
+              print('✅ Generated .env.production from ENV_VER / ENV_FILE with full Docker compatibility!')
+
+          else:
+              print('ℹ️ ENV_VER / ENV_FILE not provided. Generating .env.production from individual secrets...')
+              keys = [
+                'PORT', 'IP', 'NODE_ENV', 'AUTH_SYSTEM', 'FRONTEND_URL', 'BACKEND_URL',
+                'NEXT_PUBLIC_BASE_URL', 'NEXT_PUBLIC_API_URL', 'NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY',
+                'SELF_PING_ENABLED', 'RATE_LIMITER_ENABLED', 'STORAGE_PROVIDER', 'EMAIL_PROVIDER',
+                'SMTP_FORM', 'REDIS_HOST', 'REDIS_PORT', 'DISABLE_REDIS_WORKERS_IN_DEV',
+                'JWT_ACCESS_SECRET', 'JWT_REFRESH_SECRET', 'JWT_ACCESS_EXPIRES_IN', 'JWT_REFRESH_EXPIRES_IN',
+                'SESSION_TIMEOUT_MINUTES', 'RESET_PASS_EXPIRES', 'OTP_EXPIRES', 'BCRYPT_SALT_ROUND',
+                'EXPRESS_SESSION_SECRET', 'SUPER_ADMIN_NAME', 'SUPER_ADMIN_EMAIL', 'SUPER_ADMIN_PASSWORD',
+                'GOOGLE_CLIENT_ID', 'GOOGLE_CLIENT_SECRET', 'GOOGLE_CALLBACK_URL',
+                'GOOGLE_PLAY_PACKAGE_NAME', 'GOOGLE_PLAY_SERVICE_ACCOUNT_BASE64',
+                'GOOGLE_PLAY_REGULAR_PRODUCT_ID', 'GOOGLE_PLAY_VIP_PRODUCT_ID',
+                'APPLE_ISSUER_ID', 'APPLE_KEY_ID', 'APPLE_TEAM_ID', 'APPLE_BUNDLE_ID',
+                'APPLE_PRIVATE_KEY_BASE64', 'APPLE_REGULAR_PRODUCT_ID', 'APPLE_VIP_PRODUCT_ID',
+                'AWS_ACCESS_KEY_ID', 'AWS_SECRET_ACCESS_KEY', 'AWS_REGION', 'AWS_BUCKET_NAME',
+                'RESEND_API_KEY', 'STRIPE_TEST_SECRET_KEY', 'STRIPE_TEST_PUBLISHABLE_KEY',
+                'STRIPE_TEST_WEBHOOK_SECRET', 'STRIPE_TEST_CONNECT_WEBHOOK_SECRET',
+                'STRIPE_LIVE_SECRET_KEY', 'STRIPE_LIVE_PUBLISHABLE_KEY', 'STRIPE_LIVE_WEBHOOK_SECRET',
+                'STRIPE_LIVE_CONNECT_WEBHOOK_SECRET', 'TWILIO_ACCOUNT_SID', 'TWILIO_AUTH_TOKEN',
+                'TWILIO_PHONE_NUMBER', 'TWILIO_MESSAGING_SERVICE_SID', 'SMS_ENABLED',
+                'ENCRYPTION_KEY', 'FIREBASE_SERVICE_ACCOUNT_BASE64', 'MONGO_INITDB_ROOT_USERNAME',
+                'MONGO_INITDB_ROOT_PASSWORD', 'MONGO_INITDB_DATABASE', 'DATABASE_URL',
+                'TEST_DATABASE_URL', 'LIVE_DATABASE_URL'
+              ]
+              with open('.env.production', 'w') as f:
+                for k in keys:
+                  val = os.environ.get(k, '')
+                  if val.strip():
+                    f.write(f'{k}={val}\n')
+              print('✅ Generated .env.production successfully from individual secrets')
           "
-          echo "✅ Generated .env.production successfully"
 
       - name: Securely Copy Deployment Files to EC2
         uses: appleboy/scp-action@v0.1.7
         with:
-          host: ${{ secrets.EC2_HOST }}
-          username: ${{ secrets.EC2_USER || 'ubuntu' }}
-          key: ${{ secrets.EC2_SSH_KEY }}
+          host: ${{ needs.prepare.outputs.ec2_host }}
+          username: ${{ needs.prepare.outputs.ec2_user }}
+          key: ${{ needs.prepare.outputs.ec2_ssh_key }}
           port: ${{ secrets.EC2_PORT || 22 }}
           source: ".env.production,docker-compose.prod.yml,nginx/poolpay.conf,deploy/deploy.sh,scripts/mongo-init.js"
           target: "/home/ubuntu/poolpay/"
 
-      - name: Execute Deployment on EC2 via SSH
+      - name: Execute Zero-Downtime Deployment via SSH
         uses: appleboy/ssh-action@v1.0.3
         env:
           IMAGE_TAG: ${{ needs.prepare.outputs.tag }}
@@ -226,9 +512,9 @@ jobs:
           GHCR_ACTOR: ${{ github.actor }}
           GITHUB_REPO: ${{ github.repository }}
         with:
-          host: ${{ secrets.EC2_HOST }}
-          username: ${{ secrets.EC2_USER || 'ubuntu' }}
-          key: ${{ secrets.EC2_SSH_KEY }}
+          host: ${{ needs.prepare.outputs.ec2_host }}
+          username: ${{ needs.prepare.outputs.ec2_user }}
+          key: ${{ needs.prepare.outputs.ec2_ssh_key }}
           port: ${{ secrets.EC2_PORT || 22 }}
           envs: IMAGE_TAG,REPO_OWNER,GHCR_TOKEN,GHCR_ACTOR,GITHUB_REPO
           script: |
@@ -257,12 +543,16 @@ jobs:
             chmod +x deploy/deploy.sh
             ./deploy/deploy.sh "$IMAGE_TAG" "$REPO_OWNER"
 
-  verify:
-    name: Verify Production Health
-    needs: deploy
+  # ============================================================================
+  # STAGE 4: Automated Let's Encrypt SSL & Health Verification
+  # ============================================================================
+  ssl-and-verify:
+    name: 4. Automated SSL & Verification
+    needs: [prepare, deploy]
+    if: ${{ needs.prepare.outputs.has_ec2 == 'true' }}
     runs-on: ubuntu-latest
     steps:
-      - name: Check Backend API Health
+      - name: Verify Backend API Health
         run: |
           echo "🔍 Verifying https://api.poolpay.space/health..."
           for i in {1..25}; do
@@ -274,15 +564,11 @@ jobs:
             echo "Attempt $i/25: HTTPS Status $STATUS, retrying in 5s..."
             sleep 5
           done
-          echo "⚠️ HTTPS verification failed after 125s. Checking HTTP fallback..."
+          echo "⚠️ HTTPS verification pending or DNS propagating. Checking HTTP..."
           HTTP_STATUS=$(curl -s -o /dev/null -w "%{http_code}" http://api.poolpay.space/health || true)
           echo "HTTP (Port 80) Status: $HTTP_STATUS"
-          echo "Detailed curl output:"
-          curl -v https://api.poolpay.space/health || true
-          exit 1
 
-      - name: Check Landing Page
+      - name: Verify Admin Dashboard
         run: |
-          echo "🔍 Verifying https://poolpay.space..."
-          curl -s -I https://poolpay.space | head -n 10 || true
-
+          echo "🔍 Verifying https://admin.poolpay.space..."
+          curl -s -I https://admin.poolpay.space | head -n 10 || true

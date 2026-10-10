@@ -1,0 +1,104 @@
+আপনার ফ্রন্টএন্ড (Flutter) ডেভেলপারকে পাঠানোর জন্য নিচে একটি বিস্তারিত গাইড দেওয়া হলো। এটি ব্যবহার করে সে সহজেই চ্যাট সিস্টেমটি ইমপ্লিমেন্ট করতে পারবে:
+ 
+---
+ 
+### 🚀 Flutter-এ Socket.io চ্যাট ইমপ্লিমেন্ট করার গাইড
+ 
+আমাদের ব্যাকএন্ডের সাথে চ্যাট ইন্টিগ্রেট করার জন্য নিচে দেওয়া ধাপগুলো অনুসরণ করুন:
+ 
+#### ১. প্যাকেজ ইনস্টল করুন
+প্রথমে আপনার `pubspec.yaml` ফাইলে এই প্যাকেজটি যুক্ত করুন:
+```yaml
+dependencies:
+  socket_io_client: ^2.0.3+1 # লেটেস্ট ভার্সন চেক করে নিবেন
+```
+ 
+#### ২. সকেট কানেকশন সেটআপ করুন
+অ্যাপ স্টার্ট হওয়ার সময় বা চ্যাট স্ক্রিনে যাওয়ার সময় সকেট ইনিশিয়ালাইজ করুন:
+```dart
+import 'package:socket_io_client/socket_io_client.dart' as IO;
+ 
+late IO.Socket socket;
+ 
+void connectToServer() {
+  socket = IO.io('YOUR_BACKEND_URL', <String, dynamic>{
+    'transports': ['websocket'],
+    'autoConnect': false,
+  });
+  socket.connect();
+ 
+  socket.onConnect((_) {
+    print('🔌 Connected to Socket.io Server');
+  });
+}
+```
+ 
+#### ৩. গ্রুপে জয়েন করা (Join Group Room)
+ইউজার যখন কোনো নির্দিষ্ট গ্রুপের চ্যাট ওপেন করবে, তখন তাকে ওই রুম-এ জয়েন করাতে হবে যাতে সে রিয়েল-টাইম মেসেজ পায়:
+```dart
+void joinGroup(String groupId) {
+  socket.emit('joinGroupRoom', groupId);
+}
+```
+ 
+#### ৪. মেসেজ পাঠানো (Send Message)
+মেসেজ পাঠানোর জন্য নিচের ফরম্যাট অনুযায়ী ডেটা পাঠাতে হবে:
+```dart
+void sendMessage(String groupId, String senderId, String text) {
+  socket.emit('sendMessage', {
+    'groupId': groupId,
+    'senderId': senderId,
+    'message': text,
+    'messageType': 'text', // text, image, video ইত্যাদি হতে পারে
+  });
+}
+```
+ 
+#### ৫. ইনকামিং মেসেজ রিসিভ করা (Listen for Messages)
+সার্ভার থেকে পাঠানো নতুন মেসেজ ধরার জন্য এই লিসেনারটি ব্যবহার করুন:
+```dart
+void listenForMessages() {
+  socket.on('receiveMessage', (data) {
+    // এখানে data হলো নতুন মেসেজের JSON অবজেক্ট
+    print('📩 New message: $data');
+    // আপনার চ্যাট লিস্টে এই মেসেজটি আপডেট করুন
+  });
+}
+```
+ 
+#### ৬. টাইপিং ইন্ডিকেটর (Typing Indicator)
+যখন ইউজার কিছু লিখবে বা লেখা থামাবে:
+```dart
+// টাইপিং শুরু করলে
+socket.emit('typing', {'groupId': groupId, 'senderId': userId});
+ 
+// টাইপিং থামালে
+socket.emit('stopTyping', {'groupId': groupId, 'senderId': userId});
+ 
+// অন্যদের টাইপিং স্ট্যাটাস শুনতে:
+socket.on('typing', (data) => print('User ${data['senderId']} is typing...'));
+socket.on('stopTyping', (data) => print('User ${data['senderId']} stopped typing'));
+```
+ 
+#### ৭. ডিসকানেক্ট বা রুম ত্যাগ করা
+চ্যাট স্ক্রিন থেকে বের হওয়ার সময় রুম লিভ করা ভালো প্র্যাকটিস:
+```dart
+void leaveGroup(String groupId) {
+  socket.emit('leaveGroupRoom', groupId);
+}
+ 
+@override
+void dispose() {
+  socket.disconnect();
+  super.dispose();
+}
+```
+ 
+---
+ 
+**প্রয়োজনীয় তথ্য:**
+- **Base URL:** আমাদের API-এর বেস ইউআরএল ব্যবহার করতে হবে।
+- **Auth Token:** যদি সকেটে অথেন্টিকেশন লাগে, তবে `extraHeaders` হিসেবে টোকেন পাঠাতে হবে।
+- **Postman:** বিস্তারিত ইভেন্ট এবং ডেটা ফরম্যাটের জন্য `postman_collection.json` ফাইলের **"12. Real-time Events"** সেকশনটি দেখুন।
+ 
+---
