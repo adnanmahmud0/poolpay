@@ -82,6 +82,8 @@ jobs:
                       m_key = re.search(r'(-{5}BEGIN [A-Z ]+ PRIVATE KEY-{5}[\s\S]*?-{5}END [A-Z ]+ PRIVATE KEY-{5})', env_ver)
                       if m_key:
                           raw_k = m_key.group(1).strip()
+                          if '\\\\n' in raw_k:
+                              raw_k = raw_k.replace('\\\\n', '\n')
                           if '\\n' in raw_k:
                               raw_k = raw_k.replace('\\n', '\n')
                           key = raw_k
@@ -89,6 +91,8 @@ jobs:
                           m_key_val = re.search(r'^\s*EC2_SSH_KEY\s*=\s*(.*)', env_ver, re.MULTILINE)
                           if m_key_val:
                               raw_k = m_key_val.group(1).strip().strip('\"\'')
+                              if '\\\\n' in raw_k:
+                                  raw_k = raw_k.replace('\\\\n', '\n')
                               if '\\n' in raw_k:
                                   raw_k = raw_k.replace('\\n', '\n')
                               if raw_k.startswith('LS0t'):
@@ -98,8 +102,17 @@ jobs:
                                       pass
                               key = raw_k
 
+          # Normalize EC2 user: Ubuntu EC2 default user is ubuntu
+          if user in ['poolpay', '', 'None']:
+              user = 'ubuntu'
+
           if key:
-              key = key.strip() + '\n'
+              raw_k = key.strip()
+              if '\\\\n' in raw_k:
+                  raw_k = raw_k.replace('\\\\n', '\n')
+              if '\\n' in raw_k:
+                  raw_k = raw_k.replace('\\n', '\n')
+              key = raw_k.strip() + '\n'
 
           has_ec2 = 'true' if (host and key) else 'false'
           b64_key = base64.b64encode(key.encode('utf-8')).decode('utf-8') if key else ''
@@ -153,7 +166,7 @@ jobs:
 
           if not key and key_b64:
               try:
-                  key = base64.b64decode(key_b64).decode('utf-8')
+                  key = base64.b64decode(key_b64).decode('utf-8').strip()
               except Exception:
                   pass
 
@@ -162,7 +175,7 @@ jobs:
                   m_host = re.search(r'^\s*EC2_HOST\s*=\s*[\"|\']?([^\"\'\r\n\s]+)[\"|\']?', env_ver, re.MULTILINE)
                   if m_host:
                       host = m_host.group(1).strip()
-              if not user or user == 'ubuntu':
+              if not sec_user:
                   m_user = re.search(r'^\s*EC2_USER\s*=\s*[\"|\']?([^\"\'\r\n\s]+)[\"|\']?', env_ver, re.MULTILINE)
                   if m_user:
                       user = m_user.group(1).strip()
@@ -170,13 +183,15 @@ jobs:
                   m_b64 = re.search(r'^\s*EC2_SSH_KEY_BASE64\s*=\s*[\"|\']?([^\"\'\r\n\s]+)[\"|\']?', env_ver, re.MULTILINE)
                   if m_b64:
                       try:
-                          key = base64.b64decode(m_b64.group(1).strip()).decode('utf-8')
+                          key = base64.b64decode(m_b64.group(1).strip()).decode('utf-8').strip()
                       except Exception:
                           pass
               if not key:
                   m_key = re.search(r'(-{5}BEGIN [A-Z ]+ PRIVATE KEY-{5}[\s\S]*?-{5}END [A-Z ]+ PRIVATE KEY-{5})', env_ver)
                   if m_key:
                       raw_k = m_key.group(1).strip()
+                      if '\\\\n' in raw_k:
+                          raw_k = raw_k.replace('\\\\n', '\n')
                       if '\\n' in raw_k:
                           raw_k = raw_k.replace('\\n', '\n')
                       key = raw_k
@@ -184,6 +199,8 @@ jobs:
                   m_key_val = re.search(r'^\s*EC2_SSH_KEY\s*=\s*(.*)', env_ver, re.MULTILINE)
                   if m_key_val:
                       raw_k = m_key_val.group(1).strip().strip('\"\'')
+                      if '\\\\n' in raw_k:
+                          raw_k = raw_k.replace('\\\\n', '\n')
                       if '\\n' in raw_k:
                           raw_k = raw_k.replace('\\n', '\n')
                       if raw_k.startswith('LS0t'):
@@ -193,12 +210,25 @@ jobs:
                               pass
                       key = raw_k
 
+          # Normalize EC2 user: Ubuntu EC2 default user is ubuntu
+          if user in ['poolpay', '', 'None']:
+              user = 'ubuntu'
+
           if key:
-              key = key.strip() + '\n'
+              raw_k = key.strip()
+              if '\\\\n' in raw_k:
+                  raw_k = raw_k.replace('\\\\n', '\n')
+              if '\\n' in raw_k:
+                  raw_k = raw_k.replace('\\n', '\n')
+              key = raw_k.strip() + '\n'
 
           print(f'Target host: {host}')
           print(f'Target user: {user}')
           print(f'Key resolved: {bool(key)} ({len(key.splitlines()) if key else 0} lines)')
+
+          if not host or not key:
+              print('❌ ERROR: Missing host or SSH key!')
+              exit(1)
 
           delim = 'SSH_' + uuid.uuid4().hex
           out_file = os.environ['GITHUB_OUTPUT']
@@ -456,7 +486,7 @@ jobs:
 
           if not key and key_b64:
               try:
-                  key = base64.b64decode(key_b64).decode('utf-8')
+                  key = base64.b64decode(key_b64).decode('utf-8').strip()
               except Exception:
                   pass
 
@@ -465,7 +495,7 @@ jobs:
                   m_host = re.search(r'^\s*EC2_HOST\s*=\s*[\"|\']?([^\"\'\r\n\s]+)[\"|\']?', env_ver, re.MULTILINE)
                   if m_host:
                       host = m_host.group(1).strip()
-              if not user or user == 'ubuntu':
+              if not sec_user:
                   m_user = re.search(r'^\s*EC2_USER\s*=\s*[\"|\']?([^\"\'\r\n\s]+)[\"|\']?', env_ver, re.MULTILINE)
                   if m_user:
                       user = m_user.group(1).strip()
@@ -473,13 +503,15 @@ jobs:
                   m_b64 = re.search(r'^\s*EC2_SSH_KEY_BASE64\s*=\s*[\"|\']?([^\"\'\r\n\s]+)[\"|\']?', env_ver, re.MULTILINE)
                   if m_b64:
                       try:
-                          key = base64.b64decode(m_b64.group(1).strip()).decode('utf-8')
+                          key = base64.b64decode(m_b64.group(1).strip()).decode('utf-8').strip()
                       except Exception:
                           pass
               if not key:
                   m_key = re.search(r'(-{5}BEGIN [A-Z ]+ PRIVATE KEY-{5}[\s\S]*?-{5}END [A-Z ]+ PRIVATE KEY-{5})', env_ver)
                   if m_key:
                       raw_k = m_key.group(1).strip()
+                      if '\\\\n' in raw_k:
+                          raw_k = raw_k.replace('\\\\n', '\n')
                       if '\\n' in raw_k:
                           raw_k = raw_k.replace('\\n', '\n')
                       key = raw_k
@@ -487,6 +519,8 @@ jobs:
                   m_key_val = re.search(r'^\s*EC2_SSH_KEY\s*=\s*(.*)', env_ver, re.MULTILINE)
                   if m_key_val:
                       raw_k = m_key_val.group(1).strip().strip('\"\'')
+                      if '\\\\n' in raw_k:
+                          raw_k = raw_k.replace('\\\\n', '\n')
                       if '\\n' in raw_k:
                           raw_k = raw_k.replace('\\n', '\n')
                       if raw_k.startswith('LS0t'):
@@ -496,12 +530,25 @@ jobs:
                               pass
                       key = raw_k
 
+          # Normalize EC2 user: Ubuntu EC2 default user is ubuntu
+          if user in ['poolpay', '', 'None']:
+              user = 'ubuntu'
+
           if key:
-              key = key.strip() + '\n'
+              raw_k = key.strip()
+              if '\\\\n' in raw_k:
+                  raw_k = raw_k.replace('\\\\n', '\n')
+              if '\\n' in raw_k:
+                  raw_k = raw_k.replace('\\n', '\n')
+              key = raw_k.strip() + '\n'
 
           print(f'Target host: {host}')
           print(f'Target user: {user}')
           print(f'Key resolved: {bool(key)} ({len(key.splitlines()) if key else 0} lines)')
+
+          if not host or not key:
+              print('❌ ERROR: Missing host or SSH key!')
+              exit(1)
 
           delim = 'SSH_' + uuid.uuid4().hex
           out_file = os.environ['GITHUB_OUTPUT']
