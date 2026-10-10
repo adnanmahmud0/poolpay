@@ -1,0 +1,37 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="630" viewBox="0 0 1200 630">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+      <stop stop-color="#101d2c"/><stop offset="1" stop-color="#19364d"/>
+    </linearGradient>
+    <radialGradient id="glow"><stop stop-color="#6ab5ee" stop-opacity=".2"/><stop offset="1" stop-color="#6ab5ee" stop-opacity="0"/></radialGradient>
+  </defs>
+  <rect width="1200" height="630" fill="url(#bg)"/>
+  <circle cx="1030" cy="260" r="390" fill="url(#glow)"/>
+  <g fill="none" stroke="#7db8e0" stroke-opacity=".16">
+    <circle cx="1000" cy="285" r="245"/><circle cx="1000" cy="285" r="185"/>
+  </g>
+  <g transform="translate(70 49) scale(.85)">
+    <ellipse cx="32" cy="16" rx="27" ry="12" fill="none" stroke="#fff" stroke-width="5"/>
+    <path d="m12 24 13 6 7-7 7 7 13-6-14 17H26L12 24Z" fill="#6ab5ee"/>
+    <path d="m32 31 7 10-3 7 6 20-10 12-10-12 6-20-3-7 7-10Z" fill="#6ab5ee"/>
+    <path d="m25 30 7 11 7-11" fill="none" stroke="#fff" stroke-width="1.6"/>
+  </g>
+  <g font-family="Arial, Helvetica, sans-serif">
+    <text x="145" y="83" fill="#fff" font-size="29" font-weight="700" letter-spacing="1">KLX LUXE PLUS LLC</text>
+    <text x="146" y="108" fill="#9ab5c9" font-size="10" font-weight="700" letter-spacing="3">A LITTLE MORE, IN EVERY WAY.</text>
+    <text x="70" y="226" fill="#fff" font-size="65" font-weight="700" letter-spacing="-2">A little more luxe.</text>
+    <text x="70" y="305" fill="#b5daf8" font-size="65" font-weight="700" letter-spacing="-2">A lot more possible.</text>
+    <text x="73" y="367" fill="#d8e6ef" font-size="24">Luxury transportation &amp; professional services.</text>
+    <text x="73" y="421" fill="#9ab5c9" font-size="17">Transportation  ·  Finance  ·  Computer support</text>
+    <text x="73" y="450" fill="#9ab5c9" font-size="17">Taxes  ·  Translations  ·  Immigration documents</text>
+    <line x1="70" y1="507" x2="1130" y2="507" stroke="#52748c" stroke-opacity=".5"/>
+    <text x="73" y="560" fill="#b5daf8" font-size="20">klxluxeplus.poolpay.space</text>
+    <text x="1130" y="560" text-anchor="end" fill="#d8e6ef" font-size="18">Connect with Jean Derival</text>
+  </g>
+  <g transform="translate(929 204) scale(2.2)">
+    <ellipse cx="32" cy="16" rx="27" ry="12" fill="none" stroke="#d8e6ef" stroke-width="3"/>
+    <path d="m12 24 13 6 7-7 7 7 13-6-14 17H26L12 24Z" fill="#6ab5ee"/>
+    <path d="m32 31 7 10-3 7 6 20-10 12-10-12 6-20-3-7 7-10Z" fill="#6ab5ee"/>
+    <path d="m25 30 7 11 7-11" fill="none" stroke="#fff" stroke-width="1.6"/>
+  </g>
+</svg>

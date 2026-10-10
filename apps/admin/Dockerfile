@@ -8,6 +8,7 @@ RUN apk add --no-cache libc6-compat
 # Copy workspace package manifests
 COPY package.json package-lock.json turbo.json ./
 COPY apps/admin/package.json ./apps/admin/
+COPY apps/klx-luxe-plus/package.json ./apps/klx-luxe-plus/
 COPY packages/types/package.json ./packages/types/
 COPY packages/ui/package.json ./packages/ui/
 COPY packages/validators/package.json ./packages/validators/

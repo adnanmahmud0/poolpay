@@ -408,6 +408,32 @@ jobs:
           cache-from: type=gha
           cache-to: type=gha,mode=max
 
+  build-klx:
+    name: 2d. Build KLX Luxe Plus Landing Page
+    needs: [prepare, type-check]
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: "npm"
+      - name: Install Monorepo Dependencies
+        run: npm ci
+      - name: Build Next.js Static Export
+        run: npm run build:klx
+      - name: Verify SEO and Social Preview Metadata
+        run: npm run test:seo --workspace=@repo/klx-luxe-plus
+      - name: Upload KLX Static Site
+        uses: actions/upload-artifact@v4
+        with:
+          name: klx-luxe-plus-site
+          path: apps/klx-luxe-plus/out/
+          if-no-files-found: error
+          retention-days: 7
+
   build-mobile:
     name: 2c. Build Mobile Flutter Release APK
     needs: [prepare, type-check]
@@ -452,7 +478,7 @@ jobs:
   # ============================================================================
   deploy:
     name: 3. Deploy to EC2 (Zero-Downtime Swap)
-    needs: [prepare, setup-server, build-backend, build-admin]
+    needs: [prepare, setup-server, build-backend, build-admin, build-klx]
     if: ${{ needs.prepare.outputs.has_ec2 == 'true' }}
     runs-on: ubuntu-latest
     steps:
@@ -756,6 +782,12 @@ jobs:
               print('✅ Generated .env.production successfully from individual secrets')
           EOF
 
+      - name: Download KLX Static Site
+        uses: actions/download-artifact@v4
+        with:
+          name: klx-luxe-plus-site
+          path: apps/klx-luxe-plus/out/
+
       - name: Securely Copy Deployment Files to EC2
         uses: appleboy/scp-action@v0.1.7
         with:
@@ -763,7 +795,7 @@ jobs:
           username: ${{ steps.ssh_meta.outputs.user }}
           key: ${{ steps.ssh_meta.outputs.key }}
           port: ${{ secrets.EC2_PORT || 22 }}
-          source: ".env.production,docker-compose.prod.yml,nginx/poolpay.conf,deploy/deploy.sh,scripts/mongo-init.js"
+          source: ".env.production,docker-compose.prod.yml,nginx/poolpay.conf,nginx/klxluxeplus.conf,nginx/klxluxeplus-ssl.conf,deploy/deploy.sh,deploy/deploy-klx.sh,scripts/mongo-init.js,apps/klx-luxe-plus/out"
           target: "poolpay/"
 
       - name: Execute Zero-Downtime Deployment via SSH
@@ -841,3 +873,8 @@ jobs:
         run: |
           echo "🔍 Verifying https://admin.poolpay.space..."
           curl -s -I https://admin.poolpay.space | head -n 10 || true
+
+      - name: Verify KLX Luxe Plus Landing Page
+        run: |
+          curl --fail --silent --show-error --retry 3 --retry-delay 5 \
+            https://klxluxeplus.poolpay.space/ | grep -F "KLX LUXE PLUS" > /dev/null

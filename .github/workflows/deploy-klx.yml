@@ -1,0 +1,146 @@
+name: Deploy KLX Luxe Plus
+
+# Dispatch independently so a landing-page release does not restart PoolPay services.
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: production-deploy
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    name: Build, verify, and deploy KLX only
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - name: Checkout approved release
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Type check shared code and applications
+        run: npm run typecheck
+
+      - name: Lint landing page
+        run: npm run lint --workspace=@repo/klx-luxe-plus
+
+      - name: Build static Next.js site
+        run: npm run build:klx
+
+      - name: Verify SEO and social preview assets
+        run: npm run test:seo --workspace=@repo/klx-luxe-plus
+
+      - name: Preserve verified release artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: klx-${{ github.sha }}
+          path: apps/klx-luxe-plus/out/
+          if-no-files-found: error
+          retention-days: 14
+
+      - name: Resolve existing server credentials
+        id: ssh
+        env:
+          ENV_VER: ${{ secrets.ENV_VER || secrets.ENV_FILE }}
+          SEC_HOST: ${{ secrets.EC2_HOST }}
+          SEC_USER: ${{ secrets.EC2_USER }}
+          SEC_KEY: ${{ secrets.EC2_SSH_KEY }}
+          SEC_KEY_BASE64: ${{ secrets.EC2_SSH_KEY_BASE64 }}
+          SEC_PORT: ${{ secrets.EC2_PORT }}
+        run: |
+          python3 - << 'PY'
+          import base64
+          import os
+          import re
+          import uuid
+
+          env_text = os.environ.get('ENV_VER', '').replace('\r\n', '\n').replace('\r', '\n')
+
+          def env_value(name):
+              match = re.search(r'^\s*' + re.escape(name) + r'\s*=\s*(.*)$', env_text, re.MULTILINE)
+              return match.group(1).strip().strip('"\'') if match else ''
+
+          host = os.environ.get('SEC_HOST', '').strip() or env_value('EC2_HOST')
+          user = os.environ.get('SEC_USER', '').strip() or env_value('EC2_USER') or 'ubuntu'
+          port = os.environ.get('SEC_PORT', '').strip() or env_value('EC2_PORT') or '22'
+          if user in ('poolpay', 'None'):
+              user = 'ubuntu'
+
+          key = os.environ.get('SEC_KEY', '').strip().strip('"\'')
+          encoded_key = os.environ.get('SEC_KEY_BASE64', '').strip() or env_value('EC2_SSH_KEY_BASE64')
+          if not key and encoded_key:
+              key = base64.b64decode(encoded_key, validate=True).decode('utf-8')
+          if not key:
+              match = re.search(r'-----BEGIN (?:[A-Z0-9]+ )?PRIVATE KEY-----[\s\S]*?-----END (?:[A-Z0-9]+ )?PRIVATE KEY-----', env_text)
+              key = match.group(0) if match else env_value('EC2_SSH_KEY')
+          if key.startswith('LS0t'):
+              key = base64.b64decode(key, validate=True).decode('utf-8')
+          key = key.replace('\\\\n', '\n').replace('\\n', '\n').replace('\r\n', '\n').strip() + '\n'
+
+          if not host or not re.fullmatch(r'[A-Za-z0-9._-]+', host):
+              raise SystemExit('Missing or invalid existing EC2 host secret')
+          if not re.fullmatch(r'[a-z_][a-z0-9_-]*', user):
+              raise SystemExit('Invalid existing EC2 user secret')
+          if not port.isdigit() or not 1 <= int(port) <= 65535:
+              raise SystemExit('Invalid existing EC2 port secret')
+          if 'PRIVATE KEY-----' not in key or '-----END ' not in key:
+              raise SystemExit('Missing or invalid existing EC2 SSH key secret')
+
+          # Mask transformed key lines too, since escaped/base64 secrets may not match GitHub's default mask.
+          for line in key.splitlines():
+              if line:
+                  print('::add-mask::' + line)
+          delimiter = 'SSH_' + uuid.uuid4().hex
+          with open(os.environ['GITHUB_OUTPUT'], 'a') as output:
+              output.write(f'host={host}\nuser={user}\nport={port}\n')
+              output.write(f'key<<{delimiter}\n{key}{delimiter}\n')
+          print('Existing server credentials resolved; private key is masked.')
+          PY
+
+      - name: Transfer only KLX release files
+        uses: appleboy/scp-action@v0.1.7
+        with:
+          host: ${{ steps.ssh.outputs.host }}
+          username: ${{ steps.ssh.outputs.user }}
+          key: ${{ steps.ssh.outputs.key }}
+          port: ${{ steps.ssh.outputs.port }}
+          source: apps/klx-luxe-plus/out,nginx/klxluxeplus.conf,nginx/klxluxeplus-ssl.conf,deploy/deploy-klx.sh
+          target: klx-releases/${{ github.run_id }}-${{ github.run_attempt }}/
+
+      - name: Activate KLX site and its HTTPS certificate
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: ${{ steps.ssh.outputs.host }}
+          username: ${{ steps.ssh.outputs.user }}
+          key: ${{ steps.ssh.outputs.key }}
+          port: ${{ steps.ssh.outputs.port }}
+          command_timeout: 5m
+          script: |
+            set -euo pipefail
+            cd "$HOME/klx-releases/${{ github.run_id }}-${{ github.run_attempt }}"
+            bash deploy/deploy-klx.sh "${{ github.sha }}-${{ github.run_id }}-${{ github.run_attempt }}"
+
+      - name: Verify public HTTPS content and social image
+        run: |
+          set -euo pipefail
+          curl --fail --silent --show-error --retry 3 --retry-delay 5 \
+            https://klxluxeplus.poolpay.space/ | grep -F 'KLX LUXE PLUS' > /dev/null
+          for asset in robots.txt sitemap.xml images/klx-social-card.png images/klx-logo.png; do
+            curl --fail --silent --show-error --output /dev/null \
+              "https://klxluxeplus.poolpay.space/$asset"
+          done
+          STATUS="$(curl --silent --output /dev/null --write-out '%{http_code}' \
+            https://klxluxeplus.poolpay.space/klx-deployment-check-missing)"
+          test "$STATUS" = 404
+          echo 'KLX landing page, crawler files, social assets, and 404 response verified over public HTTPS.'

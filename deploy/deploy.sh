@@ -152,6 +152,9 @@ if [ ! -d "/etc/letsencrypt/live/poolpay.space" ]; then
     sudo nginx -t && sudo systemctl reload nginx || true
 fi
 
+# Deploy the independently built KLX Next.js static export.
+bash deploy/deploy-klx.sh "$IMAGE_TAG"
+
 # 8. Clean up unused images
 echo "🧹 Pruning old Docker images..."
 docker image prune -f
