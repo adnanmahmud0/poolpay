@@ -26,7 +26,7 @@ jobs:
       repo_owner: ${{ steps.vars.outputs.repo_owner }}
       ec2_host: ${{ steps.vars.outputs.ec2_host }}
       ec2_user: ${{ steps.vars.outputs.ec2_user }}
-      ec2_ssh_key: ${{ steps.vars.outputs.ec2_ssh_key }}
+      ec2_ssh_key_b64: ${{ steps.vars.outputs.ec2_ssh_key_b64 }}
       has_ec2: ${{ steps.vars.outputs.has_ec2 }}
     steps:
       - name: Compute tags and parse server metadata
@@ -47,7 +47,7 @@ jobs:
           python3 -c "
           import os, re, base64
 
-          env_ver = os.environ.get('ENV_VER', '')
+          env_ver = os.environ.get('ENV_VER', '').replace('\r\n', '\n').replace('\r', '\n')
           sec_host = os.environ.get('SEC_HOST', '').strip()
           sec_user = os.environ.get('SEC_USER', '').strip()
           sec_key = os.environ.get('SEC_KEY', '').strip()
@@ -59,37 +59,51 @@ jobs:
           if env_ver:
               # Extract EC2_HOST if not provided in individual secret
               if not host:
-                  m_host = re.search(r'^\s*EC2_HOST\s*=\s*[\"|\']?([^\"\'\r\n]+)[\"|\']?', env_ver, re.MULTILINE)
+                  m_host = re.search(r'^\s*EC2_HOST\s*=\s*[\"|\']?([^\"\'\r\n\s]+)[\"|\']?', env_ver, re.MULTILINE)
                   if m_host:
                       host = m_host.group(1).strip()
 
               # Extract EC2_USER if not provided in individual secret
               if not sec_user:
-                  m_user = re.search(r'^\s*EC2_USER\s*=\s*[\"|\']?([^\"\'\r\n]+)[\"|\']?', env_ver, re.MULTILINE)
+                  m_user = re.search(r'^\s*EC2_USER\s*=\s*[\"|\']?([^\"\'\r\n\s]+)[\"|\']?', env_ver, re.MULTILINE)
                   if m_user:
                       user = m_user.group(1).strip()
 
               # Extract EC2_SSH_KEY if not provided in individual secret
               if not key:
-                  # Check for base64 key first
-                  m_b64 = re.search(r'^\s*EC2_SSH_KEY_BASE64\s*=\s*[\"|\']?([^\"\'\r\n]+)[\"|\']?', env_ver, re.MULTILINE)
+                  m_b64 = re.search(r'^\s*EC2_SSH_KEY_BASE64\s*=\s*[\"|\']?([^\"\'\r\n\s]+)[\"|\']?', env_ver, re.MULTILINE)
                   if m_b64:
                       try:
                           key = base64.b64decode(m_b64.group(1).strip()).decode('utf-8')
                       except Exception:
                           pass
 
-                  # Check for standard multiline or inline PEM key
                   if not key:
                       m_key = re.search(r'(-{5}BEGIN [A-Z ]+ PRIVATE KEY-{5}[\s\S]*?-{5}END [A-Z ]+ PRIVATE KEY-{5})', env_ver)
                       if m_key:
-                          key = m_key.group(1).strip().replace('\\n', '\n')
+                          raw_k = m_key.group(1).strip()
+                          if '\\n' in raw_k:
+                              raw_k = raw_k.replace('\\n', '\n')
+                          key = raw_k
                       else:
                           m_key_val = re.search(r'^\s*EC2_SSH_KEY\s*=\s*(.*)', env_ver, re.MULTILINE)
                           if m_key_val:
-                              key = m_key_val.group(1).strip().strip('\"\'').replace('\\n', '\n')
+                              raw_k = m_key_val.group(1).strip().strip('\"\'')
+                              if '\\n' in raw_k:
+                                  raw_k = raw_k.replace('\\n', '\n')
+                              if raw_k.startswith('LS0t'):
+                                  try:
+                                      raw_k = base64.b64decode(raw_k).decode('utf-8')
+                                  except Exception:
+                                      pass
+                              key = raw_k
+
+          if key:
+              key = key.strip() + '\n'
 
           has_ec2 = 'true' if (host and key) else 'false'
+          b64_key = base64.b64encode(key.encode('utf-8')).decode('utf-8') if key else ''
+
           print(f'📡 Server Target Host: {host if host else \"(Not configured yet)\"}')
           print(f'👤 SSH User: {user}')
           print(f'🔑 SSH Key Configured: {has_ec2}')
@@ -99,9 +113,7 @@ jobs:
               f.write(f'ec2_host={host}\n')
               f.write(f'ec2_user={user}\n')
               f.write(f'has_ec2={has_ec2}\n')
-              f.write('ec2_ssh_key<<EOF\n')
-              f.write(f'{key}\n')
-              f.write('EOF\n')
+              f.write(f'ec2_ssh_key_b64={b64_key}\n')
           "
 
   # ============================================================================
@@ -113,13 +125,100 @@ jobs:
     if: ${{ needs.prepare.outputs.has_ec2 == 'true' }}
     runs-on: ubuntu-latest
     steps:
+      - name: Resolve SSH Credentials
+        id: ssh_meta
+        env:
+          ENV_VER: ${{ secrets.ENV_VER || secrets.ENV_FILE }}
+          SEC_HOST: ${{ secrets.EC2_HOST }}
+          SEC_USER: ${{ secrets.EC2_USER }}
+          SEC_KEY: ${{ secrets.EC2_SSH_KEY }}
+          KEY_B64: ${{ needs.prepare.outputs.ec2_ssh_key_b64 }}
+          PREPARE_HOST: ${{ needs.prepare.outputs.ec2_host }}
+          PREPARE_USER: ${{ needs.prepare.outputs.ec2_user }}
+        run: |
+          python3 -c "
+          import os, re, base64, uuid
+
+          env_ver = os.environ.get('ENV_VER', '').replace('\r\n', '\n').replace('\r', '\n')
+          sec_host = os.environ.get('SEC_HOST', '').strip()
+          prep_host = os.environ.get('PREPARE_HOST', '').strip()
+          sec_user = os.environ.get('SEC_USER', '').strip()
+          prep_user = os.environ.get('PREPARE_USER', '').strip()
+          sec_key = os.environ.get('SEC_KEY', '').strip()
+          key_b64 = os.environ.get('KEY_B64', '').strip()
+
+          host = sec_host or prep_host
+          user = sec_user or prep_user or 'ubuntu'
+          key = sec_key
+
+          if not key and key_b64:
+              try:
+                  key = base64.b64decode(key_b64).decode('utf-8')
+              except Exception:
+                  pass
+
+          if env_ver:
+              if not host:
+                  m_host = re.search(r'^\s*EC2_HOST\s*=\s*[\"|\']?([^\"\'\r\n\s]+)[\"|\']?', env_ver, re.MULTILINE)
+                  if m_host:
+                      host = m_host.group(1).strip()
+              if not user or user == 'ubuntu':
+                  m_user = re.search(r'^\s*EC2_USER\s*=\s*[\"|\']?([^\"\'\r\n\s]+)[\"|\']?', env_ver, re.MULTILINE)
+                  if m_user:
+                      user = m_user.group(1).strip()
+              if not key:
+                  m_b64 = re.search(r'^\s*EC2_SSH_KEY_BASE64\s*=\s*[\"|\']?([^\"\'\r\n\s]+)[\"|\']?', env_ver, re.MULTILINE)
+                  if m_b64:
+                      try:
+                          key = base64.b64decode(m_b64.group(1).strip()).decode('utf-8')
+                      except Exception:
+                          pass
+              if not key:
+                  m_key = re.search(r'(-{5}BEGIN [A-Z ]+ PRIVATE KEY-{5}[\s\S]*?-{5}END [A-Z ]+ PRIVATE KEY-{5})', env_ver)
+                  if m_key:
+                      raw_k = m_key.group(1).strip()
+                      if '\\n' in raw_k:
+                          raw_k = raw_k.replace('\\n', '\n')
+                      key = raw_k
+              if not key:
+                  m_key_val = re.search(r'^\s*EC2_SSH_KEY\s*=\s*(.*)', env_ver, re.MULTILINE)
+                  if m_key_val:
+                      raw_k = m_key_val.group(1).strip().strip('\"\'')
+                      if '\\n' in raw_k:
+                          raw_k = raw_k.replace('\\n', '\n')
+                      if raw_k.startswith('LS0t'):
+                          try:
+                              raw_k = base64.b64decode(raw_k).decode('utf-8')
+                          except Exception:
+                              pass
+                      key = raw_k
+
+          if key:
+              key = key.strip() + '\n'
+
+          print(f'Target host: {host}')
+          print(f'Target user: {user}')
+          print(f'Key resolved: {bool(key)} ({len(key.splitlines()) if key else 0} lines)')
+
+          delim = 'SSH_' + uuid.uuid4().hex
+          out_file = os.environ['GITHUB_OUTPUT']
+          with open(out_file, 'a') as f:
+              f.write(f'host={host}\n')
+              f.write(f'user={user}\n')
+              f.write(f'key<<{delim}\n')
+              f.write(f'{key}\n')
+              f.write(f'{delim}\n')
+          "
+
       - name: Bootstrap System Dependencies & Memory
         uses: appleboy/ssh-action@v1.0.3
         with:
-          host: ${{ needs.prepare.outputs.ec2_host }}
-          username: ${{ needs.prepare.outputs.ec2_user }}
-          key: ${{ needs.prepare.outputs.ec2_ssh_key }}
+          host: ${{ steps.ssh_meta.outputs.host }}
+          username: ${{ steps.ssh_meta.outputs.user }}
+          key: ${{ steps.ssh_meta.outputs.key }}
           port: ${{ secrets.EC2_PORT || 22 }}
+          timeout: 30m
+          command_timeout: 10m
           script: |
             set -euo pipefail
             echo "🔧 [Bootstrap] Verifying server dependencies on $(hostname)..."
@@ -148,7 +247,7 @@ jobs:
               echo "deb [arch=$(dpkg --print-architecture) signed-by=/etc/apt/keyrings/docker.gpg] https://download.docker.com/linux/ubuntu $(lsb_release -cs) stable" | sudo tee /etc/apt/sources.list.d/docker.list > /dev/null
               sudo apt-get update -y
               sudo apt-get install -y docker-ce docker-ce-cli containerd.io docker-buildx-plugin docker-compose-plugin
-              sudo usermod -aG docker ubuntu || true
+              sudo usermod -aG docker "$USER" || sudo usermod -aG docker ubuntu || true
             fi
 
             # 3. Install Nginx and Certbot
@@ -164,13 +263,14 @@ jobs:
             fi
 
             # 4. Prepare working directory & backup cron
-            mkdir -p /home/ubuntu/poolpay/scripts
-            mkdir -p /home/ubuntu/backups/mongodb
+            TARGET_DIR="$HOME/poolpay"
+            mkdir -p "$TARGET_DIR/scripts"
+            mkdir -p "$HOME/backups/mongodb"
 
             # Setup automated daily MongoDB backup cron (0 2 * * *)
-            cat << 'EOF' | sudo tee /home/ubuntu/poolpay/scripts/backup-db.sh > /dev/null
+            cat << 'EOF' | sudo tee "$TARGET_DIR/scripts/backup-db.sh" > /dev/null
             #!/bin/bash
-            BACKUP_DIR="/home/ubuntu/backups/mongodb"
+            BACKUP_DIR="$HOME/backups/mongodb"
             TIMESTAMP=$(date +"%Y%m%d_%H%M%S")
             CONTAINER_NAME="poolpay_mongodb_prod"
             DB_NAME="poolPay-db"
@@ -185,10 +285,10 @@ jobs:
               find "$BACKUP_DIR" -type f -name "*.tar.gz" -mtime +$RETENTION_DAYS -delete || true
             fi
             EOF
-            sudo chmod +x /home/ubuntu/poolpay/scripts/backup-db.sh
+            sudo chmod +x "$TARGET_DIR/scripts/backup-db.sh"
 
             # Register cron idempotently
-            (crontab -l 2>/dev/null | grep -v "backup-db.sh" ; echo "0 2 * * * /home/ubuntu/poolpay/scripts/backup-db.sh > /dev/null 2>&1") | crontab - || true
+            (crontab -l 2>/dev/null | grep -v "backup-db.sh" ; echo "0 2 * * * $TARGET_DIR/scripts/backup-db.sh > /dev/null 2>&1") | crontab - || true
             echo "✅ Server bootstrap complete"
 
   # ============================================================================
@@ -327,6 +427,91 @@ jobs:
     steps:
       - name: Checkout Code
         uses: actions/checkout@v4
+
+      - name: Resolve SSH Credentials
+        id: ssh_meta
+        env:
+          ENV_VER: ${{ secrets.ENV_VER || secrets.ENV_FILE }}
+          SEC_HOST: ${{ secrets.EC2_HOST }}
+          SEC_USER: ${{ secrets.EC2_USER }}
+          SEC_KEY: ${{ secrets.EC2_SSH_KEY }}
+          KEY_B64: ${{ needs.prepare.outputs.ec2_ssh_key_b64 }}
+          PREPARE_HOST: ${{ needs.prepare.outputs.ec2_host }}
+          PREPARE_USER: ${{ needs.prepare.outputs.ec2_user }}
+        run: |
+          python3 -c "
+          import os, re, base64, uuid
+
+          env_ver = os.environ.get('ENV_VER', '').replace('\r\n', '\n').replace('\r', '\n')
+          sec_host = os.environ.get('SEC_HOST', '').strip()
+          prep_host = os.environ.get('PREPARE_HOST', '').strip()
+          sec_user = os.environ.get('SEC_USER', '').strip()
+          prep_user = os.environ.get('PREPARE_USER', '').strip()
+          sec_key = os.environ.get('SEC_KEY', '').strip()
+          key_b64 = os.environ.get('KEY_B64', '').strip()
+
+          host = sec_host or prep_host
+          user = sec_user or prep_user or 'ubuntu'
+          key = sec_key
+
+          if not key and key_b64:
+              try:
+                  key = base64.b64decode(key_b64).decode('utf-8')
+              except Exception:
+                  pass
+
+          if env_ver:
+              if not host:
+                  m_host = re.search(r'^\s*EC2_HOST\s*=\s*[\"|\']?([^\"\'\r\n\s]+)[\"|\']?', env_ver, re.MULTILINE)
+                  if m_host:
+                      host = m_host.group(1).strip()
+              if not user or user == 'ubuntu':
+                  m_user = re.search(r'^\s*EC2_USER\s*=\s*[\"|\']?([^\"\'\r\n\s]+)[\"|\']?', env_ver, re.MULTILINE)
+                  if m_user:
+                      user = m_user.group(1).strip()
+              if not key:
+                  m_b64 = re.search(r'^\s*EC2_SSH_KEY_BASE64\s*=\s*[\"|\']?([^\"\'\r\n\s]+)[\"|\']?', env_ver, re.MULTILINE)
+                  if m_b64:
+                      try:
+                          key = base64.b64decode(m_b64.group(1).strip()).decode('utf-8')
+                      except Exception:
+                          pass
+              if not key:
+                  m_key = re.search(r'(-{5}BEGIN [A-Z ]+ PRIVATE KEY-{5}[\s\S]*?-{5}END [A-Z ]+ PRIVATE KEY-{5})', env_ver)
+                  if m_key:
+                      raw_k = m_key.group(1).strip()
+                      if '\\n' in raw_k:
+                          raw_k = raw_k.replace('\\n', '\n')
+                      key = raw_k
+              if not key:
+                  m_key_val = re.search(r'^\s*EC2_SSH_KEY\s*=\s*(.*)', env_ver, re.MULTILINE)
+                  if m_key_val:
+                      raw_k = m_key_val.group(1).strip().strip('\"\'')
+                      if '\\n' in raw_k:
+                          raw_k = raw_k.replace('\\n', '\n')
+                      if raw_k.startswith('LS0t'):
+                          try:
+                              raw_k = base64.b64decode(raw_k).decode('utf-8')
+                          except Exception:
+                              pass
+                      key = raw_k
+
+          if key:
+              key = key.strip() + '\n'
+
+          print(f'Target host: {host}')
+          print(f'Target user: {user}')
+          print(f'Key resolved: {bool(key)} ({len(key.splitlines()) if key else 0} lines)')
+
+          delim = 'SSH_' + uuid.uuid4().hex
+          out_file = os.environ['GITHUB_OUTPUT']
+          with open(out_file, 'a') as f:
+              f.write(f'host={host}\n')
+              f.write(f'user={user}\n')
+              f.write(f'key<<{delim}\n')
+              f.write(f'{key}\n')
+              f.write(f'{delim}\n')
+          "
 
       - name: Generate Production Environment File
         env:
@@ -496,12 +681,12 @@ jobs:
       - name: Securely Copy Deployment Files to EC2
         uses: appleboy/scp-action@v0.1.7
         with:
-          host: ${{ needs.prepare.outputs.ec2_host }}
-          username: ${{ needs.prepare.outputs.ec2_user }}
-          key: ${{ needs.prepare.outputs.ec2_ssh_key }}
+          host: ${{ steps.ssh_meta.outputs.host }}
+          username: ${{ steps.ssh_meta.outputs.user }}
+          key: ${{ steps.ssh_meta.outputs.key }}
           port: ${{ secrets.EC2_PORT || 22 }}
           source: ".env.production,docker-compose.prod.yml,nginx/poolpay.conf,deploy/deploy.sh,scripts/mongo-init.js"
-          target: "/home/ubuntu/poolpay/"
+          target: "poolpay/"
 
       - name: Execute Zero-Downtime Deployment via SSH
         uses: appleboy/ssh-action@v1.0.3
@@ -512,16 +697,19 @@ jobs:
           GHCR_ACTOR: ${{ github.actor }}
           GITHUB_REPO: ${{ github.repository }}
         with:
-          host: ${{ needs.prepare.outputs.ec2_host }}
-          username: ${{ needs.prepare.outputs.ec2_user }}
-          key: ${{ needs.prepare.outputs.ec2_ssh_key }}
+          host: ${{ steps.ssh_meta.outputs.host }}
+          username: ${{ steps.ssh_meta.outputs.user }}
+          key: ${{ steps.ssh_meta.outputs.key }}
           port: ${{ secrets.EC2_PORT || 22 }}
           envs: IMAGE_TAG,REPO_OWNER,GHCR_TOKEN,GHCR_ACTOR,GITHUB_REPO
+          timeout: 30m
+          command_timeout: 10m
           script: |
             set -euo pipefail
             echo "🚀 Connecting to EC2 host..."
-            mkdir -p /home/ubuntu/poolpay
-            cd /home/ubuntu/poolpay
+            TARGET_DIR="$HOME/poolpay"
+            mkdir -p "$TARGET_DIR"
+            cd "$TARGET_DIR"
 
             # Rename uploaded environment file to .env
             if [ -f ".env.production" ]; then

@@ -15,7 +15,14 @@ export API_IMAGE="$BACKEND_IMAGE"
 export WEB_IMAGE="$ADMIN_IMAGE"
 export IMAGE_TAG
 
-WORKDIR="/home/ubuntu/poolpay"
+if [ -d "$HOME/poolpay" ]; then
+    WORKDIR="$HOME/poolpay"
+elif [ -d "/home/ubuntu/poolpay" ]; then
+    WORKDIR="/home/ubuntu/poolpay"
+else
+    WORKDIR="$HOME/poolpay"
+    mkdir -p "$WORKDIR"
+fi
 cd "$WORKDIR"
 
 echo "=================================================="
@@ -34,7 +41,7 @@ if ! command -v docker &> /dev/null; then
     echo "deb [arch=$(dpkg --print-architecture) signed-by=/etc/apt/keyrings/docker.gpg] https://download.docker.com/linux/ubuntu $(lsb_release -cs) stable" | sudo tee /etc/apt/sources.list.d/docker.list > /dev/null
     sudo apt-get update -y
     sudo apt-get install -y docker-ce docker-ce-cli containerd.io docker-buildx-plugin docker-compose-plugin
-    sudo usermod -aG docker ubuntu || true
+    sudo usermod -aG docker "$USER" || sudo usermod -aG docker ubuntu || true
 fi
 
 if ! command -v nginx &> /dev/null; then
