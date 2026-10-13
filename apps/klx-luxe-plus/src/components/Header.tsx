@@ -12,6 +12,7 @@ import { Brand } from "./Brand";
 const NAVIGATION = [
   { href: "#services", label: "Our services" },
   { href: "#about", label: "About us" },
+  { href: "#download", label: "Download app" },
   { href: "#contact", label: "Get in touch" }
 ];
 

@@ -8,7 +8,7 @@ import { ScrollTrigger } from "gsap/ScrollTrigger";
 
 import type { ServiceId } from "@/data/site";
 
-import { About, Contact, Faq, Footer, Header, Hero, Services } from "@/components";
+import { About, AppDownload, Contact, Faq, Footer, Header, Hero, Services } from "@/components";
 
 gsap.registerPlugin(useGSAP, ScrollTrigger);
 
@@ -58,6 +58,7 @@ export function App() {
         <Hero />
         <Services onSelectService={setService} />
         <About />
+        <AppDownload />
         <Contact service={service} onSelectService={setService} />
         <Faq />
       </main>

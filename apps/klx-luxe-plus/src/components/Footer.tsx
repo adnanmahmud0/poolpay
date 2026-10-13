@@ -26,6 +26,9 @@ export function Footer() {
             <a href="#contact">
               Get in touch <ArrowUpRight />
             </a>
+            <a href="#download">
+              Get PoolPay <ArrowUpRight />
+            </a>
           </div>
           <div className="footer-contact">
             <span className="eyebrow">LET&apos;S MAKE IT POSSIBLE</span>

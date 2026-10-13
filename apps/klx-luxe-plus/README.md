@@ -40,6 +40,22 @@ The ribbon pauses on hover and has an explicit pause/play button. The site respe
 The mobile navigation uses Radix Dialog for focus trapping and Escape dismissal;
 FAQs use Radix Accordion with keyboard navigation and expanded-state semantics.
 
+## PoolPay downloads
+
+The download section sits between About and Contact, with header and footer anchors.
+Store links are configured in `src/config/app-download.ts`. Google Play is active;
+`appStoreUrl: null` displays a non-interactive iPhone coming-soon notice. Once iOS
+is published, set its real listing URL to display the official App Store badge.
+
+The client-supplied logo and Groups screenshot live in `public/images/poolpay`.
+The screenshot is converted to WebP without changing its content. The profile
+screen is deliberately omitted because it contains contact information; the small
+dashboard screenshot is omitted to avoid a blurry preview. No generated app UI is used.
+Official store badge artwork is stored locally, unchanged, from
+[Google Play](https://play.google.com/intl/en_us/badges/static/images/badges/en_badge_web_generic.png)
+and [Apple](https://developer.apple.com/assets/elements/badges/download-on-the-app-store.svg).
+Badges are static; the preview uses the site's existing reduced-motion-aware reveals.
+
 ## Deployment (push and release only with the owner's approval)
 
 Target: `https://klxluxeplus.poolpay.space`.
