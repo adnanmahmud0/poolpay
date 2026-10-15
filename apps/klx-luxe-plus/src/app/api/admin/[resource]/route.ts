@@ -13,10 +13,12 @@ import {
   syncSession
 } from "@/server/commerce";
 import { COLLECTIONS, getDb } from "@/server/db/client";
+import { DEFAULT_ADVERTISEMENTS } from "@/server/db/defaults";
 import {
   getServices,
   getSettings,
   getSiteContent,
+  initAdvertisementsIfEmpty,
   initServicesIfEmpty,
   logAudit,
   publishContent,
@@ -42,6 +44,7 @@ export async function GET() {
     const user = await requireAdmin();
     const db = await getDb();
     await initServicesIfEmpty();
+    await initAdvertisementsIfEmpty();
     const [
       content,
       services,
@@ -215,9 +218,13 @@ export async function POST(request: Request, context: { params: Promise<{ resour
       if (
         (startDate && Number.isNaN(startDate.getTime())) ||
         (endDate && Number.isNaN(endDate.getTime())) ||
-        (startDate && endDate && endDate <= startDate)
-      )
-        throw new HttpError(400, "Invalid advertisement schedule.");
+        (startDate && endDate && endDate.getTime() <= startDate.getTime())
+      ) {
+        throw new HttpError(
+          400,
+          "Invalid advertisement schedule: end date must be after start date."
+        );
+      }
       await db.collection(COLLECTIONS.ADVERTISEMENTS).updateOne(
         { id },
         {
@@ -231,9 +238,29 @@ export async function POST(request: Request, context: { params: Promise<{ resour
         action: "AD_SAVED",
         entityType: "advertisement",
         entityId: id,
-        details: { active: data.isActive }
+        details: { active: data.isActive, title: data.title, placement: data.placement }
       });
-      return { ok: true };
+      return { ok: true, id };
+    }
+    if (resource === "seed-advertisements") {
+      for (const ad of DEFAULT_ADVERTISEMENTS) {
+        await db.collection(COLLECTIONS.ADVERTISEMENTS).updateOne(
+          { id: ad.id },
+          {
+            $set: { ...ad, updatedAt: new Date() },
+            $setOnInsert: { createdAt: new Date() }
+          },
+          { upsert: true }
+        );
+      }
+      await logAudit({
+        actorEmail: user.email,
+        action: "ADS_SEEDED",
+        entityType: "advertisement",
+        entityId: "default",
+        details: { count: DEFAULT_ADVERTISEMENTS.length }
+      });
+      return { ok: true, count: DEFAULT_ADVERTISEMENTS.length };
     }
     if (resource === "notifications") return processOutbox();
     throw new HttpError(404, "Unknown operation.");

@@ -1,16 +1,19 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
+import Image from "next/image";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 
 import {
   ArrowUpRight,
   BriefcaseBusiness,
+  Calendar,
   CalendarDays,
   CarFront,
   ChartNoAxesCombined,
   CreditCard,
+  ExternalLink,
   Eye,
   EyeOff,
   FileCheck2,
@@ -25,8 +28,10 @@ import {
   Pencil,
   Plus,
   ReceiptText,
+  Search,
   Settings,
   Smartphone,
+  Sparkles,
   Trash2
 } from "lucide-react";
 
@@ -48,6 +53,7 @@ import type {
 
 import { timeLabel } from "../AppointmentTimes";
 import { BrandMark } from "../Brand";
+import { AdvertisementModal } from "./AdvertisementModal";
 import { AppointmentCalendar } from "./AppointmentCalendar";
 import { Editor } from "./Editor";
 import { MediaGallery } from "./MediaGallery";
@@ -109,6 +115,12 @@ export function AdminDashboard({
   const [error, setError] = useState("");
   const [notice, setNotice] = useState("");
   const [filter, setFilter] = useState("");
+  const [adModalOpen, setAdModalOpen] = useState(false);
+  const [editingAd, setEditingAd] = useState<KlxAdvertisement | null>(null);
+  const [adFilter, setAdFilter] = useState<
+    "all" | "active" | "after_hero" | "after_services" | "inactive"
+  >("all");
+  const [adSearch, setAdSearch] = useState("");
   const [editor, setEditor] = useState<{
     title: string;
     initial: unknown;
@@ -987,66 +999,377 @@ export function AdminDashboard({
                 ))}
               </>
             )}
-            {section === "advertisements" && (
-              <>
-                <Button
-                  className="mb-6"
-                  onClick={() =>
-                    edit(
-                      "New advertisement",
-                      {
-                        title: "",
-                        imageUrl: "/images/klx-social-card.png",
-                        destinationUrl: "https://klxluxeplus.poolpay.space",
-                        altText: "",
-                        placement: "after_hero",
-                        priority: 0,
-                        isActive: false,
-                        startDate: "",
-                        endDate: ""
-                      },
-                      "advertisements"
-                    )
+            {section === "advertisements" &&
+              (() => {
+                const activeCount = data.advertisements.filter((a) => a.isActive).length;
+                const heroCount = data.advertisements.filter(
+                  (a) => a.placement === "after_hero"
+                ).length;
+                const servicesCount = data.advertisements.filter(
+                  (a) => a.placement === "after_services"
+                ).length;
+
+                const filteredAds = data.advertisements.filter((ad) => {
+                  if (adFilter === "active" && !ad.isActive) return false;
+                  if (adFilter === "inactive" && ad.isActive) return false;
+                  if (adFilter === "after_hero" && ad.placement !== "after_hero") return false;
+                  if (adFilter === "after_services" && ad.placement !== "after_services")
+                    return false;
+                  if (adSearch.trim()) {
+                    const q = adSearch.toLowerCase();
+                    return (
+                      ad.title.toLowerCase().includes(q) ||
+                      ad.destinationUrl.toLowerCase().includes(q) ||
+                      ad.altText.toLowerCase().includes(q)
+                    );
                   }
-                >
-                  Add advertisement
-                </Button>
-                <div className="grid gap-4">
-                  {data.advertisements.map((ad) => (
-                    <div
-                      key={ad.id}
-                      className="flex flex-wrap items-center justify-between gap-4 rounded-2xl border border-slate-200 bg-white p-6"
-                    >
-                      <div>
-                        <h3 className="font-semibold">{ad.title}</h3>
-                        <p className="mt-2 text-xs text-slate-500">
-                          {ad.placement} · {ad.isActive ? "Active" : "Inactive"}
-                        </p>
+                  return true;
+                });
+
+                return (
+                  <div className="space-y-6">
+                    {/* Top Stats & Actions Header */}
+                    <div className="relative overflow-hidden rounded-3xl border border-slate-200 bg-gradient-to-br from-[#14283b] via-[#19324a] to-[#122334] p-6 text-white shadow-xl sm:p-8">
+                      <div className="flex flex-wrap items-center justify-between gap-4">
+                        <div>
+                          <div className="flex items-center gap-2">
+                            <span className="flex size-2 animate-pulse rounded-full bg-emerald-400" />
+                            <p className="text-xs font-semibold tracking-widest text-sky-300 uppercase">
+                              LANDING PAGE SPONSORED BANNERS
+                            </p>
+                          </div>
+                          <h2 className="mt-1 text-2xl font-bold tracking-tight">
+                            Advertisements Manager
+                          </h2>
+                          <p className="mt-1 max-w-xl text-xs text-slate-300">
+                            Configure sponsored banners for PoolPay and professional services with
+                            live placement controls, click destinations, and schedule validation.
+                          </p>
+                        </div>
+                        <div className="flex flex-wrap items-center gap-2.5">
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            className="border-white/20 bg-white/10 text-white hover:bg-white/20 hover:text-white"
+                            onClick={async () => {
+                              try {
+                                await action("seed-advertisements", {});
+                                setNotice("Default verified advertisements loaded.");
+                              } catch (e) {
+                                setError(e instanceof Error ? e.message : "Failed to seed ads.");
+                              }
+                            }}
+                          >
+                            <Sparkles className="size-3.5" /> Load Valid Sample Ads
+                          </Button>
+                          <Button
+                            size="sm"
+                            className="bg-sky-500 font-semibold text-white hover:bg-sky-400"
+                            onClick={() => {
+                              setEditingAd(null);
+                              setAdModalOpen(true);
+                            }}
+                          >
+                            <Plus className="size-4" /> Add Advertisement
+                          </Button>
+                        </div>
                       </div>
-                      <div className="flex items-center gap-2">
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          onClick={() => edit("Edit advertisement", ad, "advertisements")}
-                        >
-                          <Pencil className="size-3.5" /> Edit
-                        </Button>
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          className="border-red-200 text-red-600 hover:border-red-300 hover:bg-red-50 hover:text-red-700"
-                          onClick={() =>
-                            deleteItem("advertisements", ad.id, `advertisement "${ad.title}"`)
-                          }
-                        >
-                          <Trash2 className="size-3.5" /> Delete
-                        </Button>
+
+                      {/* Metric Cards Grid */}
+                      <div className="mt-6 grid grid-cols-2 gap-3 sm:grid-cols-4">
+                        <div className="rounded-2xl border border-white/10 bg-white/5 p-4 backdrop-blur-xs">
+                          <span className="text-[11px] font-medium text-slate-300">
+                            Total Banners
+                          </span>
+                          <p className="mt-1 text-2xl font-bold">{data.advertisements.length}</p>
+                        </div>
+                        <div className="rounded-2xl border border-emerald-500/20 bg-emerald-500/10 p-4 backdrop-blur-xs">
+                          <span className="text-[11px] font-medium text-emerald-300">
+                            Active Live
+                          </span>
+                          <p className="mt-1 text-2xl font-bold text-emerald-300">{activeCount}</p>
+                        </div>
+                        <div className="rounded-2xl border border-sky-500/20 bg-sky-500/10 p-4 backdrop-blur-xs">
+                          <span className="text-[11px] font-medium text-sky-300">After Hero</span>
+                          <p className="mt-1 text-2xl font-bold text-sky-300">{heroCount}</p>
+                        </div>
+                        <div className="rounded-2xl border border-indigo-500/20 bg-indigo-500/10 p-4 backdrop-blur-xs">
+                          <span className="text-[11px] font-medium text-indigo-300">
+                            After Services
+                          </span>
+                          <p className="mt-1 text-2xl font-bold text-indigo-300">{servicesCount}</p>
+                        </div>
                       </div>
                     </div>
-                  ))}
-                </div>
-              </>
-            )}
+
+                    {/* Filter & Search Toolbar */}
+                    <div className="flex flex-wrap items-center justify-between gap-4 rounded-2xl border border-slate-200 bg-white p-4">
+                      <div className="flex flex-wrap items-center gap-1.5">
+                        {(
+                          [
+                            { id: "all", label: `All (${data.advertisements.length})` },
+                            { id: "active", label: `Active (${activeCount})` },
+                            { id: "after_hero", label: `Hero Placement (${heroCount})` },
+                            {
+                              id: "after_services",
+                              label: `Services Placement (${servicesCount})`
+                            },
+                            {
+                              id: "inactive",
+                              label: `Inactive (${data.advertisements.length - activeCount})`
+                            }
+                          ] as const
+                        ).map((tab) => (
+                          <button
+                            key={tab.id}
+                            type="button"
+                            onClick={() => setAdFilter(tab.id)}
+                            className={`rounded-xl px-3 py-1.5 text-xs font-semibold transition ${
+                              adFilter === tab.id
+                                ? "bg-[#14283b] text-white shadow-xs"
+                                : "text-slate-600 hover:bg-slate-100"
+                            }`}
+                          >
+                            {tab.label}
+                          </button>
+                        ))}
+                      </div>
+
+                      <div className="relative min-w-[240px]">
+                        <Search className="pointer-events-none absolute top-2.5 left-3 size-4 text-slate-400" />
+                        <input
+                          type="text"
+                          placeholder="Search by title or link…"
+                          value={adSearch}
+                          onChange={(e) => setAdSearch(e.target.value)}
+                          className="klx-input pl-9 text-xs"
+                        />
+                      </div>
+                    </div>
+
+                    {/* Advertisement Cards Grid */}
+                    {filteredAds.length === 0 ? (
+                      <div className="flex flex-col items-center justify-center rounded-3xl border border-dashed border-slate-300 bg-white p-12 text-center">
+                        <div className="flex size-14 items-center justify-center rounded-2xl bg-sky-50 text-sky-600">
+                          <Megaphone className="size-7" />
+                        </div>
+                        <h3 className="mt-4 text-base font-bold text-slate-900">
+                          No Advertisements Found
+                        </h3>
+                        <p className="mt-1 max-w-md text-xs text-slate-500">
+                          {adSearch
+                            ? `No banners match "${adSearch}". Try clearing your search term.`
+                            : "Get started by creating a sponsored advertisement banner or loading pre-verified PoolPay & service templates."}
+                        </p>
+                        <div className="mt-6 flex flex-wrap gap-3">
+                          <Button
+                            size="sm"
+                            className="bg-sky-600 text-white hover:bg-sky-700"
+                            onClick={() => {
+                              setEditingAd(null);
+                              setAdModalOpen(true);
+                            }}
+                          >
+                            <Plus className="size-3.5" /> Create Advertisement
+                          </Button>
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={async () => {
+                              try {
+                                await action("seed-advertisements", {});
+                                setNotice("Default advertisements seeded successfully.");
+                              } catch (e) {
+                                setError(e instanceof Error ? e.message : "Failed to seed ads.");
+                              }
+                            }}
+                          >
+                            <Sparkles className="size-3.5" /> Load Valid Sample Ads
+                          </Button>
+                        </div>
+                      </div>
+                    ) : (
+                      <div className="grid gap-5 md:grid-cols-2">
+                        {filteredAds.map((ad) => {
+                          const isScheduled = ad.startDate || ad.endDate;
+                          const now = new Date();
+                          const isExpired = ad.endDate && new Date(ad.endDate) < now;
+                          const isUpcoming = ad.startDate && new Date(ad.startDate) > now;
+
+                          return (
+                            <div
+                              key={ad.id}
+                              className="flex flex-col justify-between overflow-hidden rounded-3xl border border-slate-200 bg-white p-6 shadow-xs transition hover:shadow-md"
+                            >
+                              <div>
+                                {/* Card Image Preview Banner */}
+                                <div className="relative mb-4 aspect-[3/1] max-h-44 w-full overflow-hidden rounded-2xl border border-slate-100 bg-slate-900/5">
+                                  <Image
+                                    src={ad.imageUrl}
+                                    alt={ad.altText || ad.title}
+                                    fill
+                                    unoptimized
+                                    className="object-contain"
+                                  />
+                                  <div className="absolute top-2.5 right-2.5 flex items-center gap-1.5">
+                                    <span
+                                      className={`inline-flex items-center gap-1 rounded-full px-2.5 py-0.5 text-[10px] font-bold shadow-xs ${
+                                        ad.isActive
+                                          ? "bg-emerald-500 text-white"
+                                          : "bg-slate-700 text-slate-200"
+                                      }`}
+                                    >
+                                      <span
+                                        className={`size-1.5 rounded-full ${
+                                          ad.isActive ? "animate-pulse bg-white" : "bg-slate-400"
+                                        }`}
+                                      />
+                                      {ad.isActive ? "ACTIVE" : "INACTIVE"}
+                                    </span>
+                                  </div>
+                                </div>
+
+                                {/* Badges Row */}
+                                <div className="mb-2 flex flex-wrap items-center gap-2">
+                                  <span
+                                    className={`rounded-lg border px-2.5 py-0.5 text-[10px] font-bold uppercase ${
+                                      ad.placement === "after_hero"
+                                        ? "border-sky-200 bg-sky-50 text-sky-700"
+                                        : "border-indigo-200 bg-indigo-50 text-indigo-700"
+                                    }`}
+                                  >
+                                    {ad.placement === "after_hero"
+                                      ? "Placement: After Hero"
+                                      : "Placement: After Services"}
+                                  </span>
+
+                                  <span className="rounded-lg border border-slate-200 bg-slate-50 px-2 py-0.5 text-[10px] font-medium text-slate-600">
+                                    Priority: {ad.priority}
+                                  </span>
+
+                                  {isScheduled ? (
+                                    <span
+                                      className={`inline-flex items-center gap-1 rounded-lg border px-2 py-0.5 text-[10px] font-medium ${
+                                        isExpired
+                                          ? "border-amber-200 bg-amber-50 text-amber-700"
+                                          : isUpcoming
+                                            ? "border-purple-200 bg-purple-50 text-purple-700"
+                                            : "border-emerald-200 bg-emerald-50 text-emerald-700"
+                                      }`}
+                                    >
+                                      <Calendar className="size-3" />
+                                      {isExpired
+                                        ? "Expired Schedule"
+                                        : isUpcoming
+                                          ? "Scheduled (Future)"
+                                          : "Scheduled (Live)"}
+                                    </span>
+                                  ) : (
+                                    <span className="rounded-lg border border-slate-100 bg-slate-50 px-2 py-0.5 text-[10px] text-slate-400">
+                                      Runs Indefinitely
+                                    </span>
+                                  )}
+                                </div>
+
+                                {/* Title */}
+                                <h3 className="text-base leading-snug font-bold text-slate-900">
+                                  {ad.title}
+                                </h3>
+
+                                {/* Destination URL */}
+                                <div className="mt-2 flex items-center justify-between rounded-xl bg-slate-50 px-3 py-2 text-xs text-slate-600">
+                                  <span className="truncate pr-2 font-mono text-[11px] text-slate-700">
+                                    {ad.destinationUrl}
+                                  </span>
+                                  <a
+                                    href={ad.destinationUrl}
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    className="flex shrink-0 items-center gap-1 text-[11px] font-semibold text-sky-600 hover:underline"
+                                  >
+                                    Test <ExternalLink className="size-3" />
+                                  </a>
+                                </div>
+
+                                {/* Alt Text Preview */}
+                                {ad.altText && (
+                                  <p className="mt-2 line-clamp-1 text-[11px] text-slate-400 italic">
+                                    Alt: &ldquo;{ad.altText}&rdquo;
+                                  </p>
+                                )}
+                              </div>
+
+                              {/* Card Footer Actions */}
+                              <div className="mt-5 flex items-center justify-between border-t border-slate-100 pt-4">
+                                <Button
+                                  variant="outline"
+                                  size="sm"
+                                  onClick={async () => {
+                                    try {
+                                      await action("advertisements", {
+                                        ...ad,
+                                        isActive: !ad.isActive
+                                      });
+                                      setNotice(
+                                        `Advertisement "${ad.title}" is now ${
+                                          !ad.isActive ? "active" : "inactive"
+                                        }.`
+                                      );
+                                    } catch (e) {
+                                      setError(
+                                        e instanceof Error ? e.message : "Failed to toggle status."
+                                      );
+                                    }
+                                  }}
+                                  className="text-xs"
+                                >
+                                  {ad.isActive ? (
+                                    <>
+                                      <EyeOff className="size-3.5" /> Pause
+                                    </>
+                                  ) : (
+                                    <>
+                                      <Eye className="size-3.5" /> Activate
+                                    </>
+                                  )}
+                                </Button>
+
+                                <div className="flex items-center gap-2">
+                                  <Button
+                                    variant="outline"
+                                    size="sm"
+                                    onClick={() => {
+                                      setEditingAd(ad);
+                                      setAdModalOpen(true);
+                                    }}
+                                    className="text-xs"
+                                  >
+                                    <Pencil className="size-3.5" /> Edit
+                                  </Button>
+                                  <Button
+                                    variant="outline"
+                                    size="sm"
+                                    className="border-red-200 text-xs text-red-600 hover:border-red-300 hover:bg-red-50 hover:text-red-700"
+                                    onClick={() =>
+                                      deleteItem(
+                                        "advertisements",
+                                        ad.id,
+                                        `advertisement "${ad.title}"`
+                                      )
+                                    }
+                                  >
+                                    <Trash2 className="size-3.5" /> Delete
+                                  </Button>
+                                </div>
+                              </div>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    )}
+                  </div>
+                );
+              })()}
             {section === "media" && (
               <>
                 <MediaGallery refreshKey={data.media[0]?.id || "empty"} onDeleted={load} />
@@ -1128,6 +1451,24 @@ export function AdminDashboard({
           </>
         )}
         {editor && <Editor {...editor} onSave={editor.save} onClose={() => setEditor(null)} />}
+        {adModalOpen && (
+          <AdvertisementModal
+            open={adModalOpen}
+            initialData={editingAd}
+            onClose={() => {
+              setAdModalOpen(false);
+              setEditingAd(null);
+            }}
+            onSave={async (adValues) => {
+              await action("advertisements", adValues);
+              setNotice(
+                editingAd
+                  ? `Advertisement "${adValues.title}" updated successfully.`
+                  : `Advertisement "${adValues.title}" created successfully.`
+              );
+            }}
+          />
+        )}
       </main>
     </div>
   );

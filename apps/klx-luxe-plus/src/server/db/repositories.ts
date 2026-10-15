@@ -1,7 +1,12 @@
 import crypto from "node:crypto";
 
 import { COLLECTIONS, getDb } from "./client";
-import { DEFAULT_SERVICES, DEFAULT_SETTINGS, DEFAULT_SITE_CONTENT } from "./defaults";
+import {
+  DEFAULT_ADVERTISEMENTS,
+  DEFAULT_SERVICES,
+  DEFAULT_SETTINGS,
+  DEFAULT_SITE_CONTENT
+} from "./defaults";
 import {
   AppointmentStatus,
   KlxAdvertisement,
@@ -361,8 +366,16 @@ export async function getAds(
       query.isActive = true;
       const now = new Date();
       query.$and = [
-        { $or: [{ startDate: null }, { startDate: { $lte: now } }] },
-        { $or: [{ endDate: null }, { endDate: { $gt: now } }] }
+        {
+          $or: [
+            { startDate: null },
+            { startDate: { $exists: false } },
+            { startDate: { $lte: now } }
+          ]
+        },
+        {
+          $or: [{ endDate: null }, { endDate: { $exists: false } }, { endDate: { $gt: now } }]
+        }
       ];
     }
 
@@ -374,6 +387,28 @@ export async function getAds(
   } catch (err) {
     console.warn("Could not retrieve advertisements:", err);
     return [];
+  }
+}
+
+export async function initAdvertisementsIfEmpty(): Promise<void> {
+  try {
+    const db = await getDb();
+    const count = await db
+      .collection<KlxAdvertisement>(COLLECTIONS.ADVERTISEMENTS)
+      .countDocuments();
+    if (count === 0) {
+      for (const ad of DEFAULT_ADVERTISEMENTS) {
+        await db
+          .collection<KlxAdvertisement>(COLLECTIONS.ADVERTISEMENTS)
+          .updateOne(
+            { id: ad.id },
+            { $setOnInsert: { ...ad, createdAt: new Date(), updatedAt: new Date() } },
+            { upsert: true }
+          );
+      }
+    }
+  } catch (err) {
+    console.warn("Could not seed default advertisements:", err);
   }
 }
 

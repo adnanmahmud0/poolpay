@@ -231,8 +231,7 @@ function Fields({
       ) : (
         <input
           type={
-            name.startsWith("blockedDates") ||
-            (/Date$/.test(name) && name !== "endDate" && name !== "startDate")
+            name.startsWith("blockedDates") || /Date$/.test(name)
               ? "date"
               : /Time$/.test(name) || name === "requestedTimeSlot"
                 ? "time"
@@ -240,7 +239,7 @@ function Fields({
           }
           step={name === "requestedTimeSlot" ? 900 : undefined}
           className="klx-input mt-2"
-          value={str}
+          value={/Date$/.test(name) && str.length >= 10 ? str.slice(0, 10) : str}
           onChange={(e) => update(e.target.value)}
         />
       )}

@@ -4,10 +4,12 @@ export const text = z.string().trim().min(1).max(500);
 export const longText = z.string().trim().max(12000);
 export const safeLink = z
   .string()
-  .max(2048)
+  .trim()
+  .min(1, "URL or path is required.")
+  .max(2048, "URL cannot exceed 2048 characters.")
   .refine(
-    (value) => (value.startsWith("/") && !value.startsWith("//")) || /^https:\/\//.test(value),
-    "Use an HTTPS URL or local path."
+    (value) => (value.startsWith("/") && !value.startsWith("//")) || /^https?:\/\//i.test(value),
+    "Use an HTTPS URL (e.g. https://...) or local path (e.g. /#appointments or /images/...)."
   );
 export const dateString = z
   .string()
@@ -70,18 +72,60 @@ export const quoteSchema = z
     expiresInDays: z.number().int().min(1).max(90)
   })
   .refine((q) => q.depositCents <= q.amountCents, "Deposit exceeds total.");
-export const adSchema = z.object({
-  id: z.string().optional(),
-  title: text,
-  imageUrl: safeLink,
-  destinationUrl: safeLink,
-  altText: text,
-  placement: z.enum(["after_hero", "after_services"]),
-  priority: z.number().int().min(0).max(100),
-  isActive: z.boolean(),
-  startDate: z.string().optional(),
-  endDate: z.string().optional()
-});
+
+export const adScheduleDate = z
+  .union([z.string(), z.date(), z.null(), z.undefined()])
+  .transform((val) => {
+    if (val === null || val === undefined) return null;
+    if (val instanceof Date) return Number.isNaN(val.getTime()) ? null : val.toISOString();
+    const str = String(val).trim();
+    if (!str) return null;
+    const d = new Date(str);
+    return Number.isNaN(d.getTime()) ? "INVALID" : d.toISOString();
+  })
+  .refine((val) => val !== "INVALID", {
+    message: "Invalid date format. Use YYYY-MM-DD or ISO timestamp."
+  });
+
+export const adSchema = z
+  .object({
+    id: z.string().optional(),
+    title: z
+      .string()
+      .trim()
+      .min(1, "Advertisement title is required.")
+      .max(120, "Title cannot exceed 120 characters."),
+    imageUrl: safeLink,
+    destinationUrl: safeLink,
+    altText: z
+      .string()
+      .trim()
+      .min(1, "Alt text is required for accessibility and SEO.")
+      .max(300, "Alt text cannot exceed 300 characters."),
+    placement: z.enum(["after_hero", "after_services"], {
+      errorMap: () => ({ message: "Select a valid placement: after_hero or after_services." })
+    }),
+    priority: z.coerce
+      .number()
+      .int("Priority must be an integer.")
+      .min(0, "Priority cannot be negative.")
+      .max(100, "Priority cannot exceed 100."),
+    isActive: z.boolean().default(true),
+    startDate: adScheduleDate.optional().nullable(),
+    endDate: adScheduleDate.optional().nullable()
+  })
+  .refine(
+    (data) => {
+      if (data.startDate && data.endDate) {
+        return new Date(data.endDate).getTime() > new Date(data.startDate).getTime();
+      }
+      return true;
+    },
+    {
+      message: "End date must be strictly after start date.",
+      path: ["endDate"]
+    }
+  );
 export const settingsSchema = z.object({
   seoTitle: text,
   seoDescription: text,

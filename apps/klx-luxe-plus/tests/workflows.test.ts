@@ -151,22 +151,20 @@ test("invalid daylight-saving times and impossible calendar dates are rejected",
 test("requests reserve availability atomically and rejection requires a reason and releases the slot", async () => {
   const database = await db.getDb();
   const settings = await repo.getSettings();
-  await database
-    .collection(db.COLLECTIONS.SETTINGS)
-    .updateOne(
-      {},
-      {
-        $set: {
-          scheduling: {
-            workingDays: [4],
-            blockedDates: ["2027-02-18"],
-            openingTime: "09:00",
-            closingTime: "17:00"
-          }
+  await database.collection(db.COLLECTIONS.SETTINGS).updateOne(
+    {},
+    {
+      $set: {
+        scheduling: {
+          workingDays: [4],
+          blockedDates: ["2027-02-18"],
+          openingTime: "09:00",
+          closingTime: "17:00"
         }
-      },
-      { upsert: true }
-    );
+      }
+    },
+    { upsert: true }
+  );
   const input = {
     serviceId: "svc_tax",
     customerName: "Booking test",
@@ -312,4 +310,104 @@ test("hiding every service does not resurrect default public services", async ()
     .updateMany({}, { $set: { isVisible: false } });
   assert.equal((await repo.getServices()).length, 0);
   assert.equal((await repo.getServices(true)).length, 4);
+});
+
+test("advertisement validation schema rejects invalid inputs and accepts valid inputs", async () => {
+  const { adSchema } = await import("../src/server/validation");
+
+  // Rejects empty title
+  assert.equal(
+    adSchema.safeParse({
+      title: "",
+      imageUrl: "/images/klx-social-card.png",
+      destinationUrl: "https://klxluxeplus.poolpay.space",
+      altText: "Valid Alt Text",
+      placement: "after_hero",
+      priority: 10,
+      isActive: true
+    }).success,
+    false
+  );
+
+  // Rejects invalid destination URL (e.g. javascript: or missing protocol/path)
+  assert.equal(
+    adSchema.safeParse({
+      title: "Valid Title",
+      imageUrl: "/images/klx-social-card.png",
+      destinationUrl: "javascript:alert(1)",
+      altText: "Valid Alt Text",
+      placement: "after_hero",
+      priority: 10,
+      isActive: true
+    }).success,
+    false
+  );
+
+  // Rejects invalid schedule (end date <= start date)
+  assert.equal(
+    adSchema.safeParse({
+      title: "Valid Title",
+      imageUrl: "/images/klx-social-card.png",
+      destinationUrl: "https://klxluxeplus.poolpay.space/#poolpay",
+      altText: "Valid Alt Text",
+      placement: "after_hero",
+      priority: 10,
+      isActive: true,
+      startDate: "2026-12-01",
+      endDate: "2026-11-01"
+    }).success,
+    false
+  );
+
+  // Rejects negative priority
+  assert.equal(
+    adSchema.safeParse({
+      title: "Valid Title",
+      imageUrl: "/images/klx-social-card.png",
+      destinationUrl: "https://klxluxeplus.poolpay.space/#poolpay",
+      altText: "Valid Alt Text",
+      placement: "after_hero",
+      priority: -1,
+      isActive: true
+    }).success,
+    false
+  );
+
+  // Accepts valid advertisement input
+  const valid = adSchema.safeParse({
+    title: "PoolPay Mobile App — Group Savings",
+    imageUrl: "/images/klx-social-card.png",
+    destinationUrl: "https://klxluxeplus.poolpay.space/#poolpay",
+    altText: "Download PoolPay App on Google Play for transparent group savings",
+    placement: "after_hero",
+    priority: 10,
+    isActive: true,
+    startDate: "2026-10-01",
+    endDate: "2026-12-31"
+  });
+  assert.equal(valid.success, true);
+
+  // Accepts null or empty dates
+  const validNoDates = adSchema.safeParse({
+    title: "PoolPay Mobile App — Group Savings",
+    imageUrl: "/images/klx-social-card.png",
+    destinationUrl: "/#appointments",
+    altText: "Download PoolPay App",
+    placement: "after_services",
+    priority: 5,
+    isActive: true,
+    startDate: null,
+    endDate: null
+  });
+  assert.equal(validNoDates.success, true);
+});
+
+test("default advertisements are seeded and retrieved properly", async () => {
+  await repo.initAdvertisementsIfEmpty();
+  const ads = await repo.getAds();
+  assert.ok(ads.length >= 2);
+  const heroAds = await repo.getAds("after_hero");
+  assert.ok(heroAds.some((a) => a.placement === "after_hero"));
+  const servicesAds = await repo.getAds("after_services");
+  assert.ok(servicesAds.some((a) => a.placement === "after_services"));
 });

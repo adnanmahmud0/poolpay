@@ -1,4 +1,4 @@
-import { KlxService, KlxSettings, SiteContentData } from "./types";
+import { KlxAdvertisement, KlxService, KlxSettings, SiteContentData } from "./types";
 
 export const DEFAULT_SITE_CONTENT: SiteContentData = {
   hero: {
@@ -204,3 +204,35 @@ export const DEFAULT_SETTINGS: Omit<KlxSettings, "_id"> = {
   },
   updatedAt: new Date()
 };
+
+export const DEFAULT_ADVERTISEMENTS: Omit<KlxAdvertisement, "_id">[] = [
+  {
+    id: "ad_poolpay_hero",
+    title: "PoolPay — Modern ROSCA & Group Savings Mobile App",
+    imageUrl: "/images/klx-social-card.png",
+    destinationUrl: "https://klxluxeplus.poolpay.space/#poolpay",
+    altText:
+      "Download PoolPay App on Google Play for transparent group savings and financial circles",
+    placement: "after_hero",
+    priority: 10,
+    isActive: true,
+    startDate: null,
+    endDate: null,
+    createdAt: new Date(),
+    updatedAt: new Date()
+  },
+  {
+    id: "ad_klx_consultation",
+    title: "KLX Luxe Plus — 1-on-1 Taxes, Immigration & Document Consultation",
+    imageUrl: "/images/klx-social-card.png",
+    destinationUrl: "https://klxluxeplus.poolpay.space/#appointments",
+    altText: "Schedule a personalized consultation with KLX Luxe Plus specialists",
+    placement: "after_services",
+    priority: 5,
+    isActive: true,
+    startDate: null,
+    endDate: null,
+    createdAt: new Date(),
+    updatedAt: new Date()
+  }
+];

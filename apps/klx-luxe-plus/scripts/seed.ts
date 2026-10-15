@@ -2,14 +2,15 @@ import "./load-env";
 
 import { ensureOwnerAccount } from "../src/server/auth/users";
 import { ensureIndexes, getMongoClient } from "../src/server/db/client";
-import { initServicesIfEmpty } from "../src/server/db/repositories";
+import { initAdvertisementsIfEmpty, initServicesIfEmpty } from "../src/server/db/repositories";
 
 async function main() {
   await ensureIndexes();
   await initServicesIfEmpty();
+  await initAdvertisementsIfEmpty();
   const owner = await ensureOwnerAccount();
   process.stdout.write(
-    `KLX indexes, default services, and Super Admin owner initialized (${owner.email}).\n`
+    `KLX indexes, default services, advertisements, and Super Admin owner initialized (${owner.email}).\n`
   );
   await (await getMongoClient()).close();
 }
