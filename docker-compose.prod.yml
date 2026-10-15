@@ -94,8 +94,8 @@ services:
       - NODE_ENV=production
       - PORT=5002
       - NEXT_TELEMETRY_DISABLED=1
-      - DATABASE_URL=mongodb://admin:${MONGO_INITDB_ROOT_PASSWORD:-password123}@mongodb:27017/klx_luxe_plus?authSource=admin
-      - KLX_DATABASE_URL=mongodb://admin:${MONGO_INITDB_ROOT_PASSWORD:-password123}@mongodb:27017/klx_luxe_plus?authSource=admin
+      - DATABASE_URL=${KLX_DATABASE_URL:-mongodb://admin:password123@mongodb:27017/klx_luxe_plus?authSource=admin}
+      - KLX_DATABASE_URL=${KLX_DATABASE_URL:-mongodb://admin:password123@mongodb:27017/klx_luxe_plus?authSource=admin}
       - KLX_DB_NAME=klx_luxe_plus
       - KLX_MEDIA_DIR=/app/media
     volumes:
