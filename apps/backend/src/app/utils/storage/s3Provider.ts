@@ -63,7 +63,9 @@ export class S3Provider implements IStorageProvider {
         if (fs.existsSync(file.path)) {
           fs.unlinkSync(file.path);
         }
-      } catch {}
+      } catch {
+        /* ignore cleanup error */
+      }
 
       return `https://${bucketName}.s3.${envVars.AWS.AWS_REGION}.amazonaws.com/${fileName}`;
     } catch (error) {
@@ -74,7 +76,7 @@ export class S3Provider implements IStorageProvider {
       try {
         const local = new LocalStorageProvider();
         return await local.uploadFile(file, folder);
-      } catch (localError) {
+      } catch (_localError) {
         throw new AppError(500, `Storage upload failed: ${message}`);
       }
     }

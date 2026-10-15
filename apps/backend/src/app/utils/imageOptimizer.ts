@@ -61,7 +61,9 @@ export async function optimizeUploadedImage(
     if (originalPath !== optimizedPath && fs.existsSync(originalPath)) {
       try {
         fs.unlinkSync(originalPath);
-      } catch {}
+      } catch {
+        /* ignore cleanup error */
+      }
     }
 
     // Update Multer file metadata

@@ -5,8 +5,13 @@
   "description": "KLX LUXE PLUS LLC company landing page",
   "scripts": {
     "assets": "node scripts/generate-brand-assets.mjs",
+    "seed": "tsx scripts/seed.ts",
+    "provision:owner": "tsx scripts/provision-owner.ts",
+    "test:workflows": "tsx --test tests/workflows.test.ts tests/commerce.test.ts",
     "dev": "next dev --hostname 127.0.0.1 --port 5002",
-    "build": "next build",
+    "dev:review": "tsx scripts/review-server.ts",
+    "build": "next build && esbuild scripts/provision-owner.ts scripts/seed.ts --bundle --platform=node --external:mongodb --external:bcryptjs --external:next --external:zod --outdir=.next/ops --format=cjs --out-extension:.js=.cjs",
+    "start": "next start --hostname 0.0.0.0 --port 5002",
     "lint": "eslint .",
     "typecheck": "tsc --noEmit",
     "test:seo": "node --test tests/seo.test.mjs"
@@ -14,23 +19,34 @@
   "dependencies": {
     "@gsap/react": "^2.1.2",
     "@repo/ui": "*",
+    "bcryptjs": "^3.0.3",
+    "dotenv": "^17.4.2",
     "gsap": "^3.13.0",
     "lucide-react": "^0.577.0",
-    "next": "16.1.6",
+    "mongodb": "^7.7.0",
+    "next": "^16.4.0",
+    "nodemailer": "^10.1.1",
     "radix-ui": "^1.4.3",
     "react": "19.2.3",
-    "react-dom": "19.2.3"
+    "react-dom": "19.2.3",
+    "stripe": "^17.7.0",
+    "zod": "^3.25.76"
   },
   "devDependencies": {
     "@repo/tsconfig": "*",
     "@tailwindcss/postcss": "^4.1.0",
+    "@types/bcryptjs": "^2.4.6",
     "@types/node": "^20",
+    "@types/nodemailer": "^7.0.12",
     "@types/react": "^19",
     "@types/react-dom": "^19",
+    "esbuild": "^0.28.2",
     "eslint": "^9",
-    "eslint-config-next": "16.1.6",
-    "sharp": "^0.34.5",
+    "eslint-config-next": "^16.4.0",
+    "mongodb-memory-server": "^11.3.0",
+    "sharp": "^0.35.5",
     "tailwindcss": "^4.1.0",
+    "tsx": "^4.23.15",
     "typescript": "^5.9.3"
   }
 }

@@ -1,3 +1,7 @@
 User-agent: *
 Allow: /
+Disallow: /admin
+Disallow: /api/
+Disallow: /preview
+Disallow: /pay/
 Sitemap: https://klxluxeplus.poolpay.space/sitemap.xml

@@ -30,6 +30,15 @@ services:
     networks:
       - poolpay-network
 
+  redis:
+    image: redis:7-alpine
+    container_name: poolpay_redis
+    restart: unless-stopped
+    ports:
+      - "6379:6379"
+    networks:
+      - poolpay-network
+
 volumes:
   mongodb_data:
     driver: local

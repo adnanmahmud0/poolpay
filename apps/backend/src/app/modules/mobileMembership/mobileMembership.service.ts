@@ -378,12 +378,12 @@ const callStoreKit2TransactionAPI = async (
     }
 
     const data = (await response.json()) as {
-      data?: Array<{
-        lastTransactions?: Array<{
+      data?: {
+        lastTransactions?: {
           signedTransactionInfo: string;
           signedRenewalInfo?: string;
-        }>;
-      }>;
+        }[];
+      }[];
     };
 
     const firstGroup = data?.data?.[0];

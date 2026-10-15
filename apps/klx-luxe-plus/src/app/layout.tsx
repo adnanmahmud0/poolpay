@@ -25,9 +25,8 @@ export const viewport: Viewport = { themeColor: "#101d2c" };
 
 export default function RootLayout({ children }: { children: ReactNode }) {
   return (
-    <html lang="en">
+    <html lang="en" data-scroll-behavior="smooth">
       <head>
-        <link rel="preload" as="image" href="/images/luxury-transport.webp" />
         <link rel="preconnect" href="https://fonts.googleapis.com" />
         <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
         {/* Fonts are loaded once globally in this App Router root layout, not a Pages Router page. */}

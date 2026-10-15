@@ -13,7 +13,7 @@ import logger from "./logger";
 export const seedDemoGroups = async () => {
   try {
     // 1. Find Admin user to act as group creator
-    let adminUser = await User.findOne({
+    const adminUser = await User.findOne({
       $or: [
         { role: Role.SUPER_ADMIN },
         { role: Role.ADMIN },

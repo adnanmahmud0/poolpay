@@ -82,6 +82,7 @@ export const dbConnect = async (targetEnv?: AppEnvironment) => {
 
     await mongoose.connect(url, {
       dbName,
+      serverSelectionTimeoutMS: 5000,
     });
 
     logger.info(

@@ -52,7 +52,9 @@ export class LocalStorageProvider implements IStorageProvider {
         if (fs.existsSync(file.path)) {
           fs.unlinkSync(file.path);
         }
-      } catch {}
+      } catch {
+        /* ignore cleanup error */
+      }
     }
 
     // Return the URL with clean forward slashes

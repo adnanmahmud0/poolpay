@@ -4,13 +4,19 @@ import { ArrowUpRight, LayoutGrid, Smartphone, UsersRound } from "lucide-react";
 
 import { APP_DOWNLOAD } from "@/config/app-download";
 
-function StoreLinks() {
+import type { SiteContentData } from "@/server/db/types";
+
+function StoreLinks({
+  config = APP_DOWNLOAD
+}: {
+  config?: { appStoreUrl?: string | null; googlePlayUrl: string };
+}) {
   return (
     <div className="mt-7">
       <div className="flex flex-wrap items-center gap-x-6 gap-y-2">
-        {APP_DOWNLOAD.appStoreUrl && (
+        {config.appStoreUrl && (
           <a
-            href={APP_DOWNLOAD.appStoreUrl}
+            href={config.appStoreUrl}
             target="_blank"
             rel="noopener noreferrer"
             aria-label="Download PoolPay on the App Store (opens in a new tab)"
@@ -25,7 +31,7 @@ function StoreLinks() {
           </a>
         )}
         <a
-          href={APP_DOWNLOAD.googlePlayUrl}
+          href={config.googlePlayUrl}
           target="_blank"
           rel="noopener noreferrer"
           aria-label="Get PoolPay on Google Play (opens in a new tab)"
@@ -38,7 +44,7 @@ function StoreLinks() {
             alt="Get it on Google Play"
           />
         </a>
-        {!APP_DOWNLOAD.appStoreUrl && (
+        {!config.appStoreUrl && (
           <div className="flex min-h-14 items-center gap-3 rounded-xl border border-slate-300/80 px-4 py-3 text-slate-500">
             <Smartphone className="size-5" aria-hidden="true" />
             <div className="text-xs leading-relaxed">
@@ -49,14 +55,13 @@ function StoreLinks() {
         )}
       </div>
       <p className="mt-3 text-[11px] leading-relaxed text-slate-500">
-        Available on Android.{" "}
-        {APP_DOWNLOAD.appStoreUrl ? "Now on iPhone, too." : "iOS is on the way."}
+        Available on Android. {config.appStoreUrl ? "Now on iPhone, too." : "iOS is on the way."}
       </p>
     </div>
   );
 }
 
-function AppPreview() {
+function AppPreview({ screenshot = "/images/poolpay/groups.webp" }: { screenshot?: string }) {
   return (
     <figure
       className="relative mx-auto flex w-full max-w-[500px] flex-col items-center justify-center py-10 lg:py-12"
@@ -71,7 +76,7 @@ function AppPreview() {
       </div>
       <div className="relative w-[226px] rotate-3 rounded-[30px] border border-slate-500 bg-[#152231] p-[7px] shadow-[18px_30px_65px_-20px_#24445e70] motion-safe:transition-transform motion-safe:duration-700 motion-safe:hover:rotate-0 sm:w-[248px]">
         <Image
-          src="/images/poolpay/groups.webp"
+          src={screenshot}
           width={664}
           height={1440}
           alt="PoolPay My Groups screen with create and join group options, group status and member details"
@@ -110,19 +115,37 @@ function AppPreview() {
   );
 }
 
-export function AppDownload() {
+export function AppDownload({
+  content,
+  featured = false
+}: {
+  content?: SiteContentData;
+  featured?: boolean;
+}) {
+  const Heading = featured ? "h1" : "h2";
   return (
-    <section id="download" aria-labelledby="download-heading" className="pt-20 lg:pt-24">
+    <section
+      id="download"
+      aria-labelledby="download-heading"
+      className={featured ? "pt-4" : "pt-20 lg:pt-24"}
+    >
+      <span id="home" />
+      <span id="poolpay" />
       <div className="section-shell">
         <div className="relative grid items-center gap-3 overflow-hidden rounded-[32px] border border-[#dce7ed] bg-[#edf4f7] px-6 py-8 sm:px-10 lg:grid-cols-2 lg:gap-12 lg:px-14 lg:py-6">
           <div className="relative z-10 py-4 lg:py-10">
             <div data-reveal>
               <p className="eyebrow section-eyebrow">
-                <span /> A LITTLE MORE CONNECTED
+                <span /> {content?.hero.badge || "A LITTLE MORE CONNECTED"}
               </p>
+              {content && (
+                <p className="mb-5 text-xs font-medium text-slate-500">
+                  {content.hero.title} · {content.hero.subtitle}
+                </p>
+              )}
               <figure className="mb-7 flex items-center gap-3">
                 <Image
-                  src="/images/poolpay/logo.png"
+                  src={content?.poolpay.logoUrl || "/images/poolpay/logo.png"}
                   width={295}
                   height={285}
                   alt="PoolPay logo"
@@ -133,18 +156,19 @@ export function AppDownload() {
                     PoolPay
                   </span>
                   <span className="mt-1 block text-xs text-slate-500">
-                    Your people. Your possibilities.
+                    {content?.poolpay.subtitle || "Your people. Your possibilities."}
                   </span>
                 </figcaption>
               </figure>
-              <h2 id="download-heading">
-                Your groups.
-                <br />
-                Wherever <span className="text-blue-600">you go.</span>
-              </h2>
+              <Heading
+                id="download-heading"
+                className="font-heading text-[clamp(38px,4.2vw,57px)] leading-[1.12] font-semibold tracking-[-0.055em]"
+              >
+                {content?.poolpay.title || "Your groups. Wherever you go."}
+              </Heading>
               <p className="mt-6 max-w-[400px] text-sm leading-7 text-slate-600">
-                Bring your circle together with PoolPay. Create or join a group, see its status, and
-                keep the details close — all from your phone.
+                {content?.poolpay.description ||
+                  "Bring your circle together with PoolPay. Create or join a group, see its status, and keep the details close — all from your phone."}
               </p>
               <div className="mt-6 flex flex-wrap gap-x-5 gap-y-3 text-xs font-medium text-slate-600">
                 <span className="flex items-center gap-2">
@@ -157,9 +181,49 @@ export function AppDownload() {
                 </span>
               </div>
             </div>
-            <StoreLinks />
+            {content && (
+              <div className="mt-5 flex flex-wrap gap-2">
+                {content.poolpay.features.map((feature) => (
+                  <span
+                    key={feature}
+                    className="rounded-full border border-sky-200 bg-white/60 px-3 py-2 text-[10px] text-slate-600"
+                  >
+                    {feature}
+                  </span>
+                ))}
+              </div>
+            )}
+            <StoreLinks
+              config={
+                content
+                  ? {
+                      googlePlayUrl: content.poolpay.googlePlayUrl,
+                      appStoreUrl: content.poolpay.appStoreComingSoon
+                        ? null
+                        : content.poolpay.appStoreUrl
+                    }
+                  : undefined
+              }
+            />
+            {content && (
+              <a
+                href={content.hero.secondaryCtaHref}
+                className="mt-6 inline-flex items-center gap-2 text-xs font-semibold text-[#377db1]"
+              >
+                {content.hero.secondaryCtaText}
+                <ArrowUpRight className="size-4" />
+              </a>
+            )}
+            {content && (
+              <a
+                href={content.hero.ctaHref}
+                className="mt-5 block text-xs text-slate-500 underline underline-offset-4"
+              >
+                {content.hero.ctaText}
+              </a>
+            )}
           </div>
-          <AppPreview />
+          <AppPreview screenshot={content?.poolpay.screenshotUrl} />
         </div>
       </div>
     </section>

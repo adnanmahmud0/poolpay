@@ -6,20 +6,32 @@ import { User } from "../modules/user/user.model";
 export const seedSuperAdmin = async () => {
   try {
     const isSuperAdminExist = await User.findOne({
-      email: envVars.SUPER_ADMIN_EMAIL,
+      $or: [
+        { email: envVars.SUPER_ADMIN_EMAIL },
+        { role: Role.SUPER_ADMIN },
+        { phone: "01700000000" },
+      ],
     });
-
-    if (isSuperAdminExist) {
-      console.log("ℹ️ Super Admin already exists.");
-      return;
-    }
-
-    console.log("🌱 Seeding Super Admin...");
 
     const hashedPassword = await bcryptjs.hash(
       envVars.SUPER_ADMIN_PASSWORD,
       Number(envVars.BCRYPT_SALT_ROUND)
     );
+
+    if (isSuperAdminExist) {
+      isSuperAdminExist.email = envVars.SUPER_ADMIN_EMAIL;
+      isSuperAdminExist.password = hashedPassword;
+      isSuperAdminExist.role = Role.SUPER_ADMIN;
+      isSuperAdminExist.status = UserStatus.ACTIVE;
+      isSuperAdminExist.isVerified = true;
+      await isSuperAdminExist.save();
+      console.log(
+        "✅ Super Admin credentials synchronized with environment variables!"
+      );
+      return;
+    }
+
+    console.log("🌱 Seeding Super Admin...");
 
     await User.create({
       firstName: "Super",
@@ -36,7 +48,11 @@ export const seedSuperAdmin = async () => {
     });
 
     console.log("✅ Super Admin created successfully!");
-  } catch (error) {
+  } catch (error: any) {
+    if (error?.code === 11000) {
+      console.log("ℹ️ Super Admin already seeded.");
+      return;
+    }
     console.error("❌ Error seeding Super Admin:", error);
   }
 };

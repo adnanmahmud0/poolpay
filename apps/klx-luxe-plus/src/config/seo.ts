@@ -9,10 +9,10 @@ const WEBSITE_ID = `${SITE_HOME}#website`;
 const PAGE_ID = `${SITE_HOME}#webpage`;
 const PAGE_TITLE = "KLX LUXE PLUS LLC | Luxury Transport & Professional Services";
 const PAGE_DESCRIPTION =
-  "Connect with Jean Derival for luxury transportation, finance agent services, computer support, taxes, translations, and immigration document assistance.";
+  "KLX LUXE PLUS LLC provides professional tax services, immigration document assistance, translations, and luxury executive transportation.";
 const SHARE_TITLE = "KLX LUXE PLUS LLC | A little more luxe. A lot more possible.";
 const SHARE_DESCRIPTION =
-  "Luxury transportation and everyday professional services. Connect with Jean Derival for your next step.";
+  "Luxury transportation and everyday professional services with KLX LUXE PLUS LLC.";
 const SHARE_IMAGE = {
   url: `${SITE_URL}/images/klx-social-card.png`,
   width: 1200,
@@ -20,7 +20,6 @@ const SHARE_IMAGE = {
   alt: "KLX LUXE PLUS LLC — Luxury transportation and professional services. A little more luxe. A lot more possible."
 };
 
-// Home-page metadata stays here rather than in the root layout so 404s cannot inherit its canonical.
 export const HOME_METADATA: Metadata = {
   title: PAGE_TITLE,
   description: PAGE_DESCRIPTION,
@@ -54,7 +53,6 @@ export const HOME_METADATA: Metadata = {
   }
 };
 
-// Only confirmed business facts are included: no invented address, credentials, ratings, or profiles.
 export const HOME_STRUCTURED_DATA = {
   "@context": "https://schema.org",
   "@graph": [
@@ -76,7 +74,7 @@ export const HOME_STRUCTURED_DATA = {
       telephone: COMPANY.phones[0].href.replace("tel:", ""),
       contactPoint: COMPANY.phones.map((phone) => ({
         "@type": "ContactPoint",
-        name: COMPANY.contact,
+        name: COMPANY.name,
         telephone: phone.href.replace("tel:", ""),
         email: COMPANY.email,
         contactType: "customer service"
@@ -120,7 +118,7 @@ export const HOME_STRUCTURED_DATA = {
       primaryImageOfPage: {
         "@type": "ImageObject",
         url: `${SITE_URL}/images/luxury-transport.webp`,
-        caption: "Illustrative transportation image; vehicle availability is confirmed with Jean.",
+        caption: "Executive transportation service with KLX LUXE PLUS LLC.",
         width: 1672,
         height: 941
       }

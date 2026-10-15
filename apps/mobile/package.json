@@ -4,7 +4,7 @@
   "private": true,
   "description": "PoolPay Flutter Cross-Platform Mobile Application",
   "scripts": {
-    "dev": "flutter run",
+    "dev": "flutter run -d chrome",
     "build": "flutter build apk --release",
     "build:apk": "flutter build apk --release",
     "build:appbundle": "flutter build appbundle --release",

@@ -4,13 +4,13 @@ import { LegalPolicy } from "./legal.model";
 import { ILegalPolicy } from "./legal.interface";
 import logger from "../../utils/logger";
 
-const DEFAULT_POLICIES: Array<{
+const DEFAULT_POLICIES: {
   slug: string;
   title: string;
   summary: string;
   content: string;
   version: string;
-}> = [
+}[] = [
   {
     slug: "privacy-policy",
     title: "Privacy Policy",

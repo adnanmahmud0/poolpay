@@ -34,7 +34,6 @@ export function Footer() {
             <span className="eyebrow">LET&apos;S MAKE IT POSSIBLE</span>
             <a href={`mailto:${COMPANY.email}`}>{COMPANY.email}</a>
             <a href={COMPANY.phones[0].href}>{COMPANY.phones[0].label}</a>
-            <a href={COMPANY.phones[1].href}>{COMPANY.phones[1].label}</a>
           </div>
         </div>
         <div className="footer-bottom">
