@@ -18,7 +18,7 @@ COPY packages/tsconfig/package.json ./packages/tsconfig/
 COPY packages/eslint-config/package.json ./packages/eslint-config/
 
 # Install dependencies
-RUN npm ci
+RUN npm ci --ignore-scripts
 
 # Copy source files
 COPY packages/ ./packages/
