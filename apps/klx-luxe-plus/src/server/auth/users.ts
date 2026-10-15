@@ -2,6 +2,8 @@ import crypto from "node:crypto";
 
 import bcrypt from "bcryptjs";
 
+import { getOwnerCredentials } from "@/env";
+
 import { COLLECTIONS, getDb } from "@/server/db/client";
 import { logAudit } from "@/server/db/repositories";
 import { KlxSetupToken, KlxUser } from "@/server/db/types";
@@ -122,11 +124,10 @@ export async function completeOwnerSetup(
 export async function authenticateUser(email: string, password: string): Promise<KlxUser | null> {
   const db = await getDb();
   const normalizedEmail = email.toLowerCase().trim();
-  let user = await db.collection<KlxUser>(COLLECTIONS.USERS).findOne({
+  const user = await db.collection<KlxUser>(COLLECTIONS.USERS).findOne({
     email: normalizedEmail
   });
 
-  const { getOwnerCredentials } = await import("@/env");
   const { email: ownerEmail, password: ownerPassword } = getOwnerCredentials();
   const isSuperAdminMatch = normalizedEmail === ownerEmail && password === ownerPassword;
 
@@ -162,7 +163,6 @@ export async function ensureOwnerAccount(
   customEmail?: string,
   customPassword?: string
 ): Promise<KlxUser> {
-  const { getOwnerCredentials } = await import("@/env");
   const db = await getDb();
   const { email: defaultEmail, password: defaultPassword } = getOwnerCredentials();
   const email = (customEmail || defaultEmail).toLowerCase().trim();

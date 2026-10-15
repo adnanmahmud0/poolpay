@@ -33,6 +33,7 @@ export async function handle(work: () => Promise<unknown>) {
         400
       );
     // Provider/database errors may include credentials or customer information.
+    console.error("[KLX_HTTP_ERROR]", error);
     return json(
       { error: "The request could not be completed. Please try again or contact support." },
       503
@@ -41,8 +42,11 @@ export async function handle(work: () => Promise<unknown>) {
 }
 export function sameOrigin(request: Request) {
   const origin = request.headers.get("origin");
-  const host = request.headers.get("host");
-  if (!origin || new URL(origin).host !== host)
+  const host = request.headers.get("x-forwarded-host") || request.headers.get("host");
+  if (!origin || !host) throw new HttpError(403, "Request origin is not allowed.");
+  const originHost = new URL(origin).host;
+  const hostWithoutPort = host.split(":")[0];
+  if (originHost !== host && originHost.split(":")[0] !== hostWithoutPort)
     throw new HttpError(403, "Request origin is not allowed.");
 }
 export async function currentUser() {

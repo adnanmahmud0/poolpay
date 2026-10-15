@@ -2,14 +2,12 @@
 
 import { useState } from "react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
 
 import { LockKeyhole } from "lucide-react";
 
 import { Button } from "@repo/ui";
 
 export function Login({ setup, next }: { setup?: string; next?: string }) {
-  const router = useRouter();
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
   async function submit(event: React.FormEvent<HTMLFormElement>) {
@@ -26,9 +24,9 @@ export function Login({ setup, next }: { setup?: string; next?: string }) {
         })
       });
       const data = await response.json();
-      if (!response.ok) throw new Error(data.error);
-      router.replace(next?.startsWith("/admin/appointments?") ? next : "/admin");
-      router.refresh();
+      if (!response.ok) throw new Error(data.error || "Login failed");
+      const targetUrl = next && next.startsWith("/admin") ? next : "/admin";
+      window.location.href = targetUrl;
     } catch (e) {
       setError(e instanceof Error ? e.message : "Try again.");
       setBusy(false);

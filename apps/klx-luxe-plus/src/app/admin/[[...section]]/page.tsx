@@ -23,17 +23,23 @@ export default async function AdminPage({
   searchParams: Promise<{ appointment?: string; decision?: string }>;
 }) {
   const query = await searchParams;
+  const sectionParam = (await params).section?.[0];
+  const section = sectionParam || "overview";
+  if (!SECTIONS.includes(section)) notFound();
+
   const appointmentDecision =
     query.appointment && ["confirmed", "declined"].includes(query.decision || "")
       ? { id: query.appointment, status: query.decision as "confirmed" | "declined" }
       : undefined;
+
   if (!(await currentUser())) {
     const next = appointmentDecision
       ? `/admin/appointments?appointment=${encodeURIComponent(appointmentDecision.id)}&decision=${appointmentDecision.status}`
-      : "/admin";
+      : sectionParam && sectionParam !== "overview"
+        ? `/admin/${sectionParam}`
+        : "/admin";
     redirect(`/admin/login?next=${encodeURIComponent(next)}`);
   }
-  const section = (await params).section?.[0] || "overview";
-  if (!SECTIONS.includes(section)) notFound();
+
   return <AdminDashboard section={section} appointmentDecision={appointmentDecision} />;
 }
