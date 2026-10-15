@@ -84,6 +84,30 @@ services:
     networks:
       - poolpay-prod-network
 
+  klx:
+    image: ${KLX_IMAGE:-ghcr.io/adnanmahmud0/poolpay-klx:latest}
+    container_name: poolpay_klx_prod
+    restart: always
+    env_file:
+      - .env
+    environment:
+      - NODE_ENV=production
+      - PORT=5002
+      - NEXT_TELEMETRY_DISABLED=1
+      - DATABASE_URL=mongodb://admin:${MONGO_INITDB_ROOT_PASSWORD:-password123}@mongodb:27017/klx_luxe_plus?authSource=admin
+      - KLX_DATABASE_URL=mongodb://admin:${MONGO_INITDB_ROOT_PASSWORD:-password123}@mongodb:27017/klx_luxe_plus?authSource=admin
+      - KLX_DB_NAME=klx_luxe_plus
+      - KLX_MEDIA_DIR=/app/media
+    volumes:
+      - klx_media_prod:/app/media
+    ports:
+      - "127.0.0.1:5002:5002"
+    depends_on:
+      mongodb:
+        condition: service_healthy
+    networks:
+      - poolpay-prod-network
+
 volumes:
   mongodb_data_prod:
     driver: local
@@ -93,7 +117,10 @@ volumes:
     driver: local
   backend_logs_prod:
     driver: local
+  klx_media_prod:
+    driver: local
 
 networks:
   poolpay-prod-network:
     driver: bridge
+

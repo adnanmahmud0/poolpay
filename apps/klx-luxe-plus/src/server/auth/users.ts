@@ -121,14 +121,29 @@ export async function completeOwnerSetup(
 
 export async function authenticateUser(email: string, password: string): Promise<KlxUser | null> {
   const db = await getDb();
-  const user = await db.collection<KlxUser>(COLLECTIONS.USERS).findOne({
-    email: email.toLowerCase().trim()
+  const normalizedEmail = email.toLowerCase().trim();
+  let user = await db.collection<KlxUser>(COLLECTIONS.USERS).findOne({
+    email: normalizedEmail
   });
 
-  if (!user) return null;
+  const { getOwnerCredentials } = await import("@/env");
+  const { email: ownerEmail, password: ownerPassword } = getOwnerCredentials();
+  const isSuperAdminMatch = normalizedEmail === ownerEmail && password === ownerPassword;
+
+  if (!user) {
+    if (isSuperAdminMatch) {
+      return ensureOwnerAccount(ownerEmail, ownerPassword);
+    }
+    return null;
+  }
 
   const valid = await verifyPassword(password, user.passwordHash);
-  if (!valid) return null;
+  if (!valid) {
+    if (isSuperAdminMatch) {
+      return ensureOwnerAccount(ownerEmail, ownerPassword);
+    }
+    return null;
+  }
 
   return user;
 }

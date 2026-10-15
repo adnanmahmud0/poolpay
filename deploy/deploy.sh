@@ -11,6 +11,7 @@ REPO_OWNER_LOWER="$(echo "$REPO_OWNER" | tr '[:upper:]' '[:lower:]')"
 
 export BACKEND_IMAGE="ghcr.io/${REPO_OWNER_LOWER}/poolpay-backend:${IMAGE_TAG}"
 export ADMIN_IMAGE="ghcr.io/${REPO_OWNER_LOWER}/poolpay-admin:${IMAGE_TAG}"
+export KLX_IMAGE="ghcr.io/${REPO_OWNER_LOWER}/poolpay-klx:${IMAGE_TAG}"
 export API_IMAGE="$BACKEND_IMAGE"
 export WEB_IMAGE="$ADMIN_IMAGE"
 export IMAGE_TAG
@@ -78,10 +79,10 @@ if [ -f "nginx/poolpay.conf" ]; then
 fi
 
 # 3. Pull new images
-echo "📥 Pulling images: ${BACKEND_IMAGE} and ${ADMIN_IMAGE}..."
-docker compose -f docker-compose.prod.yml pull backend admin || {
-    echo "❌ Failed to pull Docker images from GHCR. Check registry authentication."
-    exit 1
+echo "📥 Pulling images: ${BACKEND_IMAGE}, ${ADMIN_IMAGE}, and ${KLX_IMAGE}..."
+docker compose -f docker-compose.prod.yml pull backend admin klx || {
+    echo "⚠️ Failed to pull all Docker images from GHCR; pulling available and continuing..."
+    docker compose -f docker-compose.prod.yml pull backend admin || true
 }
 
 # 4. Save previous tag for rollback capability

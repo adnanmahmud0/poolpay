@@ -37,7 +37,7 @@ export async function POST(request: Request, context: { params: Promise<{ action
         email: z.string().email().optional(),
         password: z
           .string()
-          .min(12)
+          .min(8)
           .max(72)
           .refine(
             (value) => Buffer.byteLength(value, "utf8") <= 72,

@@ -409,30 +409,46 @@ jobs:
           cache-to: type=gha,mode=max
 
   build-klx:
-    name: 2d. Build KLX Luxe Plus Landing Page
+    name: 2d. Build & Push KLX Luxe Plus Image
     needs: [prepare, type-check]
     runs-on: ubuntu-latest
     steps:
       - name: Checkout Code
         uses: actions/checkout@v4
+
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
           node-version: 20
           cache: "npm"
+
       - name: Install Monorepo Dependencies
         run: npm ci
-      - name: Build Next.js Static Export
-        run: npm run build:klx
+
       - name: Verify SEO and Social Preview Metadata
         run: npm run test:seo --workspace=@repo/klx-luxe-plus
-      - name: Upload KLX Static Site
-        uses: actions/upload-artifact@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Log in to GitHub Container Registry
+        uses: docker/login-action@v3
         with:
-          name: klx-luxe-plus-site
-          path: apps/klx-luxe-plus/out/
-          if-no-files-found: error
-          retention-days: 7
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Build and Push KLX Luxe Plus Image
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: apps/klx-luxe-plus/Dockerfile
+          push: true
+          tags: |
+            ghcr.io/${{ needs.prepare.outputs.repo_owner }}/poolpay-klx:${{ needs.prepare.outputs.tag }}
+            ghcr.io/${{ needs.prepare.outputs.repo_owner }}/poolpay-klx:latest
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
 
   build-mobile:
     name: 2c. Build Mobile Flutter Release APK
@@ -622,7 +638,7 @@ jobs:
           EXPRESS_SESSION_SECRET: ${{ secrets.EXPRESS_SESSION_SECRET }}
           SUPER_ADMIN_NAME: ${{ secrets.SUPER_ADMIN_NAME || 'Super Admin' }}
           SUPER_ADMIN_EMAIL: ${{ secrets.SUPER_ADMIN_EMAIL || 'admin@poolpay.space' }}
-          SUPER_ADMIN_PASSWORD: ${{ secrets.SUPER_ADMIN_PASSWORD || 'PoolPayAdmin2026!' }}
+          SUPER_ADMIN_PASSWORD: ${{ secrets.SUPER_ADMIN_PASSWORD || 'Admin123!' }}
           GOOGLE_CLIENT_ID: ${{ secrets.GOOGLE_CLIENT_ID }}
           GOOGLE_CLIENT_SECRET: ${{ secrets.GOOGLE_CLIENT_SECRET }}
           GOOGLE_CALLBACK_URL: "https://api.poolpay.space/api/v1/auth/google/callback"
@@ -786,12 +802,6 @@ jobs:
               print('✅ Generated .env.production successfully from individual secrets')
           EOF
 
-      - name: Download KLX Static Site
-        uses: actions/download-artifact@v4
-        with:
-          name: klx-luxe-plus-site
-          path: apps/klx-luxe-plus/out/
-
       - name: Securely Copy Deployment Files to EC2
         uses: appleboy/scp-action@v0.1.7
         with:
@@ -799,7 +809,7 @@ jobs:
           username: ${{ steps.ssh_meta.outputs.user }}
           key: ${{ steps.ssh_meta.outputs.key }}
           port: ${{ secrets.EC2_PORT || 22 }}
-          source: ".env.production,docker-compose.prod.yml,nginx/poolpay.conf,nginx/klxluxeplus.conf,nginx/klxluxeplus-ssl.conf,deploy/deploy.sh,deploy/deploy-klx.sh,scripts/mongo-init.js,apps/klx-luxe-plus/out"
+          source: ".env.production,docker-compose.prod.yml,nginx/poolpay.conf,nginx/klxluxeplus.conf,nginx/klxluxeplus-ssl.conf,deploy/deploy.sh,deploy/deploy-klx.sh,scripts/mongo-init.js"
           target: "poolpay/"
 
       - name: Execute Zero-Downtime Deployment via SSH

@@ -57,7 +57,7 @@ export function Login({ setup, next }: { setup?: string; next?: string }) {
                 name="email"
                 type="email"
                 required
-                defaultValue="support@poolpay.space"
+                defaultValue="admin@poolpay.space"
                 autoComplete="username"
                 className="klx-input mt-2"
               />
@@ -69,13 +69,13 @@ export function Login({ setup, next }: { setup?: string; next?: string }) {
               name="password"
               type="password"
               required
-              minLength={12}
+              minLength={8}
               maxLength={72}
               autoComplete={setup ? "new-password" : "current-password"}
               className="klx-input mt-2"
             />
           </label>
-          <p className="text-xs text-slate-500">Use at least 12 characters.</p>
+          <p className="text-xs text-slate-500">Use at least 8 characters.</p>
           {error && (
             <p role="alert" className="text-sm text-red-700">
               {error}
