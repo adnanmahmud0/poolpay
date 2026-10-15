@@ -7,6 +7,7 @@ import { COLLECTIONS, getDb } from "./db/client";
 import { enqueueOutbox, getSettings, logAudit } from "./db/repositories";
 import type { KlxAppointment, KlxService } from "./db/types";
 import { HttpError } from "./http";
+import { processOutbox } from "./mail";
 import { queueIntents, type NotificationIntent } from "./notifications";
 import { appointmentSchema, appointmentUpdateSchema } from "./validation";
 
@@ -206,6 +207,7 @@ export async function requestAppointment(input: unknown) {
   }
   // A durable intent survives interruption between saving the request and creating its email jobs.
   await queueIntents(COLLECTIONS.APPOINTMENTS, id).catch(() => undefined);
+  void processOutbox().catch(() => undefined);
   return appointmentResult(appointment);
 }
 export async function manageAppointment(input: unknown, actorEmail: string) {
@@ -236,20 +238,18 @@ export async function manageAppointment(input: unknown, actorEmail: string) {
     throw new HttpError(400, "Choose a quarter-hour time.");
   const slots = reserving ? occupiedSlots(startsAt, appointment.durationMinutes) : [];
   try {
-    await db
-      .collection(COLLECTIONS.APPOINTMENTS)
-      .updateOne(
-        { id: data.id },
-        {
-          $set: {
-            ...data,
-            startsAt,
-            updatedAt: new Date(),
-            ...(reserving ? { occupiedSlots: slots } : {})
-          },
-          ...(!reserving ? { $unset: { occupiedSlots: "" } } : {})
-        }
-      );
+    await db.collection(COLLECTIONS.APPOINTMENTS).updateOne(
+      { id: data.id },
+      {
+        $set: {
+          ...data,
+          startsAt,
+          updatedAt: new Date(),
+          ...(reserving ? { occupiedSlots: slots } : {})
+        },
+        ...(!reserving ? { $unset: { occupiedSlots: "" } } : {})
+      }
+    );
   } catch (error) {
     if (error instanceof Error && "code" in error && error.code === 11000)
       throw new HttpError(409, "This time overlaps a confirmed appointment.");
@@ -270,5 +270,6 @@ export async function manageAppointment(input: unknown, actorEmail: string) {
       bodyHtml: "",
       bodyText: `Your appointment for ${appointment.serviceName} is ${data.status}.\n${data.requestedDate} ${data.requestedTimeSlot} ${appointment.timezone}\n${data.status === "declined" ? `Reason: ${data.rejectionReason}\n` : ""}Contact support@poolpay.space with questions.`
     });
+  void processOutbox().catch(() => undefined);
   return { ok: true };
 }

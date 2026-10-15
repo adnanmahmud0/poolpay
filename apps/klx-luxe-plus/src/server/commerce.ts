@@ -8,6 +8,7 @@ import { COLLECTIONS, getDb } from "./db/client";
 import { enqueueOutbox, getSettings, logAudit } from "./db/repositories";
 import type { KlxPayment, KlxQuote, KlxRefund } from "./db/types";
 import { HttpError } from "./http";
+import { processOutbox } from "./mail";
 import { queueIntents, type NotificationIntent } from "./notifications";
 import { quoteSchema } from "./validation";
 
@@ -86,6 +87,7 @@ export async function createPaymentRequest(input: unknown, actorEmail: string) {
       { upsert: true }
     );
   await queueIntents(COLLECTIONS.QUOTES, id).catch(() => undefined);
+  void processOutbox().catch(() => undefined);
   await logAudit({
     actorEmail,
     action: "PAYMENT_REQUEST_CREATED",
@@ -234,7 +236,7 @@ export async function syncSession(session: Stripe.Checkout.Session) {
       { $set: { status: { $cond: [{ $eq: ["$balanceCents", 0] }, "fully_paid", "deposit_paid"] } } }
     ]);
   const settings = await getSettings();
-  if (settings.notificationSettings.emailOnPayment)
+  if (settings.notificationSettings.emailOnPayment) {
     await enqueueOutbox(
       {
         type: "payment_received",
@@ -245,6 +247,8 @@ export async function syncSession(session: Stripe.Checkout.Session) {
       },
       `payment-${payment.id}-customer`
     );
+    void processOutbox().catch(() => undefined);
+  }
 }
 export async function syncRefunds(payment: KlxPayment) {
   if (!payment.stripePaymentIntentId || payment.mode !== env.KLX_STRIPE_MODE) return;
@@ -421,5 +425,6 @@ export async function refundPayment(
     bodyHtml: "",
     bodyText: `A refund of ${(amount / 100).toFixed(2)} ${payment.currency.toUpperCase()} was requested to your original payment method. Status: ${refund.status}. Bank processing times vary.`
   });
+  void processOutbox().catch(() => undefined);
   return { ok: true };
 }

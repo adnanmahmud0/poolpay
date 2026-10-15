@@ -6,6 +6,7 @@ import { COLLECTIONS, getDb } from "./db/client";
 import { enqueueOutbox, logAudit } from "./db/repositories";
 import type { KlxQuote } from "./db/types";
 import { HttpError } from "./http";
+import { processOutbox } from "./mail";
 
 export async function sendOrderLink(quote: KlxQuote, notificationId: string) {
   await enqueueOutbox(
@@ -18,6 +19,7 @@ export async function sendOrderLink(quote: KlxQuote, notificationId: string) {
     },
     notificationId
   );
+  void processOutbox().catch(() => undefined);
 }
 
 export async function requestOrderLink(reference: string, email: string) {
@@ -54,18 +56,16 @@ export async function manageOrder(id: string, action: "resend" | "cancel", actor
       );
     // Never cancel once checkout has started: a customer may be paying at Stripe.
     // Claim the quote first; checkout also requires an active status.
-    const cancelled = await db
-      .collection<KlxQuote>(COLLECTIONS.QUOTES)
-      .findOneAndUpdate(
-        {
-          id,
-          status: "pending",
-          balanceCents: quote.amountCents,
-          checkoutStartedAt: { $exists: false },
-          checkoutUntil: { $exists: false }
-        },
-        { $set: { status: "cancelled", updatedAt: new Date() } }
-      );
+    const cancelled = await db.collection<KlxQuote>(COLLECTIONS.QUOTES).findOneAndUpdate(
+      {
+        id,
+        status: "pending",
+        balanceCents: quote.amountCents,
+        checkoutStartedAt: { $exists: false },
+        checkoutUntil: { $exists: false }
+      },
+      { $set: { status: "cancelled", updatedAt: new Date() } }
+    );
     if (!cancelled)
       throw new HttpError(
         409,

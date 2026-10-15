@@ -5,6 +5,7 @@ import { env } from "@/env";
 import { COLLECTIONS, getDb } from "./db/client";
 import type { KlxQuote } from "./db/types";
 import { digest, HttpError } from "./http";
+import { processOutbox } from "./mail";
 import { queueIntents, type NotificationIntent } from "./notifications";
 
 interface Challenge {
@@ -43,6 +44,7 @@ export async function requestCustomerCode(email: string) {
     notificationIntents: [intent]
   });
   await queueIntents("klx_customer_otp", id);
+  void processOutbox().catch(() => undefined);
   return {
     challengeId: id,
     message: "A verification code has been queued for your email. Check your inbox and spam folder."
@@ -59,14 +61,12 @@ export async function verifyCustomerCode(id: string, code: string) {
     );
   if (!challenge || challenge.codeHash !== digest(`${id}:${code}`))
     throw new HttpError(400, "Invalid or expired code. Request a new code if needed.");
-  const consumed = await db
-    .collection<Challenge>("klx_customer_otp")
-    .findOneAndDelete({
-      id,
-      codeHash: challenge.codeHash,
-      expiresAt: { $gt: new Date() },
-      attempts: { $lte: 5 }
-    });
+  const consumed = await db.collection<Challenge>("klx_customer_otp").findOneAndDelete({
+    id,
+    codeHash: challenge.codeHash,
+    expiresAt: { $gt: new Date() },
+    attempts: { $lte: 5 }
+  });
   if (!consumed) throw new HttpError(400, "This code has already been used or expired.");
   const token = randomBytes(32).toString("hex");
   const expiresAt = new Date(Date.now() + 30 * 60000);
