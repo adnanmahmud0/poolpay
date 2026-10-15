@@ -244,11 +244,12 @@ export async function POST(request: Request, context: { params: Promise<{ resour
     }
     if (resource === "seed-advertisements") {
       for (const ad of DEFAULT_ADVERTISEMENTS) {
+        const { createdAt, ...rest } = ad;
         await db.collection(COLLECTIONS.ADVERTISEMENTS).updateOne(
           { id: ad.id },
           {
-            $set: { ...ad, updatedAt: new Date() },
-            $setOnInsert: { createdAt: new Date() }
+            $set: { ...rest, updatedAt: new Date() },
+            $setOnInsert: { createdAt: createdAt || new Date() }
           },
           { upsert: true }
         );
