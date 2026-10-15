@@ -1,5 +1,5 @@
 import { randomUUID } from "node:crypto";
-import { mkdir, writeFile } from "node:fs/promises";
+import { mkdir, unlink, writeFile } from "node:fs/promises";
 import { resolve } from "node:path";
 
 import sharp from "sharp";
@@ -8,6 +8,7 @@ import { z } from "zod";
 import { env } from "@/env";
 
 import { COLLECTIONS, getDb } from "@/server/db/client";
+import { logAudit } from "@/server/db/repositories";
 import { handle, HttpError, requireAdmin } from "@/server/http";
 
 export const runtime = "nodejs";
@@ -65,5 +66,59 @@ export async function POST(request: Request) {
     };
     await (await getDb()).collection(COLLECTIONS.MEDIA).insertOne(item);
     return item;
+  });
+}
+
+export async function DELETE(request: Request) {
+  return handle(async () => {
+    const admin = await requireAdmin(request);
+    const url = new URL(request.url);
+    let id: string | null | undefined = url.searchParams.get("id");
+    if (!id) {
+      try {
+        const body = (await request.json()) as { id?: string };
+        id = body?.id;
+      } catch {
+        // no body
+      }
+    }
+    if (!id) {
+      throw new HttpError(400, "Media ID is required for deletion.");
+    }
+
+    const db = await getDb();
+    const media = await db.collection(COLLECTIONS.MEDIA).findOne({ id });
+    if (!media) {
+      throw new HttpError(404, "Media not found.");
+    }
+
+    // Explicit requirement: Delete physical media file from disk
+    const filename = media.filename || media.url?.replace(/^\/media\//, "");
+    if (filename) {
+      try {
+        const filePath = resolve(env.KLX_MEDIA_DIR, filename);
+        await unlink(filePath);
+      } catch (err: unknown) {
+        const error = err as NodeJS.ErrnoException;
+        if (error.code !== "ENOENT") {
+          console.error("Failed to delete physical media file from disk:", error);
+        }
+      }
+    }
+
+    await db.collection(COLLECTIONS.MEDIA).deleteOne({ id });
+
+    await logAudit({
+      actorEmail: admin.email,
+      action: "MEDIA_DELETED",
+      entityType: "media",
+      entityId: id,
+      details: {
+        filename,
+        originalName: media.originalName
+      }
+    });
+
+    return { ok: true, id };
   });
 }

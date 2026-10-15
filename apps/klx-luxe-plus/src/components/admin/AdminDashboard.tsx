@@ -26,7 +26,8 @@ import {
   Plus,
   ReceiptText,
   Settings,
-  Smartphone
+  Smartphone,
+  Trash2
 } from "lucide-react";
 
 import { BorderBeam, Button } from "@repo/ui";
@@ -160,6 +161,30 @@ export function AdminDashboard({
       await action(resource, payload);
     } catch (e) {
       setError(e instanceof Error ? e.message : "Action failed.");
+    }
+  }
+
+  async function deleteItem(resource: string, id: string, name?: string) {
+    if (
+      !window.confirm(
+        `Are you sure you want to permanently delete ${name || "this item"}? This action cannot be undone.`
+      )
+    ) {
+      return;
+    }
+    setError("");
+    try {
+      const response = await fetch(`/api/admin/${resource}?id=${encodeURIComponent(id)}`, {
+        method: "DELETE",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ id })
+      });
+      const result = await response.json();
+      if (!response.ok) throw new Error(result.error || "Failed to delete item.");
+      setNotice(name ? `Deleted ${name}.` : "Item deleted successfully.");
+      await load();
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Deletion failed.");
     }
   }
 
@@ -634,6 +659,14 @@ export function AdminDashboard({
                               </>
                             )}
                           </Button>
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            className="border-red-200 text-red-600 hover:border-red-300 hover:bg-red-50 hover:text-red-700"
+                            onClick={() => deleteItem("services", s.id, `service "${s.name}"`)}
+                          >
+                            <Trash2 className="size-3.5" /> Delete
+                          </Button>
                         </div>
 
                         {s.serviceId === "transport" && <BorderBeam duration={12} size={150} />}
@@ -737,39 +770,55 @@ export function AdminDashboard({
                             </p>
                           )}
                         </div>
-                        <Button
-                          variant="outline"
-                          onClick={() =>
-                            edit(
-                              "Manage appointment",
-                              {
-                                id: a.id,
-                                status: a.status,
-                                requestedDate: a.requestedDate,
-                                requestedTimeSlot: a.requestedTimeSlot,
-                                adminNotes: a.adminNotes || "",
-                                rejectionReason: a.rejectionReason || ""
-                              },
-                              "appointments"
-                            )
-                          }
-                        >
-                          Manage
-                        </Button>
-                        {a.status === "requested" && (
-                          <div className="flex gap-2">
-                            <Button size="sm" onClick={() => reviewAppointment(a, "confirmed")}>
-                              Accept
-                            </Button>
-                            <Button
-                              size="sm"
-                              variant="outline"
-                              onClick={() => reviewAppointment(a, "declined")}
-                            >
-                              Reject
-                            </Button>
-                          </div>
-                        )}
+                        <div className="flex flex-wrap items-center gap-2">
+                          <Button
+                            variant="outline"
+                            onClick={() =>
+                              edit(
+                                "Manage appointment",
+                                {
+                                  id: a.id,
+                                  status: a.status,
+                                  requestedDate: a.requestedDate,
+                                  requestedTimeSlot: a.requestedTimeSlot,
+                                  adminNotes: a.adminNotes || "",
+                                  rejectionReason: a.rejectionReason || ""
+                                },
+                                "appointments"
+                              )
+                            }
+                          >
+                            Manage
+                          </Button>
+                          {a.status === "requested" && (
+                            <div className="flex gap-2">
+                              <Button size="sm" onClick={() => reviewAppointment(a, "confirmed")}>
+                                Accept
+                              </Button>
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                onClick={() => reviewAppointment(a, "declined")}
+                              >
+                                Reject
+                              </Button>
+                            </div>
+                          )}
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            className="border-red-200 text-red-600 hover:border-red-300 hover:bg-red-50 hover:text-red-700"
+                            onClick={() =>
+                              deleteItem(
+                                "appointments",
+                                a.id,
+                                `appointment ${a.reference} (${a.customerName})`
+                              )
+                            }
+                          >
+                            <Trash2 className="size-3.5" /> Delete
+                          </Button>
+                        </div>
                       </div>
                     ))}
                   {!data.appointments.length && (
@@ -835,33 +884,45 @@ export function AdminDashboard({
                       >
                         Open customer payment link
                       </Link>
-                      {["pending", "deposit_paid"].includes(q.status) && (
-                        <div className="mt-4 flex flex-wrap gap-3">
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            onClick={() => run("orders", { id: q.id, action: "resend" })}
-                          >
-                            Resend payment email
-                          </Button>
-                          {q.status === "pending" && !q.checkoutStartedAt && !q.checkoutUntil && (
+                      <div className="mt-4 flex flex-wrap items-center gap-3">
+                        {["pending", "deposit_paid"].includes(q.status) && (
+                          <>
                             <Button
                               variant="outline"
                               size="sm"
-                              onClick={() => {
-                                if (
-                                  window.confirm(
-                                    `Cancel unpaid order ${q.quoteNumber}? Its payment link will stop working.`
-                                  )
-                                )
-                                  void run("orders", { id: q.id, action: "cancel" });
-                              }}
+                              onClick={() => run("orders", { id: q.id, action: "resend" })}
                             >
-                              Cancel unpaid order
+                              Resend payment email
                             </Button>
-                          )}
-                        </div>
-                      )}
+                            {q.status === "pending" && !q.checkoutStartedAt && !q.checkoutUntil && (
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                onClick={() => {
+                                  if (
+                                    window.confirm(
+                                      `Cancel unpaid order ${q.quoteNumber}? Its payment link will stop working.`
+                                    )
+                                  )
+                                    void run("orders", { id: q.id, action: "cancel" });
+                                }}
+                              >
+                                Cancel unpaid order
+                              </Button>
+                            )}
+                          </>
+                        )}
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          className="border-red-200 text-red-600 hover:border-red-300 hover:bg-red-50 hover:text-red-700"
+                          onClick={() =>
+                            deleteItem("quotes", q.id, `order ${q.quoteNumber} (${q.customerName})`)
+                          }
+                        >
+                          <Trash2 className="size-3.5" /> Delete order
+                        </Button>
+                      </div>
                     </div>
                   ))}
                 </div>
@@ -875,34 +936,46 @@ export function AdminDashboard({
                       <p className="mt-3 text-xs text-slate-500">
                         {p.customerEmail} · {p.mode} · Refunded {formatMoney(p.refundedAmountCents)}
                       </p>
-                      {["paid", "partially_refunded"].includes(p.status) && (
+                      <div className="mt-5 flex flex-wrap items-center gap-3">
+                        {["paid", "partially_refunded"].includes(p.status) && (
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => {
+                              const operationId = p.refundOperation || crypto.randomUUID();
+                              setEditor({
+                                title: "Review refund to original payment method",
+                                initial: {
+                                  amountCents:
+                                    p.reservedRefundCents || p.amountCents - p.refundedAmountCents,
+                                  reason: "Requested by customer"
+                                },
+                                save: async (value) => {
+                                  if (!window.confirm("Issue this refund through Stripe?"))
+                                    throw new Error("Refund cancelled.");
+                                  await action("refunds", {
+                                    ...(value as object),
+                                    id: p.id,
+                                    operationId
+                                  });
+                                }
+                              });
+                            }}
+                          >
+                            Full / partial refund
+                          </Button>
+                        )}
                         <Button
                           variant="outline"
-                          className="mt-5"
-                          onClick={() => {
-                            const operationId = p.refundOperation || crypto.randomUUID();
-                            setEditor({
-                              title: "Review refund to original payment method",
-                              initial: {
-                                amountCents:
-                                  p.reservedRefundCents || p.amountCents - p.refundedAmountCents,
-                                reason: "Requested by customer"
-                              },
-                              save: async (value) => {
-                                if (!window.confirm("Issue this refund through Stripe?"))
-                                  throw new Error("Refund cancelled.");
-                                await action("refunds", {
-                                  ...(value as object),
-                                  id: p.id,
-                                  operationId
-                                });
-                              }
-                            });
-                          }}
+                          size="sm"
+                          className="border-red-200 text-red-600 hover:border-red-300 hover:bg-red-50 hover:text-red-700"
+                          onClick={() =>
+                            deleteItem("payments", p.id, `payment record ${p.id.slice(0, 8)}...`)
+                          }
                         >
-                          Full / partial refund
+                          <Trash2 className="size-3.5" /> Delete record
                         </Button>
-                      )}
+                      </div>
                     </div>
                   ))}
                 </div>
@@ -950,12 +1023,25 @@ export function AdminDashboard({
                           {ad.placement} · {ad.isActive ? "Active" : "Inactive"}
                         </p>
                       </div>
-                      <Button
-                        variant="outline"
-                        onClick={() => edit("Edit advertisement", ad, "advertisements")}
-                      >
-                        Edit
-                      </Button>
+                      <div className="flex items-center gap-2">
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => edit("Edit advertisement", ad, "advertisements")}
+                        >
+                          <Pencil className="size-3.5" /> Edit
+                        </Button>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          className="border-red-200 text-red-600 hover:border-red-300 hover:bg-red-50 hover:text-red-700"
+                          onClick={() =>
+                            deleteItem("advertisements", ad.id, `advertisement "${ad.title}"`)
+                          }
+                        >
+                          <Trash2 className="size-3.5" /> Delete
+                        </Button>
+                      </div>
                     </div>
                   ))}
                 </div>
@@ -963,7 +1049,7 @@ export function AdminDashboard({
             )}
             {section === "media" && (
               <>
-                <MediaGallery refreshKey={data.media[0]?.id || "empty"} />
+                <MediaGallery refreshKey={data.media[0]?.id || "empty"} onDeleted={load} />
                 <form
                   className="mb-7 rounded-2xl border border-slate-200 bg-white p-7"
                   onSubmit={async (e) => {

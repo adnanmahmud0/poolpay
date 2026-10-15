@@ -239,3 +239,113 @@ export async function POST(request: Request, context: { params: Promise<{ resour
     throw new HttpError(404, "Unknown operation.");
   });
 }
+
+export async function DELETE(request: Request, context: { params: Promise<{ resource: string }> }) {
+  return handle(async () => {
+    const user = await requireAdmin(request);
+    const { resource } = await context.params;
+    const url = new URL(request.url);
+    let id: string | null | undefined = url.searchParams.get("id");
+    if (!id) {
+      try {
+        const body = (await request.json()) as { id?: string };
+        id = body?.id;
+      } catch {
+        // no body
+      }
+    }
+    if (!id) throw new HttpError(400, "Item ID is required for deletion.");
+
+    const db = await getDb();
+
+    if (resource === "services") {
+      const result = await db.collection(COLLECTIONS.SERVICES).deleteOne({
+        $or: [{ id }, { serviceId: id }]
+      });
+      if (result.deletedCount === 0) throw new HttpError(404, "Service not found.");
+      await logAudit({
+        actorEmail: user.email,
+        action: "SERVICE_DELETED",
+        entityType: "service",
+        entityId: id,
+        details: {}
+      });
+      return { ok: true, id };
+    }
+
+    if (resource === "appointments") {
+      const result = await db.collection(COLLECTIONS.APPOINTMENTS).deleteOne({
+        $or: [{ id }, { reference: id }]
+      });
+      if (result.deletedCount === 0) throw new HttpError(404, "Appointment not found.");
+      await logAudit({
+        actorEmail: user.email,
+        action: "APPOINTMENT_DELETED",
+        entityType: "appointment",
+        entityId: id,
+        details: {}
+      });
+      return { ok: true, id };
+    }
+
+    if (resource === "advertisements") {
+      const result = await db.collection(COLLECTIONS.ADVERTISEMENTS).deleteOne({ id });
+      if (result.deletedCount === 0) throw new HttpError(404, "Advertisement not found.");
+      await logAudit({
+        actorEmail: user.email,
+        action: "AD_DELETED",
+        entityType: "advertisement",
+        entityId: id,
+        details: {}
+      });
+      return { ok: true, id };
+    }
+
+    if (resource === "quotes" || resource === "orders") {
+      const result = await db.collection(COLLECTIONS.QUOTES).deleteOne({
+        $or: [{ id }, { quoteNumber: id }]
+      });
+      if (result.deletedCount === 0) throw new HttpError(404, "Order not found.");
+      await logAudit({
+        actorEmail: user.email,
+        action: "ORDER_DELETED",
+        entityType: "quote",
+        entityId: id,
+        details: {}
+      });
+      return { ok: true, id };
+    }
+
+    if (resource === "payments") {
+      const result = await db.collection(COLLECTIONS.PAYMENTS).deleteOne({
+        $or: [{ id }, { stripePaymentIntentId: id }, { stripeSessionId: id }]
+      });
+      if (result.deletedCount === 0) throw new HttpError(404, "Payment record not found.");
+      await logAudit({
+        actorEmail: user.email,
+        action: "PAYMENT_DELETED",
+        entityType: "payment",
+        entityId: id,
+        details: {}
+      });
+      return { ok: true, id };
+    }
+
+    if (resource === "refunds") {
+      if (user.role !== "owner")
+        throw new HttpError(403, "Owner permission is required to delete refund records.");
+      const result = await db.collection(COLLECTIONS.REFUNDS).deleteOne({ id });
+      if (result.deletedCount === 0) throw new HttpError(404, "Refund record not found.");
+      await logAudit({
+        actorEmail: user.email,
+        action: "REFUND_DELETED",
+        entityType: "refund",
+        entityId: id,
+        details: {}
+      });
+      return { ok: true, id };
+    }
+
+    throw new HttpError(404, "Unknown resource for deletion.");
+  });
+}
