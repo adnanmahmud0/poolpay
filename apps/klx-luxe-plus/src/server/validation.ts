@@ -82,6 +82,7 @@ export const appointmentUpdateSchema = z.object({
   status: z.enum(["requested", "confirmed", "rescheduled", "cancelled", "declined", "completed"]),
   requestedDate: dateString,
   requestedTimeSlot: z.string().regex(/^([01]\d|2[0-3]):[0-5]\d$/),
+  durationMinutes: z.coerce.number().int().min(15).max(1440).optional(),
   adminNotes: z.string().max(2000).default(""),
   rejectionReason: z.string().trim().max(1000).default("")
 });

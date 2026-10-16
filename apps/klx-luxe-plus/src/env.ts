@@ -23,7 +23,10 @@ const schema = z.object({
   KLX_OWNER_PASSWORD: z.string().optional(),
   SUPER_ADMIN_EMAIL: z.string().email().optional(),
   SUPER_ADMIN_PASSWORD: z.string().optional(),
-  KLX_SUPPORT_EMAIL: z.string().email().default("support@poolpay.space"),
+  KLX_SUPPORT_EMAIL: z
+    .string()
+    .email()
+    .default(process.env.KLX_SUPPORT_EMAIL || process.env.CONTACT_EMAIL || "support@poolpay.space"),
   KLX_PHONE: z.string().default("+1 (607) 900-4569"),
   KLX_TIMEZONE: z.string().default("America/New_York"),
   KLX_CURRENCY: z.string().default("usd"),
@@ -44,12 +47,18 @@ const schema = z.object({
   STRIPE_LIVE_WEBHOOK_SECRET: z.string().optional(),
   KLX_JOB_SECRET: z.string().optional(),
   KLX_MEDIA_DIR: z.string().default(".klx-media"),
+  KLX_EMAIL_PROVIDER: z.enum(["smtp", "resend"]).optional(),
+  EMAIL_PROVIDER: z.string().optional(),
   RESEND_API_KEY: z.string().optional(),
   SMTP_HOST: z.string().optional(),
   SMTP_PORT: z.coerce.number().default(587),
   SMTP_USER: z.string().optional(),
   SMTP_PASS: z.string().optional(),
-  KLX_EMAIL_FROM: z.string().email().default("support@poolpay.space")
+  KLX_EMAIL_FROM: z
+    .string()
+    .email()
+    .default(process.env.KLX_EMAIL_FROM || process.env.CONTACT_EMAIL || "support@poolpay.space"),
+  CONTACT_EMAIL: z.string().email().optional()
 });
 export const env = schema.parse(process.env);
 export function getOwnerCredentials() {

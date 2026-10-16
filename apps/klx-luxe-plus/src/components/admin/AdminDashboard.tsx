@@ -124,6 +124,14 @@ export function AdminDashboard({
     "all" | "active" | "after_hero" | "after_services" | "inactive"
   >("all");
   const [adSearch, setAdSearch] = useState("");
+  const [activeDecision, setActiveDecision] = useState<{
+    id: string;
+    status: "confirmed" | "declined";
+  } | null>(appointmentDecision || null);
+  const [decisionDuration, setDecisionDuration] = useState<number>(60);
+  const [decisionNotes, setDecisionNotes] = useState<string>("");
+  const [decisionReason, setDecisionReason] = useState<string>("");
+  const [decisionBusy, setDecisionBusy] = useState(false);
   const [editor, setEditor] = useState<{
     title: string;
     initial: unknown;
@@ -224,18 +232,61 @@ export function AdminDashboard({
   }
 
   function reviewAppointment(appointment: KlxAppointment, status = appointment.status) {
+    if (status === "confirmed" || status === "declined") {
+      setActiveDecision({ id: appointment.id, status });
+      setDecisionDuration(appointment.durationMinutes || 60);
+      setDecisionNotes(appointment.adminNotes || "");
+      setDecisionReason(appointment.rejectionReason || "");
+      if (typeof window !== "undefined") {
+        window.scrollTo({ top: 0, behavior: "smooth" });
+      }
+      return;
+    }
     edit(
-      status === "declined" ? "Reject appointment — reason required" : "Review appointment",
+      "Manage appointment",
       {
         id: appointment.id,
         status,
         requestedDate: appointment.requestedDate,
         requestedTimeSlot: appointment.requestedTimeSlot,
+        durationMinutes: appointment.durationMinutes || 60,
         adminNotes: appointment.adminNotes || "",
         rejectionReason: appointment.rejectionReason || ""
       },
       "appointments"
     );
+  }
+
+  async function submitDecision(appointment: KlxAppointment, status: "confirmed" | "declined") {
+    setDecisionBusy(true);
+    setError("");
+    try {
+      if (status === "declined" && !decisionReason.trim()) {
+        throw new Error("Please enter a reason for rejecting this appointment.");
+      }
+      await action("appointments", {
+        id: appointment.id,
+        status,
+        requestedDate: appointment.requestedDate,
+        requestedTimeSlot: appointment.requestedTimeSlot,
+        durationMinutes: status === "confirmed" ? decisionDuration : undefined,
+        adminNotes: decisionNotes,
+        rejectionReason: status === "declined" ? decisionReason.trim() : ""
+      });
+      setNotice(
+        status === "confirmed"
+          ? `Appointment ${appointment.reference} confirmed! ${decisionDuration} minutes blocked on calendar and confirmation email sent to ${appointment.customerEmail}.`
+          : `Appointment ${appointment.reference} declined. Time slot released and notification email sent to ${appointment.customerEmail}.`
+      );
+      setActiveDecision(null);
+      setDecisionNotes("");
+      setDecisionReason("");
+      router.replace("/admin/appointments");
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Failed to process appointment.");
+    } finally {
+      setDecisionBusy(false);
+    }
   }
 
   return (
@@ -717,30 +768,179 @@ export function AdminDashboard({
                     Set working hours & off days
                   </Button>
                 </div>
-                {appointmentDecision &&
+                {activeDecision &&
                   (() => {
                     const appointment = data.appointments.find(
-                      (item) => item.id === appointmentDecision.id
+                      (item) => item.id === activeDecision.id
                     );
-                    return appointment ? (
-                      <div className="mb-6 rounded-2xl border border-sky-200 bg-sky-50 p-5">
-                        <p className="mb-3 text-sm">
-                          Email action: {appointment.customerName} · {appointment.reference}. Review
-                          before submitting.
-                        </p>
-                        <Button
-                          onClick={() => reviewAppointment(appointment, appointmentDecision.status)}
-                        >
-                          {appointmentDecision.status === "confirmed"
-                            ? "Review acceptance"
-                            : "Enter rejection reason"}
-                        </Button>
+                    if (!appointment) {
+                      return (
+                        <div className="mb-6 rounded-2xl border border-slate-200 bg-white p-5">
+                          <p className="text-sm text-slate-600">
+                            The requested appointment was not found in recent records. Please filter
+                            by its reference code below.
+                          </p>
+                        </div>
+                      );
+                    }
+                    const isApprove = activeDecision.status === "confirmed";
+
+                    return (
+                      <div
+                        className={`mb-8 overflow-hidden rounded-2xl border p-6 shadow-sm ${
+                          isApprove
+                            ? "border-emerald-300 bg-gradient-to-br from-emerald-50/90 via-teal-50/40 to-white"
+                            : "border-red-300 bg-gradient-to-br from-red-50/90 via-rose-50/40 to-white"
+                        }`}
+                      >
+                        <div className="flex flex-wrap items-center justify-between gap-4 border-b border-slate-200/80 pb-4">
+                          <div>
+                            <div className="flex items-center gap-2">
+                              <span
+                                className={`inline-block rounded-full px-2.5 py-0.5 text-xs font-bold tracking-wider uppercase ${
+                                  isApprove ? "bg-emerald-600 text-white" : "bg-red-600 text-white"
+                                }`}
+                              >
+                                {isApprove
+                                  ? "✓ Approve & Schedule Booking"
+                                  : "✕ Decline Appointment"}
+                              </span>
+                              <span className="font-mono text-xs font-semibold text-slate-500">
+                                {appointment.reference}
+                              </span>
+                            </div>
+                            <h3 className="mt-1.5 text-lg font-bold text-slate-900">
+                              {appointment.customerName} · {appointment.serviceName}
+                            </h3>
+                            <p className="mt-0.5 text-sm text-slate-600">
+                              Requested:{" "}
+                              <strong className="text-slate-900">
+                                {appointment.requestedDate} at{" "}
+                                {timeLabel(appointment.requestedTimeSlot)}
+                              </strong>{" "}
+                              ({appointment.timezone}) · {appointment.customerEmail} ·{" "}
+                              {appointment.customerPhone}
+                            </p>
+                          </div>
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => {
+                              setActiveDecision(null);
+                              router.replace("/admin/appointments");
+                            }}
+                          >
+                            Cancel
+                          </Button>
+                        </div>
+
+                        {isApprove ? (
+                          <div className="mt-5 space-y-4">
+                            <div className="grid gap-4 sm:grid-cols-2">
+                              <div>
+                                <label className="block text-xs font-bold tracking-wider text-slate-700 uppercase">
+                                  Appointment Duration (Time to Block)
+                                </label>
+                                <select
+                                  className="klx-input mt-1.5 w-full font-semibold"
+                                  value={decisionDuration}
+                                  onChange={(e) => setDecisionDuration(Number(e.target.value))}
+                                >
+                                  <option value={15}>15 Minutes</option>
+                                  <option value={30}>30 Minutes</option>
+                                  <option value={45}>45 Minutes</option>
+                                  <option value={60}>60 Minutes (1 Hour)</option>
+                                  <option value={90}>90 Minutes (1.5 Hours)</option>
+                                  <option value={120}>120 Minutes (2 Hours)</option>
+                                  <option value={180}>180 Minutes (3 Hours)</option>
+                                </select>
+                                <p className="mt-1 text-xs text-slate-500">
+                                  Reserves {decisionDuration} minutes on your schedule starting at{" "}
+                                  {timeLabel(appointment.requestedTimeSlot)}. Overlapping bookings
+                                  will be blocked.
+                                </p>
+                              </div>
+
+                              <div>
+                                <label className="block text-xs font-bold tracking-wider text-slate-700 uppercase">
+                                  Optional Client Note (Included in Email)
+                                </label>
+                                <input
+                                  type="text"
+                                  className="klx-input mt-1.5 w-full text-sm"
+                                  placeholder="e.g. We will contact you at this phone number directly"
+                                  value={decisionNotes}
+                                  onChange={(e) => setDecisionNotes(e.target.value)}
+                                />
+                              </div>
+                            </div>
+
+                            <div className="flex flex-wrap items-center gap-3 pt-2">
+                              <Button
+                                disabled={decisionBusy}
+                                className="bg-emerald-600 font-bold text-white hover:bg-emerald-700"
+                                onClick={() => submitDecision(appointment, "confirmed")}
+                              >
+                                {decisionBusy
+                                  ? "Confirming..."
+                                  : "✓ Confirm Appointment & Block Time"}
+                              </Button>
+                              <span className="text-xs text-slate-500">
+                                Sends confirmation email to {appointment.customerEmail} and updates
+                                availability.
+                              </span>
+                            </div>
+                          </div>
+                        ) : (
+                          <div className="mt-5 space-y-4">
+                            <div>
+                              <label className="block text-xs font-bold tracking-wider text-slate-700 uppercase">
+                                Reason for Declining (Sent in email to client)
+                              </label>
+                              <div className="mt-2 flex flex-wrap gap-2">
+                                {[
+                                  "Schedule conflict with existing booking",
+                                  "Outside of operational hours",
+                                  "Specialist unavailable at this time",
+                                  "Incomplete documentation provided"
+                                ].map((preset) => (
+                                  <button
+                                    key={preset}
+                                    type="button"
+                                    onClick={() => setDecisionReason(preset)}
+                                    className="rounded-lg border border-red-200 bg-white px-2.5 py-1 text-xs text-red-700 transition hover:bg-red-50"
+                                  >
+                                    + {preset}
+                                  </button>
+                                ))}
+                              </div>
+                              <textarea
+                                rows={2}
+                                className="klx-input mt-2 w-full text-sm"
+                                placeholder="State the reason so the client can select another time..."
+                                value={decisionReason}
+                                onChange={(e) => setDecisionReason(e.target.value)}
+                              />
+                            </div>
+
+                            <div className="flex flex-wrap items-center gap-3 pt-2">
+                              <Button
+                                disabled={decisionBusy || !decisionReason.trim()}
+                                className="bg-red-600 font-bold text-white hover:bg-red-700"
+                                onClick={() => submitDecision(appointment, "declined")}
+                              >
+                                {decisionBusy
+                                  ? "Processing..."
+                                  : "✕ Decline Request & Release Slot"}
+                              </Button>
+                              <span className="text-xs text-slate-500">
+                                Frees the time slot on your calendar and sends the client an
+                                explanation email.
+                              </span>
+                            </div>
+                          </div>
+                        )}
                       </div>
-                    ) : (
-                      <p className="mb-4 text-sm">
-                        This appointment is not in the recent list. Search its reference in the
-                        administration records.
-                      </p>
                     );
                   })()}
                 <AppointmentCalendar appointments={data.appointments} onSelect={setFilter} />

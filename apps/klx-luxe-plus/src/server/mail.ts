@@ -31,7 +31,28 @@ export async function processOutbox() {
       );
     if (!item) break;
     try {
-      if (env.RESEND_API_KEY) {
+      const useSmtp =
+        env.KLX_EMAIL_PROVIDER === "smtp" ||
+        env.EMAIL_PROVIDER === "smtp" ||
+        (Boolean(env.SMTP_HOST) && env.KLX_EMAIL_PROVIDER !== "resend");
+
+      if (useSmtp && env.SMTP_HOST) {
+        await nodemailer
+          .createTransport({
+            host: env.SMTP_HOST,
+            port: env.SMTP_PORT,
+            secure: env.SMTP_PORT === 465,
+            auth: env.SMTP_USER ? { user: env.SMTP_USER, pass: env.SMTP_PASS } : undefined
+          })
+          .sendMail({
+            from: env.KLX_EMAIL_FROM,
+            replyTo: env.KLX_SUPPORT_EMAIL,
+            to: item.recipient,
+            subject: item.subject,
+            text: item.bodyText,
+            ...(item.bodyHtml ? { html: item.bodyHtml } : {})
+          });
+      } else if (env.RESEND_API_KEY) {
         const response = await fetch("https://api.resend.com/emails", {
           method: "POST",
           headers: {
@@ -49,22 +70,6 @@ export async function processOutbox() {
           })
         });
         if (!response.ok) throw new Error("Email provider rejected message.");
-      } else if (env.SMTP_HOST) {
-        await nodemailer
-          .createTransport({
-            host: env.SMTP_HOST,
-            port: env.SMTP_PORT,
-            secure: env.SMTP_PORT === 465,
-            auth: env.SMTP_USER ? { user: env.SMTP_USER, pass: env.SMTP_PASS } : undefined
-          })
-          .sendMail({
-            from: env.KLX_EMAIL_FROM,
-            replyTo: env.KLX_SUPPORT_EMAIL,
-            to: item.recipient,
-            subject: item.subject,
-            text: item.bodyText,
-            ...(item.bodyHtml ? { html: item.bodyHtml } : {})
-          });
       } else throw new Error("Configure an email provider.");
       await db
         .collection(COLLECTIONS.OUTBOX)

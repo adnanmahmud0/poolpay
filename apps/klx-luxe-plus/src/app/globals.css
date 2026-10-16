@@ -47,6 +47,33 @@
     transform: translateY(-7px);
   }
 }
+@keyframes hero-zoom {
+  from {
+    transform: scale(1.04);
+  }
+  to {
+    transform: scale(1.14);
+  }
+}
+@keyframes fade-up {
+  from {
+    opacity: 0;
+    transform: translateY(28px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+@keyframes testimonial-glow {
+  0%,
+  100% {
+    box-shadow: 0 0 0 0 rgb(100 180 240 / 0%);
+  }
+  50% {
+    box-shadow: 0 0 40px 0 rgb(100 180 240 / 8%);
+  }
+}
 @keyframes accordion-down {
   from {
     height: 0;
@@ -147,7 +174,8 @@
   overflow: clip;
 }
 .section-shell {
-  width: min(1200px, calc(100% - 112px));
+  width: min(1280px, calc(100% - 48px));
+  max-width: 80rem;
   margin-inline: auto;
 }
 .eyebrow {
@@ -178,7 +206,8 @@
 }
 .header-inner {
   @apply mx-auto flex h-24 items-center justify-between gap-6;
-  width: min(1328px, calc(100% - 96px));
+  width: min(1280px, calc(100% - 48px));
+  max-width: 80rem;
 }
 .brand {
   @apply inline-flex shrink-0 items-center gap-3;
@@ -228,7 +257,8 @@
 }
 .hero {
   @apply relative isolate mx-auto overflow-hidden rounded-[22px] text-white;
-  width: min(1392px, calc(100% - 40px));
+  width: min(1280px, calc(100% - 48px));
+  max-width: 80rem;
   min-height: 700px;
   background: #101d2c;
 }
@@ -243,6 +273,10 @@
 .hero-photo {
   object-fit: cover;
   object-position: center;
+}
+.hero-photo-zoom {
+  animation: hero-zoom 22s ease-in-out infinite alternate both;
+  transform-origin: center center;
 }
 .hero-shade {
   z-index: -2;
@@ -341,6 +375,33 @@
 .hero-bottom {
   @apply absolute right-[60px] bottom-7 left-[60px] flex items-center justify-between border-t border-white/15 pt-5;
 }
+.hero-stat-widget {
+  @apply absolute top-12 right-12 flex items-center gap-5 overflow-hidden rounded-2xl border border-white/20 px-6 py-4;
+  background: rgb(10 22 36 / 60%);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+}
+.hero-stat-item {
+  @apply flex flex-col items-center gap-1;
+}
+.hero-stat-num {
+  font-family: var(--font-heading);
+  font-size: 22px;
+  font-weight: 700;
+  line-height: 1;
+  color: #ffffff;
+  letter-spacing: -0.04em;
+}
+.hero-stat-label {
+  font-size: 8px;
+  letter-spacing: 0.13em;
+  color: #9abdd6;
+}
+.hero-stat-divider {
+  width: 1px;
+  height: 32px;
+  background: rgb(255 255 255 / 15%);
+}
 .hero-bottom > a {
   @apply flex items-center gap-3;
   font-size: 8px;
@@ -361,7 +422,8 @@
 }
 .service-ribbon {
   @apply relative mx-auto mt-8 border-y border-slate-200/70 py-5 pr-12;
-  width: min(1392px, calc(100% - 40px));
+  width: min(1280px, calc(100% - 48px));
+  max-width: 80rem;
 }
 .ribbon-control {
   @apply bg-background absolute top-1/2 right-0 size-8 -translate-y-1/2 rounded-full border border-slate-200 text-slate-500;
@@ -409,12 +471,35 @@
   background: #f0f3f5;
   border-color: #e8edf0;
   transition:
-    border-color 0.3s,
-    box-shadow 0.3s;
+    border-color 0.35s,
+    box-shadow 0.35s,
+    transform 0.35s;
 }
 .service-card:hover {
   border-color: #b3ccde;
-  box-shadow: 0 8px 30px rgb(22 46 64 / 5%);
+  box-shadow: 0 16px 40px rgb(22 46 64 / 10%);
+  transform: translateY(-4px);
+}
+/* Cards with lifestyle photo get a top image section */
+.has-lifestyle-image {
+  background: #fff;
+  padding-top: 0;
+}
+.service-card-image-wrap {
+  @apply relative -mx-7 mb-6 overflow-hidden;
+  height: 180px;
+  margin-top: -1px;
+}
+.service-card-lifestyle-img {
+  @apply h-full w-full object-cover;
+  transition: transform 0.7s ease;
+}
+.service-card:hover .service-card-lifestyle-img {
+  transform: scale(1.06);
+}
+.service-card-image-shade {
+  @apply absolute inset-0;
+  background: linear-gradient(to bottom, transparent 40%, rgb(255 255 255 / 90%) 100%);
 }
 .service-card-top {
   @apply mb-8 flex items-center justify-between;
@@ -566,6 +651,45 @@
 .about-art {
   @apply relative flex aspect-square items-center justify-center;
 }
+/* New portrait photo styles */
+.about-photo-wrap {
+  @apply relative overflow-hidden rounded-3xl;
+  aspect-ratio: 4 / 3;
+}
+.about-portrait-img {
+  @apply h-full w-full object-cover;
+  transition: transform 0.8s ease;
+}
+.about-photo-wrap:hover .about-portrait-img {
+  transform: scale(1.04);
+}
+.about-portrait-badge {
+  @apply absolute bottom-6 left-6 flex items-center gap-3 rounded-full border border-white/30 px-4 py-2;
+  background: rgb(14 28 42 / 72%);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  font-size: 7px;
+  letter-spacing: 0.13em;
+  color: #c9dce9;
+}
+.about-portrait-services {
+  @apply absolute top-5 right-5 flex flex-wrap gap-2;
+  max-width: 180px;
+  justify-content: flex-end;
+}
+.about-service-chip {
+  @apply flex items-center gap-1.5 rounded-full border border-white/25 px-3 py-1.5;
+  background: rgb(12 24 38 / 65%);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  font-size: 8px;
+  letter-spacing: 0.08em;
+  color: #cfe3f2;
+}
+.about-service-chip svg {
+  @apply shrink-0;
+  color: #8ac9ed;
+}
 .orbit {
   @apply absolute rounded-full border;
   border-color: #d9e3e8;
@@ -702,6 +826,133 @@
   @apply ml-auto size-4 shrink-0 text-slate-400;
   stroke-width: 1;
 }
+/* ====================================================
+   TESTIMONIALS SECTION
+   ==================================================== */
+.testimonials-section {
+  @apply relative isolate overflow-hidden;
+  padding-block: 100px 110px;
+  background: #0b1d2e;
+}
+.testimonials-bg {
+  @apply absolute inset-0 -z-10 h-full w-full;
+  background-image: url("/images/testimonials-bg.jpg");
+  background-size: cover;
+  background-position: center;
+  opacity: 0.4;
+}
+.testimonials-overlay {
+  @apply absolute inset-0 -z-10;
+  background: linear-gradient(
+    135deg,
+    rgb(7 18 30 / 90%) 0%,
+    rgb(12 28 44 / 75%) 50%,
+    rgb(7 18 30 / 92%) 100%
+  );
+}
+.testimonials-header {
+  @apply mb-16 text-center;
+}
+.testimonials-eyebrow {
+  @apply mb-5 inline-flex items-center gap-3;
+  color: #8ac8e8;
+  font-size: 9px;
+}
+.testimonials-dot {
+  @apply inline-block size-1.5 rounded-full bg-sky-300;
+  box-shadow: 0 0 0 4px rgb(138 202 248 / 12%);
+  animation: pulse-dot 3s ease-in-out infinite;
+}
+.testimonials-heading {
+  color: #ffffff;
+  font-size: clamp(36px, 4vw, 54px);
+  line-height: 1.12;
+  letter-spacing: -0.05em;
+  font-weight: 600;
+}
+.testimonials-accent {
+  color: #7dc8ef;
+}
+.testimonials-grid {
+  @apply grid gap-6 md:grid-cols-3;
+}
+.testimonial-card {
+  @apply relative flex flex-col gap-5 overflow-hidden rounded-2xl border p-8;
+  border-color: rgb(255 255 255 / 10%);
+  background: rgb(255 255 255 / 5%);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  transition:
+    border-color 0.35s,
+    transform 0.35s,
+    box-shadow 0.35s;
+  animation: testimonial-glow 6s ease-in-out infinite;
+}
+.testimonial-card:hover {
+  border-color: rgb(100 180 240 / 30%);
+  transform: translateY(-5px);
+  box-shadow: 0 20px 50px rgb(0 0 0 / 30%);
+}
+.testimonial-quote-icon {
+  @apply size-7;
+  color: rgb(100 180 240 / 40%);
+  stroke-width: 1;
+}
+.testimonial-stars {
+  @apply flex gap-1;
+}
+.testimonial-star {
+  @apply size-3.5;
+  color: #f5c842;
+  fill: #f5c842;
+}
+.testimonial-text {
+  @apply flex-1 text-[13px] leading-7;
+  color: #c2d8e8;
+}
+.testimonial-author {
+  @apply mt-4 flex items-center gap-3 border-t border-white/10 pt-5;
+}
+.testimonial-avatar {
+  @apply flex size-10 shrink-0 items-center justify-center rounded-full;
+  background: linear-gradient(135deg, #2a6493, #1a3d5c);
+  color: #cde8f8;
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.03em;
+}
+.testimonial-name {
+  @apply block text-sm font-semibold text-white;
+}
+.testimonial-role {
+  @apply mt-0.5 block;
+  font-size: 9px;
+  letter-spacing: 0.08em;
+  color: #6fa8c8;
+}
+
+/* ====================================================
+   CONTACT BACKGROUND FOOTER
+   ==================================================== */
+.contact-bg-section {
+  @apply relative isolate overflow-hidden;
+  background: #0c1e2e;
+}
+.contact-bg-image {
+  @apply absolute inset-0 -z-10 h-full w-full;
+  background-image: url("/images/contact-bg.jpg");
+  background-size: cover;
+  background-position: center top;
+  opacity: 0.18;
+}
+.contact-bg-overlay {
+  @apply absolute inset-0 -z-10;
+  background: linear-gradient(to bottom, rgb(10 22 36 / 82%) 0%, rgb(10 22 36 / 96%) 100%);
+}
+.site-footer-inner {
+  @apply border-t border-white/10;
+}
+
 .contact-section {
   @apply py-24;
 }
@@ -945,8 +1196,10 @@
   }
 }
 @media (max-width: 1100px) {
-  .section-shell {
-    width: calc(100% - 72px);
+  .section-shell,
+  .hero,
+  .service-ribbon {
+    width: calc(100% - 48px);
   }
   .hero {
     min-height: 670px;
@@ -989,12 +1242,14 @@
   }
 }
 @media (max-width: 800px) {
-  .section-shell {
-    width: calc(100% - 48px);
+  .section-shell,
+  .header-inner,
+  .hero,
+  .service-ribbon {
+    width: calc(100% - 40px);
   }
   .header-inner {
     height: 80px;
-    width: calc(100% - 48px);
   }
   .desktop-nav {
     gap: 20px;
@@ -1190,12 +1445,14 @@
   html {
     scroll-padding-top: 24px;
   }
-  .section-shell {
-    width: calc(100% - 40px);
+  .section-shell,
+  .header-inner,
+  .hero,
+  .service-ribbon {
+    width: calc(100% - 32px);
   }
   .header-inner {
     height: 77px;
-    width: calc(100% - 40px);
     gap: 12px;
   }
   .desktop-nav,

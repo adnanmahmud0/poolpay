@@ -1,3 +1,5 @@
+import Image from "next/image";
+
 import { ArrowUpRight, Check, MessageCircle } from "lucide-react";
 
 import { Button } from "@repo/ui";
@@ -7,7 +9,7 @@ import { COMPANY, SERVICES } from "@/data/site";
 import { BrandMark } from "./Brand";
 
 const STEPS = [
-  { number: "01", title: "Say hello", text: "Call or email Jean and tell us what you need." },
+  { number: "01", title: "Say hello", text: "Call or email our team and tell us what you need." },
   {
     number: "02",
     title: "Talk it through",
@@ -21,23 +23,27 @@ export function About() {
     <section id="about" className="about-section" aria-labelledby="about-heading">
       <div className="section-shell">
         <div className="about-grid">
-          <div className="about-art" data-reveal aria-hidden="true">
-            <div className="orbit orbit-outer" />
-            <div className="orbit orbit-inner" />
-            <div className="orbit-center">
-              <BrandMark />
-              <span>THE PLUS IS PERSONAL.</span>
+          <div className="about-art about-photo-wrap" data-reveal aria-hidden="true">
+            <Image
+              src="/images/about-portrait.jpg"
+              alt="KLX LUXE PLUS professional standing beside a luxury sedan"
+              width={900}
+              height={675}
+              className="about-portrait-img"
+              loading="lazy"
+            />
+            <div className="about-portrait-badge">
+              <span className="status-dot" />
+              <span>ONE CONNECTION. MANY POSSIBILITIES.</span>
             </div>
-            <div className="orbit-icons">
-              {SERVICES.map((service) => (
-                <div key={service.id} className={`orbit-node orbit-${service.id}`}>
-                  <service.icon strokeWidth={1.5} />
-                </div>
+            <div className="about-portrait-services">
+              {SERVICES.filter((s) => s.isVisible).map((service) => (
+                <span key={service.id} className="about-service-chip">
+                  <service.icon strokeWidth={1.5} className="size-3" />
+                  {service.shortName}
+                </span>
               ))}
             </div>
-            <span className="art-caption">
-              <span className="status-dot" /> ONE CONNECTION. MANY POSSIBILITIES.
-            </span>
           </div>
           <div className="about-copy" data-reveal>
             <p className="eyebrow section-eyebrow">
@@ -53,7 +59,7 @@ export function About() {
             <p>Life doesn&apos;t fit into one category. Neither do we.</p>
             <p>
               KLX LUXE PLUS LLC brings luxury transportation and practical professional services
-              together, with Jean Derival as your point of contact.
+              together, with dedicated personal assistance as your point of contact.
             </p>
             <p>
               Whether you&apos;re planning a journey or working through your to-do list, start with

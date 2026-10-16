@@ -139,6 +139,7 @@ export interface KlxAppointment {
   requestedDate: string; // YYYY-MM-DD
   requestedTimeSlot: string; // HH:mm
   timezone: string;
+  durationMinutes?: number;
   status: AppointmentStatus;
   adminNotes?: string;
   servicePriceCents?: number;

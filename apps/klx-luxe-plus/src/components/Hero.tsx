@@ -16,29 +16,32 @@ import { BorderBeam, Button, Marquee } from "@repo/ui";
 
 import { SERVICES } from "@/data/site";
 
-export function Hero() {
+import type { SiteContentData } from "@/server/db/types";
+
+export function Hero({ content }: { content?: SiteContentData["hero"] } = {}) {
   const [ribbonPaused, setRibbonPaused] = useState(false);
   return (
     <>
       <section id="home" className="hero" aria-labelledby="hero-heading">
         <figure className="hero-visual">
           <Image
-            className="hero-photo"
-            src="/images/luxury-transport.webp"
-            alt="Illustrative luxury sedan on a palm-lined driveway at blue hour"
-            width={1672}
-            height={941}
+            className="hero-photo hero-photo-zoom"
+            src="/images/hero-luxury-car.jpg"
+            alt="Cinematic black Mercedes-Maybach parked on a palm-lined hotel driveway at blue hour"
+            width={1920}
+            height={1080}
             loading="eager"
             fetchPriority="high"
           />
           <figcaption className="sr-only">
-            Illustrative transportation image; vehicle availability is confirmed directly with Jean.
+            Illustrative transportation image; vehicle availability is confirmed directly with our
+            team.
           </figcaption>
         </figure>
         <div className="hero-shade" />
         <div className="hero-content">
           <p className="eyebrow hero-enter">
-            <span className="status-dot" /> LUXURY MEETS EVERYDAY POSSIBILITY
+            <span className="status-dot" /> {content?.badge || "LUXURY MEETS EVERYDAY POSSIBILITY"}
           </p>
           <h1 id="hero-heading">
             <span className="hero-line">
@@ -54,17 +57,17 @@ export function Hero() {
             </span>
           </h1>
           <p className="hero-description hero-enter">
-            From the journey you take to the next step in life. Transportation and professional
-            services, all through one personal connection.
+            {content?.subtitle ||
+              "From the journey you take to the next step in life. Transportation and professional services, all through one personal connection."}
           </p>
           <div className="hero-actions hero-enter">
             <Button asChild size="lg" className="light-button shimmer">
-              <a href="#services">
-                Explore our services <ArrowUpRight />
+              <a href={content?.ctaHref || "#services"}>
+                {content?.ctaText || "Explore our services"} <ArrowUpRight />
               </a>
             </Button>
-            <a className="hero-contact" href="#contact">
-              Let&apos;s connect <ArrowRight />
+            <a className="hero-contact" href={content?.secondaryCtaHref || "#appointments"}>
+              {content?.secondaryCtaText || "Request an appointment"} <ArrowRight />
             </a>
           </div>
           <div className="hero-note hero-enter">
@@ -81,6 +84,22 @@ export function Hero() {
           </div>
           <Sparkles className="size-4 text-sky-200" />
           <BorderBeam duration={10} />
+        </div>
+        <div className="hero-stat-widget hero-enter">
+          <div className="hero-stat-item">
+            <span className="hero-stat-num">6</span>
+            <span className="hero-stat-label">Services</span>
+          </div>
+          <div className="hero-stat-divider" />
+          <div className="hero-stat-item">
+            <span className="hero-stat-num">1</span>
+            <span className="hero-stat-label">Contact</span>
+          </div>
+          <div className="hero-stat-divider" />
+          <div className="hero-stat-item">
+            <span className="status-dot" style={{ marginBottom: 0 }} />
+            <span className="hero-stat-label">Available</span>
+          </div>
         </div>
         <div className="hero-bottom">
           <a href="#services">

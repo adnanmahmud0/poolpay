@@ -10,7 +10,7 @@ import {
 export const COMPANY = {
   name: "KLX LUXE PLUS LLC",
   contact: "KLX LUXE PLUS LLC",
-  email: "support@poolpay.space",
+  email: "support@klxluxeplus.poolpay.space",
   phones: [{ label: "+1 (607) 900-4569", href: "tel:+16079004569" }]
 } as const;
 
