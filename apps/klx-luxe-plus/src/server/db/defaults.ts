@@ -33,12 +33,12 @@ export const DEFAULT_SITE_CONTENT: SiteContentData = {
     subtitle: "Precision, Reliability, and Discretion",
     story: [
       "KLX LUXE PLUS LLC provides dependable professional services and premium customer assistance designed around your individual schedule and requirements.",
-      "Contact our team about taxes, immigration documents, translations, or transportation. We will discuss your needs, availability, and next steps.",
+      "Contact our team about taxes, immigration documents, certified translations, professional interpretation, or luxury transportation. We will discuss your needs, availability, and next steps.",
       "One point of contact for the practical things that help your day move forward."
     ],
     stats: [
       { label: "Personal assistance", value: "One connection" },
-      { label: "Specialized Services", value: "4 Core Areas" },
+      { label: "Specialized Services", value: "5 Core Areas" },
       { label: "Timezone Alignment", value: "US Eastern (ET)" },
       { label: "Community Commitment", value: "PoolPay Ecosystem" }
     ]
@@ -52,7 +52,17 @@ export const DEFAULT_SITE_CONTENT: SiteContentData = {
     {
       question: "Can I request more than one service?",
       answer:
-        "Yes. KLX LUXE PLUS LLC provides assistance across taxes, immigration documentation, translation, and luxury transportation. You can mention multiple services in your request notes."
+        "Yes. KLX LUXE PLUS LLC provides assistance across taxes, immigration documentation, certified translation, professional interpretation, and luxury transportation. You can mention multiple services in your request notes."
+    },
+    {
+      question: "How do interpretation and translation services work?",
+      answer:
+        "For translation, you can select your language pair, specify your translation reason (such as immigration, court, or academic), and securely attach documents like birth or marriage certificates directly on our website. For interpretation, select your language pair and setting (court, USCIS, medical, or remote) to book certified spoken interpreters."
+    },
+    {
+      question: "How does transportation booking and payment work?",
+      answer:
+        "Enter your pickup and drop-off locations, choose your preferred vehicle tier (Executive Sedan, Luxury SUV, or VIP Sprinter), and pay securely online through Stripe or submit your itinerary for dispatch confirmation."
     },
     {
       question: "How does appointment confirmation work?",
@@ -134,40 +144,59 @@ export const DEFAULT_SERVICES: Omit<KlxService, "_id">[] = [
     updatedAt: new Date()
   },
   {
-    id: "svc_translation",
-    serviceId: "translations",
+    id: "svc_interpreter",
+    serviceId: "interpreter",
     number: "03",
-    name: "Translations",
-    shortName: "Translations",
-    category: "BRIDGE THE GAP",
+    name: "Professional interpreter service",
+    shortName: "Interpretation",
+    category: "SPOKEN CLARITY",
     description:
-      "Accurate multilingual document translations for official, legal, educational, and business correspondence.",
-    action: "Request a translation",
+      "Certified and professional spoken interpretation for legal depositions, court hearings, USCIS interviews, and medical appointments.",
+    action: "Book an interpreter",
     pricingMode: "quote",
     priceCents: 0,
     depositCents: 0,
-    durationMinutes: 45,
+    durationMinutes: 60,
     isVisible: true,
     sortOrder: 3,
     createdAt: new Date(),
     updatedAt: new Date()
   },
   {
+    id: "svc_translation",
+    serviceId: "translations",
+    number: "04",
+    name: "Certified translation service",
+    shortName: "Translations",
+    category: "BRIDGE THE GAP",
+    description:
+      "Accurate multilingual document translations for birth certificates, marriage certificates, court records, and immigration petitions with fast document uploads.",
+    action: "Request a translation",
+    pricingMode: "quote",
+    priceCents: 0,
+    depositCents: 0,
+    durationMinutes: 45,
+    isVisible: true,
+    sortOrder: 4,
+    createdAt: new Date(),
+    updatedAt: new Date()
+  },
+  {
     id: "svc_transport",
     serviceId: "transport",
-    number: "04",
+    number: "05",
     name: "Luxury transportation",
     shortName: "Transportation",
     category: "GO SOMEWHERE GOOD",
     description:
-      "Elevate your journey with punctual, executive-class private transportation tailored to your itinerary.",
+      "Elevate your journey with punctual, executive-class private transportation. Enter your pickup & drop-off locations, select your vehicle, and pay online or reserve with ease.",
     action: "Reserve luxury ride",
     pricingMode: "quote",
     priceCents: 0,
     depositCents: 0,
     durationMinutes: 90,
     isVisible: true,
-    sortOrder: 4,
+    sortOrder: 5,
     createdAt: new Date(),
     updatedAt: new Date()
   }

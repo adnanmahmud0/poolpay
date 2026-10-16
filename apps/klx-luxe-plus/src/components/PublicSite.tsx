@@ -11,7 +11,8 @@ import {
   FileCheck2,
   Languages,
   Laptop,
-  ReceiptText
+  ReceiptText,
+  Speech
 } from "lucide-react";
 import { useGSAP } from "@gsap/react";
 import gsap from "gsap";
@@ -35,6 +36,7 @@ gsap.registerPlugin(useGSAP, ScrollTrigger);
 const ICONS = {
   taxes: ReceiptText,
   immigration: FileCheck2,
+  interpreter: Speech,
   translations: Languages,
   transport: CarFront,
   computer: Laptop,
@@ -147,8 +149,8 @@ export function PublicSite({
                       : `${new Intl.NumberFormat("en-US", { style: "currency", currency: settings.currency }).format(s.priceCents / 100)}${s.pricingMode === "deposit" ? ` · ${new Intl.NumberFormat("en-US", { style: "currency", currency: settings.currency }).format(s.depositCents / 100)} deposit` : ""}`}
                   </p>
                   <a
-                    href="#appointments"
-                    className="mt-7 inline-flex items-center gap-2 text-sm font-semibold"
+                    href={`#appointments?service=${s.serviceId}`}
+                    className="mt-7 inline-flex items-center gap-2 text-sm font-semibold text-[#14283b] transition-colors hover:text-[#377db1]"
                   >
                     {s.action}
                     <ArrowUpRight className="size-4" />

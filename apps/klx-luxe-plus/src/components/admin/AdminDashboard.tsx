@@ -25,6 +25,7 @@ import {
   ListChecks,
   LogOut,
   Megaphone,
+  Paperclip,
   Pencil,
   Plus,
   ReceiptText,
@@ -32,6 +33,7 @@ import {
   Settings,
   Smartphone,
   Sparkles,
+  Speech,
   Trash2
 } from "lucide-react";
 
@@ -65,6 +67,7 @@ const SERVICE_ICONS: Record<
 > = {
   taxes: ReceiptText,
   immigration: FileCheck2,
+  interpreter: Speech,
   translations: Languages,
   transport: CarFront,
   computer: Laptop,
@@ -776,6 +779,73 @@ export function AdminDashboard({
                             {a.customerEmail} · {a.customerPhone}
                           </p>
                           <p className="mt-3 text-sm text-slate-500">{a.customerNotes}</p>
+                          {(a.sourceLanguage || a.targetLanguage) && (
+                            <p className="mt-2 text-xs font-semibold text-slate-800">
+                              Language:{" "}
+                              <span className="text-sky-700">
+                                {a.sourceLanguage || "Specified"} →{" "}
+                                {a.targetLanguage || "Specified"}
+                              </span>
+                              {a.interpretationSetting
+                                ? ` · Setting: ${a.interpretationSetting}`
+                                : ""}
+                            </p>
+                          )}
+                          {a.translationReason && (
+                            <p className="mt-1 text-xs text-slate-700">
+                              Reason:{" "}
+                              <span className="font-medium text-slate-900">
+                                {a.translationReason}
+                              </span>
+                              {a.documentTypes?.length
+                                ? ` · Category: ${a.documentTypes.join(", ")}`
+                                : ""}
+                            </p>
+                          )}
+                          {a.attachedDocuments && a.attachedDocuments.length > 0 && (
+                            <div className="mt-3 space-y-1.5">
+                              <p className="text-xs font-semibold text-slate-700">
+                                Attached Documents ({a.attachedDocuments.length}):
+                              </p>
+                              <div className="flex flex-wrap gap-2">
+                                {a.attachedDocuments.map((doc) => (
+                                  <a
+                                    key={doc.id}
+                                    href={doc.url}
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    className="inline-flex items-center gap-1.5 rounded-lg border border-sky-200 bg-sky-50/70 px-2.5 py-1 text-xs font-medium text-sky-800 transition-colors hover:bg-sky-100 hover:text-sky-950"
+                                  >
+                                    <Paperclip className="size-3" />
+                                    <span className="max-w-[180px] truncate">{doc.name}</span>
+                                    <span className="text-[10px] text-slate-400">
+                                      ({(doc.size / 1024).toFixed(0)} KB)
+                                    </span>
+                                  </a>
+                                ))}
+                              </div>
+                            </div>
+                          )}
+                          {(a.pickupLocation || a.dropoffLocation) && (
+                            <div className="mt-3 space-y-1 rounded-xl border border-slate-200 bg-slate-50/70 p-3 text-xs text-slate-800">
+                              <p className="flex items-center gap-1.5 font-semibold text-slate-900">
+                                <CarFront className="size-3.5 text-sky-600" />
+                                Route: {a.pickupLocation || "Pickup N/A"} →{" "}
+                                {a.dropoffLocation || "Drop-off N/A"}
+                              </p>
+                              <p className="text-slate-600">
+                                Vehicle:{" "}
+                                <span className="font-medium">{a.vehicleClass || "Standard"}</span>{" "}
+                                · {a.passengers || 1} passenger(s)
+                                {a.estimatedFareCents
+                                  ? ` · Fare: $${(a.estimatedFareCents / 100).toFixed(2)}`
+                                  : ""}
+                                {a.payNow
+                                  ? " · [Paid / Stripe Checkout]"
+                                  : " · [Reserve on Invoice]"}
+                              </p>
+                            </div>
+                          )}
                           {a.rejectionReason && (
                             <p className="mt-2 text-sm text-red-700">
                               Rejection reason: {a.rejectionReason}

@@ -40,6 +40,18 @@ export const serviceSchema = z
     (s) => s.depositCents <= s.priceCents && (s.pricingMode === "quote" || s.priceCents > 0),
     "Enter a positive price and a deposit no greater than the price."
   );
+export const attachedDocumentSchema = z.object({
+  id: z.string().trim().min(1).max(100),
+  name: z.string().trim().min(1).max(255),
+  size: z
+    .number()
+    .int()
+    .min(0)
+    .max(100 * 1024 * 1024),
+  mimeType: z.string().trim().max(100),
+  url: z.string().trim().max(1000)
+});
+
 export const appointmentSchema = z.object({
   requestId: z.string().uuid().optional(),
   serviceId: text,
@@ -49,7 +61,21 @@ export const appointmentSchema = z.object({
   customerNotes: z.string().max(2000).default(""),
   requestedDate: dateString,
   requestedTimeSlot: z.string().regex(/^([01]\d|2[0-3]):[0-5]\d$/),
-  website: z.string().max(0).optional()
+  website: z.string().max(0).optional(),
+  // Language & Interpreter / Translation fields
+  sourceLanguage: z.string().trim().max(100).optional(),
+  targetLanguage: z.string().trim().max(100).optional(),
+  interpretationSetting: z.string().trim().max(100).optional(),
+  translationReason: z.string().trim().max(255).optional(),
+  documentTypes: z.array(z.string().trim().max(100)).optional(),
+  attachedDocuments: z.array(attachedDocumentSchema).optional(),
+  // Transportation (Uber-style) fields
+  pickupLocation: z.string().trim().max(255).optional(),
+  dropoffLocation: z.string().trim().max(255).optional(),
+  vehicleClass: z.string().trim().max(50).optional(),
+  passengers: z.number().int().min(1).max(20).optional(),
+  estimatedFareCents: cents.optional(),
+  payNow: z.boolean().optional()
 });
 export const appointmentUpdateSchema = z.object({
   id: text,

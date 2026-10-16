@@ -152,6 +152,13 @@ export async function requestAppointment(input: unknown) {
     !(await availableTimes(data.requestedDate, service.id)).slots.includes(data.requestedTimeSlot)
   )
     throw new HttpError(409, "This time is no longer available. Choose another time.");
+  const priceCents =
+    service.pricingMode === "quote"
+      ? data.payNow && data.estimatedFareCents
+        ? data.estimatedFareCents
+        : 0
+      : service.priceCents;
+
   const appointment: KlxAppointment = {
     ...data,
     id,
@@ -159,21 +166,133 @@ export async function requestAppointment(input: unknown) {
     serviceName: service.name,
     timezone: settings.timezone,
     status: "requested",
-    servicePriceCents: service.pricingMode === "quote" ? 0 : service.priceCents,
+    servicePriceCents: priceCents,
     serviceDepositCents: service.pricingMode === "deposit" ? service.depositCents : 0,
     token: randomBytes(32).toString("hex"),
     createdAt: new Date(),
     updatedAt: new Date()
   };
-  const message = `${service.name}\nReference: ${appointment.reference}\nRequested: ${data.requestedDate} ${data.requestedTimeSlot} ${settings.timezone}\nThis is a request; our team will confirm availability.\nView status: ${env.KLX_SITE_URL}/appointments/${appointment.token}`;
+
+  const extraDetails: string[] = [];
+  const extraDetailsHtmlItems: string[] = [];
+
+  if (data.sourceLanguage || data.targetLanguage) {
+    const langStr = `${data.sourceLanguage || "Specified"} → ${data.targetLanguage || "Specified"}`;
+    extraDetails.push(`Languages: ${langStr}`);
+    extraDetailsHtmlItems.push(`<strong>Language Pair:</strong> ${escapeHtml(langStr)}`);
+  }
+
+  if (data.interpretationSetting) {
+    extraDetails.push(`Setting: ${data.interpretationSetting}`);
+    extraDetailsHtmlItems.push(
+      `<strong>Interpretation Setting:</strong> ${escapeHtml(data.interpretationSetting)}`
+    );
+  }
+
+  if (data.translationReason) {
+    extraDetails.push(`Reason for Translation: ${data.translationReason}`);
+    extraDetailsHtmlItems.push(
+      `<strong>Reason for Translation:</strong> ${escapeHtml(data.translationReason)}`
+    );
+  }
+
+  if (data.documentTypes && data.documentTypes.length > 0) {
+    const docs = data.documentTypes.join(", ");
+    extraDetails.push(`Document Types: ${docs}`);
+    extraDetailsHtmlItems.push(`<strong>Document Types:</strong> ${escapeHtml(docs)}`);
+  }
+
+  if (data.attachedDocuments && data.attachedDocuments.length > 0) {
+    extraDetails.push(`Attached Documents (${data.attachedDocuments.length}):`);
+    data.attachedDocuments.forEach((doc) => {
+      extraDetails.push(`  • ${doc.name} (${env.KLX_SITE_URL}${doc.url})`);
+    });
+    const docLinks = data.attachedDocuments
+      .map(
+        (doc) =>
+          `<li><a href="${env.KLX_SITE_URL}${escapeHtml(doc.url)}" target="_blank" style="color:#0284c7;text-decoration:underline;">${escapeHtml(doc.name)}</a> (${(doc.size / 1024).toFixed(0)} KB)</li>`
+      )
+      .join("");
+    extraDetailsHtmlItems.push(
+      `<strong>Attached Documents:</strong><ul style="margin:4px 0 0 16px;padding:0;">${docLinks}</ul>`
+    );
+  }
+
+  if (data.pickupLocation || data.dropoffLocation) {
+    extraDetails.push(`Pickup: ${data.pickupLocation || "N/A"}`);
+    extraDetails.push(`Drop-off: ${data.dropoffLocation || "N/A"}`);
+    extraDetails.push(`Vehicle Tier: ${data.vehicleClass || "Standard"}`);
+    extraDetails.push(`Passengers: ${data.passengers || 1}`);
+    if (data.estimatedFareCents) {
+      extraDetails.push(`Estimated Fare: $${(data.estimatedFareCents / 100).toFixed(2)}`);
+      extraDetails.push(
+        `Payment: ${data.payNow ? "Online Card Payment" : "Reserve & Pay on Invoice"}`
+      );
+    }
+    extraDetailsHtmlItems.push(
+      `<strong>Pickup:</strong> ${escapeHtml(data.pickupLocation || "N/A")}`
+    );
+    extraDetailsHtmlItems.push(
+      `<strong>Drop-off:</strong> ${escapeHtml(data.dropoffLocation || "N/A")}`
+    );
+    extraDetailsHtmlItems.push(
+      `<strong>Vehicle Tier:</strong> ${escapeHtml(data.vehicleClass || "Standard")} (${data.passengers || 1} passenger(s))`
+    );
+    if (data.estimatedFareCents) {
+      extraDetailsHtmlItems.push(
+        `<strong>Estimated Fare:</strong> $${(data.estimatedFareCents / 100).toFixed(2)} (${data.payNow ? "Online Card Checkout" : "Reserve on Invoice"})`
+      );
+    }
+  }
+
+  const extraText = extraDetails.length > 0 ? `\n\n${extraDetails.join("\n")}` : "";
+  const extraHtml =
+    extraDetailsHtmlItems.length > 0
+      ? `<div style="margin:16px 0;padding:12px;background:#f8fafc;border:1px solid #e2e8f0;border-radius:8px;font-size:14px;line-height:1.6;">${extraDetailsHtmlItems.join("<br>")}</div>`
+      : "";
+
+  const customerBodyText = `KLX LUXE PLUS LLC — Appointment Request\nReference: ${appointment.reference}\nService: ${service.name}\nRequested: ${data.requestedDate} ${data.requestedTimeSlot} ${settings.timezone}${extraText}\n\nStatus: Awaiting review by our administration. We will verify availability and confirm your booking.\nTrack your appointment: ${env.KLX_SITE_URL}/appointments/${appointment.token}`;
+
+  const customerBodyHtml = `<div style="font-family:sans-serif;max-width:600px;margin:0 auto;color:#1e293b;">
+    <h2 style="color:#0f172a;margin-bottom:12px;">Appointment Request Received</h2>
+    <p>Thank you for booking with KLX LUXE PLUS LLC. We have received your request and will review availability promptly.</p>
+    <div style="margin:16px 0;padding:14px;background:#f1f5f9;border-radius:8px;">
+      <p style="margin:0 0 6px 0;"><strong>Reference:</strong> ${escapeHtml(appointment.reference)}</p>
+      <p style="margin:0 0 6px 0;"><strong>Service:</strong> ${escapeHtml(service.name)}</p>
+      <p style="margin:0;"><strong>Requested Date & Time:</strong> ${escapeHtml(data.requestedDate)} at ${escapeHtml(data.requestedTimeSlot)} (${escapeHtml(settings.timezone)})</p>
+    </div>
+    ${extraHtml}
+    <p style="margin-top:16px;">You can view the real-time status of your request at any time:</p>
+    <p><a href="${env.KLX_SITE_URL}/appointments/${appointment.token}" style="display:inline-block;padding:10px 20px;background:#14283b;color:white;text-decoration:none;border-radius:6px;font-weight:600;">View Appointment Status</a></p>
+  </div>`;
+
+  const adminBodyHtml = `<div style="font-family:sans-serif;max-width:600px;margin:0 auto;color:#1e293b;">
+    <h2 style="color:#0f172a;margin-bottom:8px;">New Appointment Request</h2>
+    <p>A new appointment request needs your review. Accept or reject below:</p>
+    <div style="margin:16px 0;padding:14px;background:#f1f5f9;border-radius:8px;">
+      <p style="margin:0 0 6px 0;"><strong>Reference:</strong> ${escapeHtml(appointment.reference)}</p>
+      <p style="margin:0 0 6px 0;"><strong>Service:</strong> ${escapeHtml(service.name)}</p>
+      <p style="margin:0 0 6px 0;"><strong>Customer:</strong> ${escapeHtml(data.customerName)} (${escapeHtml(data.customerEmail)} · ${escapeHtml(data.customerPhone)})</p>
+      <p style="margin:0;"><strong>Date & Time:</strong> ${escapeHtml(data.requestedDate)} at ${escapeHtml(data.requestedTimeSlot)} (${escapeHtml(settings.timezone)})</p>
+    </div>
+    ${extraHtml}
+    <p style="margin-top:24px;">
+      <a href="${env.KLX_SITE_URL}/admin/appointments?appointment=${id}&decision=confirmed" style="display:inline-block;padding:12px 22px;background:#047857;color:white;text-decoration:none;border-radius:8px;font-weight:600;">Accept Request</a>
+      &nbsp;&nbsp;
+      <a href="${env.KLX_SITE_URL}/admin/appointments?appointment=${id}&decision=declined" style="display:inline-block;padding:12px 22px;background:#b91c1c;color:white;text-decoration:none;border-radius:8px;font-weight:600;">Reject Request</a>
+    </p>
+  </div>`;
+
+  const adminBodyText = `${service.name}\nReference: ${appointment.reference}\nCustomer: ${data.customerName} (${data.customerEmail}, ${data.customerPhone})\nRequested: ${data.requestedDate} ${data.requestedTimeSlot} ${settings.timezone}${extraText}\n\nAccept: ${env.KLX_SITE_URL}/admin/appointments?appointment=${id}&decision=confirmed\nReject: ${env.KLX_SITE_URL}/admin/appointments?appointment=${id}&decision=declined`;
+
   const notificationIntents: NotificationIntent[] = [
     {
       id: `appointment-${id}-customer`,
       type: "appointment_requested",
       recipient: data.customerEmail,
       subject: `Appointment request ${appointment.reference}`,
-      bodyHtml: "",
-      bodyText: message
+      bodyHtml: customerBodyHtml,
+      bodyText: customerBodyText
     }
   ];
   if (settings.notificationSettings.emailOnRequest)
@@ -182,8 +301,8 @@ export async function requestAppointment(input: unknown) {
       type: "appointment_requested",
       recipient: settings.supportEmail,
       subject: `New appointment ${appointment.reference}`,
-      bodyHtml: `<p>A new appointment needs your review. Sign in to accept or reject it.</p><p>${escapeHtml(service.name)} · ${escapeHtml(data.customerName)}<br>${data.requestedDate} ${data.requestedTimeSlot} ${escapeHtml(settings.timezone)}</p><p><a href="${env.KLX_SITE_URL}/admin/appointments?appointment=${id}&decision=confirmed" style="display:inline-block;padding:12px 20px;background:#047857;color:white;border-radius:8px">Accept</a> <a href="${env.KLX_SITE_URL}/admin/appointments?appointment=${id}&decision=declined" style="display:inline-block;padding:12px 20px;background:#b91c1c;color:white;border-radius:8px">Reject</a></p>`,
-      bodyText: `${message}\nCustomer: ${data.customerName}\nEmail: ${data.customerEmail}\nPhone: ${data.customerPhone}\nAccept: ${env.KLX_SITE_URL}/admin/appointments?appointment=${id}&decision=confirmed\nReject: ${env.KLX_SITE_URL}/admin/appointments?appointment=${id}&decision=declined`
+      bodyHtml: adminBodyHtml,
+      bodyText: adminBodyText
     });
   try {
     await db.collection(COLLECTIONS.APPOINTMENTS).updateOne(

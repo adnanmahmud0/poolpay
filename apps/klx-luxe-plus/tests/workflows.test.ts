@@ -1,7 +1,10 @@
 import assert from "node:assert/strict";
+import { randomUUID } from "node:crypto";
 import { after, before, test } from "node:test";
 
 import { MongoMemoryServer } from "mongodb-memory-server";
+
+import type * as dbTypes from "../src/server/db/types";
 
 let mongo: MongoMemoryServer;
 let db: typeof import("../src/server/db/client");
@@ -309,7 +312,7 @@ test("hiding every service does not resurrect default public services", async ()
     .collection(db.COLLECTIONS.SERVICES)
     .updateMany({}, { $set: { isVisible: false } });
   assert.equal((await repo.getServices()).length, 0);
-  assert.equal((await repo.getServices(true)).length, 4);
+  assert.equal((await repo.getServices(true)).length, 5);
 });
 
 test("advertisement validation schema rejects invalid inputs and accepts valid inputs", async () => {
@@ -410,4 +413,154 @@ test("default advertisements are seeded and retrieved properly", async () => {
   assert.ok(heroAds.some((a) => a.placement === "after_hero"));
   const servicesAds = await repo.getAds("after_services");
   assert.ok(servicesAds.some((a) => a.placement === "after_services"));
+});
+
+test("interpreter service appointment records languages, setting, and dual notifications", async () => {
+  const database = await db.getDb();
+  await database
+    .collection(db.COLLECTIONS.SERVICES)
+    .updateOne({ id: "svc_interpreter" }, { $set: { isVisible: true } });
+
+  const reqId = randomUUID();
+  const result = await appointments.requestAppointment({
+    requestId: reqId,
+    serviceId: "svc_interpreter",
+    customerName: "Marie Dupont",
+    customerEmail: "marie@example.com",
+    customerPhone: "+15551234567",
+    requestedDate: "2026-11-12",
+    requestedTimeSlot: "14:00",
+    sourceLanguage: "Haitian Creole (Kreyòl)",
+    targetLanguage: "English",
+    interpretationSetting: "USCIS Asylum Interview"
+  });
+
+  assert.ok(result.reference.startsWith("KLX-"));
+  const saved = await database
+    .collection<dbTypes.KlxAppointment>(db.COLLECTIONS.APPOINTMENTS)
+    .findOne({ id: reqId });
+  assert.ok(saved);
+  assert.equal(saved.sourceLanguage, "Haitian Creole (Kreyòl)");
+  assert.equal(saved.targetLanguage, "English");
+  assert.equal(saved.interpretationSetting, "USCIS Asylum Interview");
+
+  const notifications = (
+    saved as unknown as {
+      notificationIntents: Array<{ recipient: string; bodyText: string; bodyHtml: string }>;
+    }
+  ).notificationIntents;
+  assert.ok(notifications.length >= 2);
+
+  const customerEmail = notifications.find((n) => n.recipient === "marie@example.com");
+  assert.ok(customerEmail);
+  assert.ok(customerEmail.bodyText.includes("Haitian Creole (Kreyòl) → English"));
+  assert.ok(customerEmail.bodyText.includes("USCIS Asylum Interview"));
+
+  const adminEmail = notifications.find((n) => n.recipient === "support@poolpay.space");
+  assert.ok(adminEmail);
+  assert.ok(adminEmail.bodyHtml.includes("Haitian Creole (Kreyòl) → English"));
+  assert.ok(adminEmail.bodyHtml.includes("USCIS Asylum Interview"));
+});
+
+test("translation service appointment records documents, reason, and download links", async () => {
+  const database = await db.getDb();
+  await database
+    .collection(db.COLLECTIONS.SERVICES)
+    .updateOne({ id: "svc_translation" }, { $set: { isVisible: true } });
+
+  const reqId = randomUUID();
+  const docId = randomUUID();
+  const result = await appointments.requestAppointment({
+    requestId: reqId,
+    serviceId: "svc_translation",
+    customerName: "Carlos Mendez",
+    customerEmail: "carlos@example.com",
+    customerPhone: "+15559876543",
+    requestedDate: "2026-11-14",
+    requestedTimeSlot: "11:00",
+    sourceLanguage: "Spanish (Español)",
+    targetLanguage: "English",
+    translationReason: "Immigration (USCIS)",
+    documentTypes: ["Birth Certificate", "Marriage Certificate"],
+    attachedDocuments: [
+      {
+        id: docId,
+        name: "acta_nacimiento_carlos.pdf",
+        size: 1048576,
+        mimeType: "application/pdf",
+        url: `/api/documents/${docId}.pdf`
+      }
+    ]
+  });
+
+  assert.ok(result.reference.startsWith("KLX-"));
+  const saved = await database
+    .collection<dbTypes.KlxAppointment>(db.COLLECTIONS.APPOINTMENTS)
+    .findOne({ id: reqId });
+  assert.ok(saved);
+  assert.equal(saved.sourceLanguage, "Spanish (Español)");
+  assert.equal(saved.targetLanguage, "English");
+  assert.equal(saved.translationReason, "Immigration (USCIS)");
+  assert.equal(saved.attachedDocuments?.length, 1);
+  assert.equal(saved.attachedDocuments?.[0]?.name, "acta_nacimiento_carlos.pdf");
+
+  const notifications = (
+    saved as unknown as {
+      notificationIntents: Array<{ recipient: string; bodyText: string; bodyHtml: string }>;
+    }
+  ).notificationIntents;
+  const adminEmail = notifications.find((n) => n.recipient === "support@poolpay.space");
+  assert.ok(adminEmail);
+  assert.ok(adminEmail.bodyText.includes("acta_nacimiento_carlos.pdf"));
+  assert.ok(adminEmail.bodyHtml.includes("/api/documents/"));
+});
+
+test("transportation service records ride route, vehicle tier, and generates checkout link when payNow is true", async () => {
+  const database = await db.getDb();
+  await database
+    .collection(db.COLLECTIONS.SERVICES)
+    .updateOne({ id: "svc_transport" }, { $set: { isVisible: true } });
+
+  const reqId = randomUUID();
+  const result = await appointments.requestAppointment({
+    requestId: reqId,
+    serviceId: "svc_transport",
+    customerName: "Sophia Loren",
+    customerEmail: "sophia@example.com",
+    customerPhone: "+15553334444",
+    requestedDate: "2026-11-18",
+    requestedTimeSlot: "16:00",
+    pickupLocation: "JFK Airport, Terminal 4",
+    dropoffLocation: "Midtown Manhattan Hotel, NY",
+    vehicleClass: "Luxury SUV",
+    passengers: 4,
+    estimatedFareCents: 14000,
+    payNow: true
+  });
+
+  assert.ok(result.reference.startsWith("KLX-"));
+  assert.ok(result.paymentUrl, "Should generate a payment link when payNow is true");
+
+  const saved = await database
+    .collection<dbTypes.KlxAppointment>(db.COLLECTIONS.APPOINTMENTS)
+    .findOne({ id: reqId });
+  assert.ok(saved);
+  assert.equal(saved.pickupLocation, "JFK Airport, Terminal 4");
+  assert.equal(saved.dropoffLocation, "Midtown Manhattan Hotel, NY");
+  assert.equal(saved.vehicleClass, "Luxury SUV");
+  assert.equal(saved.passengers, 4);
+  assert.equal(saved.estimatedFareCents, 14000);
+  assert.equal(saved.servicePriceCents, 14000);
+
+  const notifications = (
+    saved as unknown as {
+      notificationIntents: Array<{ recipient: string; bodyText: string; bodyHtml: string }>;
+    }
+  ).notificationIntents;
+  const adminEmail = notifications.find((n) => n.recipient === "support@poolpay.space");
+  assert.ok(adminEmail);
+  assert.ok(adminEmail.bodyText.includes("JFK Airport, Terminal 4"));
+  assert.ok(adminEmail.bodyText.includes("Midtown Manhattan Hotel, NY"));
+  assert.ok(adminEmail.bodyText.includes("Luxury SUV"));
+  assert.ok(adminEmail.bodyText.includes("$140.00"));
 });

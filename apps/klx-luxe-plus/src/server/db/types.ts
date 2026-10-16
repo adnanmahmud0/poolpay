@@ -114,6 +114,17 @@ export interface KlxService {
 export type AppointmentStatus =
   "requested" | "confirmed" | "rescheduled" | "cancelled" | "declined" | "completed";
 
+export interface AttachedDocument {
+  id: string;
+  name: string;
+  size: number;
+  mimeType: string;
+  url: string;
+  filename?: string;
+  originalName?: string;
+  uploadedAt?: Date;
+}
+
 export interface KlxAppointment {
   rejectionReason?: string;
   _id?: import("mongodb").ObjectId;
@@ -133,6 +144,18 @@ export interface KlxAppointment {
   servicePriceCents?: number;
   serviceDepositCents?: number;
   token: string;
+  sourceLanguage?: string;
+  targetLanguage?: string;
+  interpretationSetting?: string;
+  translationReason?: string;
+  documentTypes?: string[];
+  attachedDocuments?: AttachedDocument[];
+  pickupLocation?: string;
+  dropoffLocation?: string;
+  vehicleClass?: string;
+  passengers?: number;
+  estimatedFareCents?: number;
+  payNow?: boolean;
   createdAt: Date;
   updatedAt: Date;
 }
