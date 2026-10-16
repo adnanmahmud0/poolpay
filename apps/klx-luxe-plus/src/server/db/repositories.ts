@@ -130,13 +130,37 @@ export async function getServices(includeHidden = false): Promise<KlxService[]> 
   try {
     const db = await getDb();
     const query = includeHidden ? {} : { isVisible: true };
-    const docs = await db
+    let docs: KlxService[] = await db
       .collection<KlxService>(COLLECTIONS.SERVICES)
       .find(query)
       .sort({ sortOrder: 1 })
       .toArray();
 
-    if (docs.length > 0 || (await db.collection(COLLECTIONS.SERVICES).countDocuments()) > 0) {
+    // Auto-seed or supplement missing default services so all 6 services are always present in DB and results
+    const allDbDocs = await db.collection<KlxService>(COLLECTIONS.SERVICES).find({}).toArray();
+    const existingIds = new Set(allDbDocs.map((d) => d.serviceId || d.id));
+    const missing = DEFAULT_SERVICES.filter(
+      (def) => !existingIds.has(def.serviceId) && !existingIds.has(def.id)
+    );
+    if (missing.length > 0) {
+      try {
+        for (const m of missing) {
+          await db
+            .collection<KlxService>(COLLECTIONS.SERVICES)
+            .updateOne({ id: m.id }, { $setOnInsert: m }, { upsert: true });
+        }
+      } catch (err) {
+        console.warn("Could not auto-seed missing services to DB:", err);
+      }
+      if (includeHidden) {
+        docs = [...docs, ...missing];
+      } else {
+        docs = [...docs, ...missing.filter((s) => s.isVisible)];
+      }
+      docs.sort((a, b) => (a.sortOrder || 0) - (b.sortOrder || 0));
+    }
+
+    if (docs.length > 0 || allDbDocs.length > 0) {
       return docs;
     }
   } catch (err) {

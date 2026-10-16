@@ -11,8 +11,8 @@ const SERVICE_IMAGES: Record<string, string | null> = {
   immigration: "/images/service-immigration.jpg",
   translations: "/images/service-translation.jpg",
   transport: null, // uses its own image system
-  finance: null,
-  computer: null
+  finance: "/images/service-finance.jpg",
+  computer: "/images/service-computer.jpg"
 };
 
 export function Services({ onSelectService }: { onSelectService: (service: ServiceId) => void }) {

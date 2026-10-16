@@ -20,6 +20,8 @@ import { ScrollTrigger } from "gsap/ScrollTrigger";
 
 import { BorderBeam, Button, cn } from "@repo/ui";
 
+import { SERVICES as CANONICAL_SERVICES } from "@/data/site";
+
 import type {
   KlxAdvertisement,
   KlxService,
@@ -41,9 +43,9 @@ const SERVICE_IMAGES: Record<string, string | null> = {
   immigration: "/images/service-immigration.jpg",
   translations: "/images/service-translation.jpg",
   transport: "/images/hero-luxury-car.jpg",
-  interpreter: "/images/service-translation.jpg",
-  computer: null,
-  finance: null
+  finance: "/images/service-finance.jpg",
+  computer: "/images/service-computer.jpg",
+  interpreter: "/images/service-translation.jpg"
 };
 
 const ICONS = {
@@ -111,6 +113,46 @@ export function PublicSite({
     },
     { scope: root }
   );
+  // Ensure all 6 canonical services are ALWAYS displayed and formatted with luxury visuals
+  const displayServices: KlxService[] = CANONICAL_SERVICES.map((canonical, idx) => {
+    const match = services.find(
+      (s) =>
+        s.serviceId === canonical.id ||
+        s.id === canonical.id ||
+        s.id === `svc_${canonical.id}` ||
+        s.name.toLowerCase() === canonical.name.toLowerCase()
+    );
+    if (match) {
+      return {
+        ...match,
+        number: canonical.number,
+        name: match.name || canonical.name,
+        category: match.category || canonical.category,
+        description: match.description || canonical.description,
+        action: match.action || canonical.action,
+        serviceId: canonical.id
+      };
+    }
+    return {
+      id: `svc_${canonical.id}`,
+      serviceId: canonical.id,
+      number: canonical.number,
+      name: canonical.name,
+      shortName: canonical.shortName,
+      category: canonical.category,
+      description: canonical.description,
+      action: canonical.action,
+      pricingMode: "quote" as const,
+      priceCents: 0,
+      depositCents: 0,
+      durationMinutes: 60,
+      isVisible: true,
+      sortOrder: idx + 1,
+      createdAt: new Date(),
+      updatedAt: new Date()
+    };
+  });
+
   const sections: Record<string, React.ReactNode> = {
     poolpay: (
       <>
@@ -136,39 +178,28 @@ export function PublicSite({
               From paperwork to your next journey. Personal assistance starts with one conversation.
             </p>
           </div>
-          <div className="grid gap-6 md:grid-cols-2">
-            {services.map((s, i) => {
+          <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
+            {displayServices.map((s, i) => {
               const Icon = ICONS[s.serviceId as keyof typeof ICONS] || FileCheck2;
               const serviceImage = SERVICE_IMAGES[s.serviceId];
-              const isTransport = s.serviceId === "transport";
               return (
                 <article
                   key={s.id}
                   data-reveal
-                  className={cn(
-                    "group relative flex flex-col overflow-hidden rounded-3xl border border-slate-200 bg-white shadow-sm transition-all duration-300 hover:-translate-y-1 hover:border-slate-300 hover:shadow-xl",
-                    isTransport && "md:col-span-2 md:flex-row"
-                  )}
+                  className="group relative flex flex-col overflow-hidden rounded-3xl border border-slate-200 bg-white shadow-sm transition-all duration-300 hover:-translate-y-1 hover:border-slate-300 hover:shadow-xl"
                 >
                   {serviceImage ? (
-                    <div
-                      className={cn(
-                        "relative overflow-hidden bg-slate-900",
-                        isTransport
-                          ? "h-64 min-h-[280px] shrink-0 md:h-auto md:w-1/2"
-                          : "h-56 w-full"
-                      )}
-                    >
+                    <div className="relative h-56 w-full overflow-hidden bg-slate-900">
                       <Image
                         src={serviceImage}
                         alt={s.name}
                         fill
                         className="object-cover transition-transform duration-700 ease-out group-hover:scale-105"
-                        sizes="(max-width: 768px) 100vw, 50vw"
+                        sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
                       />
                       <div className="absolute inset-0 bg-gradient-to-t from-slate-950/80 via-slate-950/20 to-transparent" />
                       <div className="absolute top-4 right-4 rounded-full bg-slate-950/50 px-3 py-1 text-[11px] font-semibold text-white/90 backdrop-blur-md">
-                        / {String(i + 1).padStart(2, "0")}
+                        / {s.number || String(i + 1).padStart(2, "0")}
                       </div>
                       <div className="absolute bottom-4 left-6 flex items-center gap-3">
                         <span className="flex size-10 items-center justify-center rounded-xl bg-white/90 text-[#14283b] shadow-md backdrop-blur-md">
@@ -186,21 +217,23 @@ export function PublicSite({
                           <Icon className="size-7" strokeWidth={1.5} />
                         </span>
                         <span className="text-xs text-slate-400">
-                          / {String(i + 1).padStart(2, "0")}
+                          / {s.number || String(i + 1).padStart(2, "0")}
                         </span>
                       </div>
                       <p className="eyebrow mb-2 text-slate-500">{s.category}</p>
                     </div>
                   )}
 
-                  <div className="flex flex-1 flex-col justify-between p-8 sm:p-10">
+                  <div className="flex flex-1 flex-col justify-between p-7 sm:p-8">
                     <div>
-                      <h3 className="text-2xl font-semibold tracking-tight text-[#14283b]">
+                      <h3 className="text-xl font-semibold tracking-tight text-[#14283b]">
                         {s.name}
                       </h3>
-                      <p className="mt-3 text-sm leading-7 text-slate-600">{s.description}</p>
+                      <p className="mt-3 text-xs leading-6 text-slate-600 sm:text-sm sm:leading-7">
+                        {s.description}
+                      </p>
                     </div>
-                    <div className="mt-8 flex items-center justify-between border-t border-slate-100 pt-5">
+                    <div className="mt-6 flex items-center justify-between border-t border-slate-100 pt-5">
                       <p className="text-xs font-semibold text-[#377db1]">
                         {s.pricingMode === "quote"
                           ? "Pricing on request"
@@ -208,7 +241,7 @@ export function PublicSite({
                       </p>
                       <a
                         href={`#appointments?service=${s.serviceId}`}
-                        className="inline-flex items-center gap-1.5 text-sm font-semibold text-[#14283b] transition-colors hover:text-[#377db1]"
+                        className="inline-flex items-center gap-1.5 text-xs font-semibold text-[#14283b] transition-colors hover:text-[#377db1] sm:text-sm"
                       >
                         {s.action}
                         <ArrowUpRight className="size-4" />
@@ -244,8 +277,8 @@ export function PublicSite({
                 <span className="status-dot" />
                 <span>ONE CONNECTION. MANY POSSIBILITIES.</span>
               </div>
-              <div className="about-portrait-services absolute top-5 right-5 flex max-w-[200px] flex-wrap justify-end gap-2">
-                {services.slice(0, 4).map((s) => {
+              <div className="about-portrait-services absolute top-5 right-5 flex max-w-[240px] flex-wrap justify-end gap-2">
+                {displayServices.slice(0, 6).map((s) => {
                   const SIcon = ICONS[s.serviceId as keyof typeof ICONS] || FileCheck2;
                   return (
                     <span
@@ -253,7 +286,7 @@ export function PublicSite({
                       className="flex items-center gap-1.5 rounded-full border border-white/20 bg-slate-950/60 px-3 py-1 text-[10px] font-medium text-slate-200 backdrop-blur-md"
                     >
                       <SIcon className="size-3 text-sky-300" strokeWidth={1.5} />
-                      {s.name.split(" ")[0]}
+                      {s.shortName || s.name.split(" ")[0]}
                     </span>
                   );
                 })}
@@ -332,7 +365,7 @@ export function PublicSite({
         </div>
       </section>
     ),
-    appointments: <AppointmentForm services={services} timezone={settings.timezone} />,
+    appointments: <AppointmentForm services={displayServices} timezone={settings.timezone} />,
     faqs: (
       <section
         className="section-shell grid gap-10 py-14 pb-24 lg:grid-cols-[.7fr_1.3fr]"

@@ -4,6 +4,7 @@ import { env } from "@/env";
 
 import { createPaymentRequest } from "./commerce";
 import { COLLECTIONS, getDb } from "./db/client";
+import { DEFAULT_SERVICES } from "./db/defaults";
 import { enqueueOutbox, getSettings, logAudit } from "./db/repositories";
 import type { KlxAppointment, KlxService } from "./db/types";
 import {
@@ -79,12 +80,35 @@ export function fitsSchedule(
     minutes + duration <= (schedule.closingTime ? minuteOfDay(schedule.closingTime) : 1440)
   );
 }
+async function resolveService(
+  db: Awaited<ReturnType<typeof getDb>>,
+  serviceId: string
+): Promise<KlxService | null> {
+  let service: KlxService | null = await db
+    .collection<KlxService>(COLLECTIONS.SERVICES)
+    .findOne({ $or: [{ id: serviceId }, { serviceId: serviceId }], isVisible: true });
+  if (!service) {
+    const fallback = DEFAULT_SERVICES.find(
+      (s) => (s.id === serviceId || s.serviceId === serviceId) && s.isVisible
+    );
+    if (fallback) {
+      service = fallback as unknown as KlxService;
+      try {
+        await db
+          .collection<KlxService>(COLLECTIONS.SERVICES)
+          .updateOne({ id: fallback.id }, { $setOnInsert: fallback }, { upsert: true });
+      } catch {
+        /* ignore background seed error */
+      }
+    }
+  }
+  return service;
+}
+
 export async function availableTimes(date: string, serviceId: string) {
   const db = await getDb();
   const settings = await getSettings();
-  const service = await db
-    .collection<KlxService>(COLLECTIONS.SERVICES)
-    .findOne({ id: serviceId, isVisible: true });
+  const service = await resolveService(db, serviceId);
   if (!service) throw new HttpError(400, "Choose an available service.");
   const dayStart = localInstant(date, "00:00", settings.timezone);
   const lower = Math.floor(dayStart.getTime() / 900000) - 96;
@@ -128,9 +152,7 @@ export async function requestAppointment(input: unknown) {
   const data = appointmentSchema.parse(input);
   const db = await getDb();
   const settings = await getSettings();
-  const service = await db
-    .collection<KlxService>(COLLECTIONS.SERVICES)
-    .findOne({ id: data.serviceId, isVisible: true });
+  const service = await resolveService(db, data.serviceId);
   if (!service) throw new HttpError(400, "Please choose an available service.");
   const startsAt = localInstant(data.requestedDate, data.requestedTimeSlot, settings.timezone);
   const schedule = settings.scheduling;

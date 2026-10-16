@@ -312,7 +312,7 @@ test("hiding every service does not resurrect default public services", async ()
     .collection(db.COLLECTIONS.SERVICES)
     .updateMany({}, { $set: { isVisible: false } });
   assert.equal((await repo.getServices()).length, 0);
-  assert.equal((await repo.getServices(true)).length, 5);
+  assert.equal((await repo.getServices(true)).length, 7);
 });
 
 test("advertisement validation schema rejects invalid inputs and accepts valid inputs", async () => {

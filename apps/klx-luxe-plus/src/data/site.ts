@@ -73,7 +73,7 @@ export const SERVICES = [
       "Have a financial question or a next step in mind? Start a conversation about the finance agent services available to you.",
     action: "Discuss your needs",
     category: "MOVE FORWARD",
-    isVisible: false
+    isVisible: true
   },
   {
     id: "computer",
@@ -85,7 +85,7 @@ export const SERVICES = [
       "Computer issues getting in the way? Tell us what's happening so we can discuss the help you need.",
     action: "Get computer help",
     category: "GET BACK TO IT",
-    isVisible: false
+    isVisible: true
   }
 ] as const;
 
