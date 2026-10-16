@@ -130,13 +130,8 @@ export async function getServices(includeHidden = false): Promise<KlxService[]> 
   try {
     const db = await getDb();
     const query = includeHidden ? {} : { isVisible: true };
-    let docs: KlxService[] = await db
-      .collection<KlxService>(COLLECTIONS.SERVICES)
-      .find(query)
-      .sort({ sortOrder: 1 })
-      .toArray();
 
-    // Auto-seed or supplement missing default services so all 6 services are always present in DB and results
+    // Auto-seed missing services if any default services are not present
     const allDbDocs = await db.collection<KlxService>(COLLECTIONS.SERVICES).find({}).toArray();
     const existingIds = new Set(allDbDocs.map((d) => d.serviceId || d.id));
     const missing = DEFAULT_SERVICES.filter(
@@ -152,13 +147,34 @@ export async function getServices(includeHidden = false): Promise<KlxService[]> 
       } catch (err) {
         console.warn("Could not auto-seed missing services to DB:", err);
       }
-      if (includeHidden) {
-        docs = [...docs, ...missing];
-      } else {
-        docs = [...docs, ...missing.filter((s) => s.isVisible)];
-      }
-      docs.sort((a, b) => (a.sortOrder || 0) - (b.sortOrder || 0));
     }
+
+    // Keep metadata (names, numbers, sort order) synchronized without overwriting visibility state
+    try {
+      for (const def of DEFAULT_SERVICES) {
+        await db.collection<KlxService>(COLLECTIONS.SERVICES).updateOne(
+          { $or: [{ id: def.id }, { serviceId: def.serviceId }] },
+          {
+            $set: {
+              name: def.name,
+              shortName: def.shortName,
+              number: def.number,
+              sortOrder: def.sortOrder,
+              category: def.category,
+              action: def.action
+            }
+          }
+        );
+      }
+    } catch (syncErr) {
+      console.warn("Could not sync default services to DB:", syncErr);
+    }
+
+    const docs: KlxService[] = await db
+      .collection<KlxService>(COLLECTIONS.SERVICES)
+      .find(query)
+      .sort({ sortOrder: 1 })
+      .toArray();
 
     if (docs.length > 0 || allDbDocs.length > 0) {
       return docs;
@@ -179,9 +195,32 @@ export async function initServicesIfEmpty(): Promise<void> {
   try {
     const db = await getDb();
     for (const service of DEFAULT_SERVICES) {
-      await db
-        .collection<KlxService>(COLLECTIONS.SERVICES)
-        .updateOne({ id: service.id }, { $setOnInsert: service }, { upsert: true });
+      await db.collection<KlxService>(COLLECTIONS.SERVICES).updateOne(
+        { $or: [{ id: service.id }, { serviceId: service.serviceId }] },
+        {
+          $set: {
+            name: service.name,
+            shortName: service.shortName,
+            number: service.number,
+            sortOrder: service.sortOrder,
+            category: service.category,
+            action: service.action
+          },
+          $setOnInsert: {
+            id: service.id,
+            serviceId: service.serviceId,
+            description: service.description,
+            pricingMode: service.pricingMode,
+            priceCents: service.priceCents,
+            depositCents: service.depositCents,
+            durationMinutes: service.durationMinutes,
+            isVisible: service.isVisible,
+            createdAt: new Date(),
+            updatedAt: new Date()
+          }
+        },
+        { upsert: true }
+      );
     }
   } catch (err) {
     console.warn("Could not seed default services:", err);

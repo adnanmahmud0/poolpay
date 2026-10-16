@@ -16,9 +16,45 @@ export const COMPANY = {
 
 export const SERVICES = [
   {
-    id: "taxes",
+    id: "transport",
     number: "01",
-    name: "Tax services",
+    name: "Luxury Transportation",
+    shortName: "Luxury Transportation",
+    icon: CarFront,
+    description:
+      "Elevate your journey with punctual, executive-class private transportation. Enter your pickup & drop-off locations, select your vehicle, and reserve your ride with ease.",
+    action: "Let's plan your ride",
+    category: "GO SOMEWHERE GOOD",
+    isVisible: true
+  },
+  {
+    id: "finance",
+    number: "02",
+    name: "Finance Agent",
+    shortName: "Finance Agent",
+    icon: ChartNoAxesCombined,
+    description:
+      "Have a financial question or a next step in mind? Start a conversation about the finance agent services available to you.",
+    action: "Discuss your needs",
+    category: "MOVE FORWARD",
+    isVisible: true
+  },
+  {
+    id: "computer",
+    number: "03",
+    name: "Fix your Computer Issues",
+    shortName: "Fix your Computer Issues",
+    icon: Laptop,
+    description:
+      "Computer issues getting in the way? Tell us what's happening so we can troubleshoot and discuss the help you need.",
+    action: "Get computer help",
+    category: "GET BACK TO IT",
+    isVisible: true
+  },
+  {
+    id: "taxes",
+    number: "04",
+    name: "Taxes",
     shortName: "Taxes",
     icon: ReceiptText,
     description:
@@ -28,20 +64,8 @@ export const SERVICES = [
     isVisible: true
   },
   {
-    id: "immigration",
-    number: "02",
-    name: "Immigration document assistance",
-    shortName: "Immigration documents",
-    icon: FileCheck2,
-    description:
-      "Get reliable assistance with preparing, organizing, and filing your immigration paperwork and petition packages.",
-    action: "Discuss your documents",
-    category: "YOUR NEXT CHAPTER",
-    isVisible: true
-  },
-  {
     id: "translations",
-    number: "03",
+    number: "05",
     name: "Translations",
     shortName: "Translations",
     icon: Languages,
@@ -52,39 +76,15 @@ export const SERVICES = [
     isVisible: true
   },
   {
-    id: "transport",
-    number: "04",
-    name: "Luxury transportation",
-    shortName: "Transportation",
-    icon: CarFront,
-    description:
-      "Make the journey part of the occasion. Connect with our team to discuss your transportation needs and arrange your next ride.",
-    action: "Let's plan your ride",
-    category: "GO SOMEWHERE GOOD",
-    isVisible: true
-  },
-  {
-    id: "finance",
-    number: "05",
-    name: "Finance agent services",
-    shortName: "Finance",
-    icon: ChartNoAxesCombined,
-    description:
-      "Have a financial question or a next step in mind? Start a conversation about the finance agent services available to you.",
-    action: "Discuss your needs",
-    category: "MOVE FORWARD",
-    isVisible: true
-  },
-  {
-    id: "computer",
+    id: "immigration",
     number: "06",
-    name: "Computer support",
-    shortName: "Computer support",
-    icon: Laptop,
+    name: "File your Immigrations Documents",
+    shortName: "File your Immigrations Documents",
+    icon: FileCheck2,
     description:
-      "Computer issues getting in the way? Tell us what's happening so we can discuss the help you need.",
-    action: "Get computer help",
-    category: "GET BACK TO IT",
+      "Get reliable assistance with preparing, organizing, and filing your immigration paperwork and petition packages.",
+    action: "Discuss your documents",
+    category: "YOUR NEXT CHAPTER",
     isVisible: true
   }
 ] as const;

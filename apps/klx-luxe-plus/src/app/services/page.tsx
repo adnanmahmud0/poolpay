@@ -39,10 +39,11 @@ export default async function ServicesPage() {
       return {
         ...match,
         number: canonical.number,
-        name: match.name || canonical.name,
-        category: match.category || canonical.category,
+        name: canonical.name,
+        shortName: canonical.shortName,
+        category: canonical.category,
         description: match.description || canonical.description,
-        action: match.action || canonical.action,
+        action: canonical.action,
         serviceId: canonical.id
       };
     }

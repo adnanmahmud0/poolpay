@@ -36,18 +36,8 @@ export async function seedReviewServices() {
       { upsert: true }
     );
   }
-  // Remove only the two superseded seed entries, preserving a recoverable copy.
-  for (const id of ["svc_finance", "svc_computer"]) {
-    const obsolete = await db.collection(COLLECTIONS.SERVICES).findOne({ id });
-    if (obsolete) {
-      await db
-        .collection("klx_demo_service_archive")
-        .updateOne({ id }, { $setOnInsert: obsolete }, { upsert: true });
-      await db.collection(COLLECTIONS.SERVICES).deleteOne({ id });
-    }
-  }
   process.stdout.write(
-    "Demo services updated: exactly four services, matching the homepage. All use consultation pricing.\n"
+    "Demo services updated: all six services matching client card. All use consultation pricing.\n"
   );
 }
 
@@ -55,23 +45,21 @@ export async function seedReviewDemo() {
   requireReviewDatabase();
   await seedReviewServices();
   const db = await getDb();
-  await db
-    .collection(COLLECTIONS.SETTINGS)
-    .updateOne(
-      {},
-      {
-        $setOnInsert: {
-          ...DEFAULT_SETTINGS,
-          scheduling: {
-            workingDays: [1, 2, 3, 4, 5, 6],
-            blockedDates: [],
-            openingTime: "09:00",
-            closingTime: "17:00"
-          }
+  await db.collection(COLLECTIONS.SETTINGS).updateOne(
+    {},
+    {
+      $setOnInsert: {
+        ...DEFAULT_SETTINGS,
+        scheduling: {
+          workingDays: [1, 2, 3, 4, 5, 6],
+          blockedDates: [],
+          openingTime: "09:00",
+          closingTime: "17:00"
         }
-      },
-      { upsert: true }
-    );
+      }
+    },
+    { upsert: true }
+  );
   const services = (await getServices()).filter((service) => service.isVisible);
   const names = [
     "Alex Morgan",
