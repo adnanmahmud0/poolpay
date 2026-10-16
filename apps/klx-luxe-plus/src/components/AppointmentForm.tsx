@@ -97,7 +97,6 @@ export function AppointmentForm({
   const [dropoffLocation, setDropoffLocation] = useState("");
   const [vehicleClass, setVehicleClass] = useState("executive_sedan");
   const [passengers, setPassengers] = useState(1);
-  const [payNow, setPayNow] = useState(true);
 
   // Sync service from URL hash if clicked from service card
   useEffect(() => {
@@ -167,8 +166,8 @@ export function AppointmentForm({
       payload.dropoffLocation = dropoffLocation;
       payload.vehicleClass = selectedTier.name;
       payload.passengers = passengers;
-      payload.estimatedFareCents = selectedTier.baseFareCents;
-      payload.payNow = payNow;
+      payload.estimatedFareCents = 0;
+      payload.payNow = false;
     }
 
     try {
@@ -227,22 +226,26 @@ export function AppointmentForm({
         {reference ? (
           <div className="flex min-h-96 flex-col items-start justify-center" role="status">
             <CheckCircle2 className="mb-5 size-10 text-emerald-600" />
-            <h3 className="text-2xl font-semibold">Appointment Request Received!</h3>
+            <h3 className="text-2xl font-semibold">
+              {isTransportation
+                ? "Transportation Reservation Request Received!"
+                : "Appointment Request Received!"}
+            </h3>
             <p className="mt-4 text-sm leading-7 text-slate-700">
               Your booking reference is <strong>{reference}</strong>. A confirmation email has been
-              dispatched to your inbox with all your request details. Our administration team has
-              been notified and will confirm availability shortly.
+              dispatched to your inbox with all your request details.
+              {isTransportation
+                ? " Our private chauffeur dispatch team has been notified and will verify vehicle availability and confirm your route shortly."
+                : " Our administration team has been notified and will confirm availability shortly."}
             </p>
 
-            {paymentUrl ? (
+            {paymentUrl && !isTransportation ? (
               <div className="mt-6 w-full rounded-2xl border border-sky-200 bg-sky-50 p-5">
                 <p className="text-xs font-semibold tracking-wide text-sky-900 uppercase">
                   Online Payment Ready
                 </p>
                 <p className="mt-1 text-sm text-sky-800">
-                  {isTransportation
-                    ? `Your ride fare is estimated at $${(selectedTier.baseFareCents / 100).toFixed(2)}. Complete your payment online via Stripe for instant ride lock.`
-                    : "You can review price details and pay online now via Stripe."}
+                  You can review price details and pay online now via Stripe.
                 </p>
                 <Button asChild className="mt-4 w-full sm:w-auto">
                   <a href={paymentUrl}>
@@ -504,8 +507,6 @@ export function AppointmentForm({
                   onVehicleChange={setVehicleClass}
                   passengers={passengers}
                   onPassengersChange={setPassengers}
-                  payNow={payNow}
-                  onPayNowChange={setPayNow}
                 />
               </div>
             )}
@@ -593,8 +594,8 @@ export function AppointmentForm({
             >
               {busy
                 ? "Processing request…"
-                : isTransportation && payNow
-                  ? "Continue to Stripe Checkout"
+                : isTransportation
+                  ? "Submit Reservation Request"
                   : "Submit appointment request"}
               <ArrowUpRight className="size-4" />
             </Button>
