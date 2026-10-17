@@ -839,8 +839,8 @@
 }
 .testimonials-video {
   @apply h-full w-full object-cover object-center;
-  opacity: 0.45;
-  filter: saturate(1.15) brightness(0.92);
+  opacity: 0.65;
+  filter: saturate(1.2) brightness(0.98);
 }
 .testimonials-bg {
   @apply absolute inset-0 -z-10 h-full w-full;
@@ -853,9 +853,9 @@
   @apply pointer-events-none absolute inset-0 -z-10;
   background: linear-gradient(
     135deg,
-    rgb(7 18 30 / 88%) 0%,
-    rgb(12 28 44 / 72%) 50%,
-    rgb(7 18 30 / 92%) 100%
+    rgb(7 18 30 / 72%) 0%,
+    rgb(12 28 44 / 54%) 50%,
+    rgb(7 18 30 / 78%) 100%
   );
 }
 .testimonials-header {

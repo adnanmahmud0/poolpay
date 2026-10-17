@@ -1,5 +1,7 @@
 "use client";
 
+import { useEffect, useRef } from "react";
+
 import { Quote, Star } from "lucide-react";
 
 const TESTIMONIALS = [
@@ -33,6 +35,17 @@ const TESTIMONIALS = [
 ];
 
 export function Testimonials() {
+  const videoRef = useRef<HTMLVideoElement>(null);
+
+  useEffect(() => {
+    const video = videoRef.current;
+    if (video) {
+      video.defaultMuted = true;
+      video.muted = true;
+      video.play().catch(() => {});
+    }
+  }, []);
+
   return (
     <section
       id="testimonials"
@@ -41,6 +54,7 @@ export function Testimonials() {
     >
       <div className="testimonials-video-wrap" aria-hidden="true">
         <video
+          ref={videoRef}
           autoPlay
           loop
           muted
