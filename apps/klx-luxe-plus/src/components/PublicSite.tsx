@@ -324,26 +324,6 @@ export function PublicSite({
                 className="h-full w-full object-cover transition-transform duration-700 group-hover:scale-105"
                 loading="lazy"
               />
-              <div className="about-portrait-badge absolute bottom-6 left-6 flex items-center gap-2.5 rounded-full border border-white/20 bg-slate-950/70 px-4 py-2 text-[11px] font-semibold text-white backdrop-blur-md">
-                <span className="status-dot" />
-                <span>ONE CONNECTION. MANY POSSIBILITIES.</span>
-              </div>
-              <div className="about-portrait-services absolute top-5 right-5 flex max-w-[240px] flex-wrap justify-end gap-2">
-                {displayServices.slice(0, 6).map((s) => {
-                  const SIcon = ICONS[s.serviceId as keyof typeof ICONS] || FileCheck2;
-                  return (
-                    <button
-                      type="button"
-                      key={s.id}
-                      onClick={() => handleSelectService(s.serviceId)}
-                      className="flex cursor-pointer items-center gap-1.5 rounded-full border border-white/20 bg-slate-950/60 px-3 py-1 text-[10px] font-medium text-slate-200 backdrop-blur-md transition-all hover:border-sky-300 hover:text-white"
-                    >
-                      <SIcon className="size-3 text-sky-300" strokeWidth={1.5} />
-                      {s.shortName || s.name.split(" ")[0]}
-                    </button>
-                  );
-                })}
-              </div>
             </div>
             <div data-reveal>
               <p className="eyebrow section-eyebrow">

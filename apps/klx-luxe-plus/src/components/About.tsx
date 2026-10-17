@@ -4,7 +4,7 @@ import { ArrowUpRight, Check, MessageCircle } from "lucide-react";
 
 import { InteractiveHoverButton } from "@repo/ui";
 
-import { COMPANY, SERVICES } from "@/data/site";
+import { COMPANY } from "@/data/site";
 
 const STEPS = [
   { number: "01", title: "Say hello", text: "Call or email our team and tell us what you need." },
@@ -30,18 +30,6 @@ export function About() {
               className="about-portrait-img"
               loading="lazy"
             />
-            <div className="about-portrait-badge">
-              <span className="status-dot" />
-              <span>ONE CONNECTION. MANY POSSIBILITIES.</span>
-            </div>
-            <div className="about-portrait-services">
-              {SERVICES.filter((s) => s.isVisible).map((service) => (
-                <span key={service.id} className="about-service-chip">
-                  <service.icon strokeWidth={1.5} className="size-3" />
-                  {service.shortName}
-                </span>
-              ))}
-            </div>
           </div>
           <div className="about-copy" data-reveal>
             <p className="eyebrow section-eyebrow">
