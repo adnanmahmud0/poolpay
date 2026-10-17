@@ -12,7 +12,9 @@ const SERVICE_IMAGES: Record<string, string | null> = {
   translations: "/images/service-translation.jpg",
   transport: null, // uses its own image system
   finance: "/images/service-finance.jpg",
-  computer: "/images/service-computer.jpg"
+  computer: "/images/service-computer.jpg",
+  interpreter: "/images/service-translation.jpg",
+  real_estate: "/images/service-real-estate.jpg"
 };
 
 export function Services({ onSelectService }: { onSelectService: (service: ServiceId) => void }) {

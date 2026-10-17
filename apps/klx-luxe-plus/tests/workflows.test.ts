@@ -312,7 +312,7 @@ test("hiding every service does not resurrect default public services", async ()
     .collection(db.COLLECTIONS.SERVICES)
     .updateMany({}, { $set: { isVisible: false } });
   assert.equal((await repo.getServices()).length, 0);
-  assert.equal((await repo.getServices(true)).length, 7);
+  assert.equal((await repo.getServices(true)).length, 8);
 });
 
 test("advertisement validation schema rejects invalid inputs and accepts valid inputs", async () => {
@@ -460,6 +460,57 @@ test("interpreter service appointment records languages, setting, and dual notif
   assert.ok(adminEmail);
   assert.ok(adminEmail.bodyHtml.includes("Haitian Creole (Kreyòl) → English"));
   assert.ok(adminEmail.bodyHtml.includes("USCIS Asylum Interview"));
+});
+
+test("real estate service appointment records transaction type, property type, location, budget, timeline, and dual notifications", async () => {
+  const database = await db.getDb();
+  await database
+    .collection(db.COLLECTIONS.SERVICES)
+    .updateOne({ id: "svc_real_estate" }, { $set: { isVisible: true } });
+
+  const reqId = randomUUID();
+  const result = await appointments.requestAppointment({
+    requestId: reqId,
+    serviceId: "svc_real_estate",
+    customerName: "Eleanor Vance",
+    customerEmail: "eleanor@example.com",
+    customerPhone: "+15554321098",
+    requestedDate: "2026-11-20",
+    requestedTimeSlot: "15:00",
+    realEstateTransactionType: "Buying (Purchasing a property)",
+    realEstatePropertyType: "Single-Family Home",
+    realEstateLocation: "Binghamton, NY 13905",
+    realEstateBudget: "$250,000 – $500,000",
+    realEstateTimeline: "1 – 3 Months"
+  });
+
+  assert.ok(result.reference.startsWith("KLX-"));
+  const saved = await database
+    .collection<dbTypes.KlxAppointment>(db.COLLECTIONS.APPOINTMENTS)
+    .findOne({ id: reqId });
+  assert.ok(saved);
+  assert.equal(saved.realEstateTransactionType, "Buying (Purchasing a property)");
+  assert.equal(saved.realEstatePropertyType, "Single-Family Home");
+  assert.equal(saved.realEstateLocation, "Binghamton, NY 13905");
+  assert.equal(saved.realEstateBudget, "$250,000 – $500,000");
+  assert.equal(saved.realEstateTimeline, "1 – 3 Months");
+
+  const notifications = (
+    saved as unknown as {
+      notificationIntents: Array<{ recipient: string; bodyText: string; bodyHtml: string }>;
+    }
+  ).notificationIntents;
+  assert.ok(notifications.length >= 2);
+
+  const customerEmail = notifications.find((n) => n.recipient === "eleanor@example.com");
+  assert.ok(customerEmail);
+  assert.ok(customerEmail.bodyText.includes("Buying (Purchasing a property)"));
+  assert.ok(customerEmail.bodyText.includes("Binghamton, NY 13905"));
+
+  const adminEmail = notifications.find((n) => n.recipient === "support@poolpay.space");
+  assert.ok(adminEmail);
+  assert.ok(adminEmail.bodyHtml.includes("Buying (Purchasing a property)"));
+  assert.ok(adminEmail.bodyHtml.includes("Binghamton, NY 13905"));
 });
 
 test("translation service appointment records documents, reason, and download links", async () => {

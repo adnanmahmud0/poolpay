@@ -158,6 +158,11 @@ export interface KlxAppointment {
   passengers?: number;
   estimatedFareCents?: number;
   payNow?: boolean;
+  realEstateTransactionType?: string;
+  realEstatePropertyType?: string;
+  realEstateLocation?: string;
+  realEstateBudget?: string;
+  realEstateTimeline?: string;
   createdAt: Date;
   updatedAt: Date;
 }

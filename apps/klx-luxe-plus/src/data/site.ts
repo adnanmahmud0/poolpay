@@ -1,10 +1,12 @@
 import {
+  Building2,
   CarFront,
   ChartNoAxesCombined,
   FileCheck2,
   Languages,
   Laptop,
-  ReceiptText
+  ReceiptText,
+  Speech
 } from "lucide-react";
 
 export const COMPANY = {
@@ -86,6 +88,30 @@ export const SERVICES = [
     action: "Discuss your documents",
     category: "YOUR NEXT CHAPTER",
     isVisible: true
+  },
+  {
+    id: "interpreter",
+    number: "07",
+    name: "Interpreter Services",
+    shortName: "Interpreter Services",
+    icon: Speech,
+    description:
+      "Certified and professional spoken interpretation for legal depositions, court hearings, USCIS asylum interviews, medical appointments, and business conferences.",
+    action: "Book an interpreter",
+    category: "SPOKEN CLARITY",
+    isVisible: true
+  },
+  {
+    id: "real_estate",
+    number: "08",
+    name: "Real Estate",
+    shortName: "Real Estate",
+    icon: Building2,
+    description:
+      "Expert guidance for residential and commercial real estate. Buy, sell, lease, or consult with trusted advisors on your next property transaction.",
+    action: "Discuss real estate",
+    category: "PROPERTY & INVESTMENT",
+    isVisible: true
   }
 ] as const;
 
@@ -100,7 +126,7 @@ export const FAQS = [
   {
     question: "Can I ask about more than one service?",
     answer:
-      "Yes. KLX LUXE PLUS LLC provides specialized services across taxes, immigration documentation, translations, and transportation. Mention all required services when you get in touch."
+      "Yes. KLX LUXE PLUS LLC provides specialized services across taxes, immigration documentation, translations, interpreter services, real estate, and luxury transportation. Mention all required services when you get in touch."
   },
   {
     question: "Where are services available?",

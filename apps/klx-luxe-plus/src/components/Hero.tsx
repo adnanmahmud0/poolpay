@@ -83,7 +83,7 @@ export function Hero({
             </a>
           </div>
           <div className="hero-note hero-enter">
-            <Check /> Six services. One point of contact.
+            <Check /> {SERVICES.length} services. One point of contact.
           </div>
         </div>
         <div className="hero-floating hero-enter">
@@ -92,14 +92,14 @@ export function Hero({
           </span>
           <div>
             <span className="eyebrow">EXECUTIVE SERVICES &amp; ADVISORY</span>
-            <p>6 specialized services. One personal connection.</p>
+            <p>{SERVICES.length} specialized services. One personal connection.</p>
           </div>
           <Sparkles className="size-4 text-sky-200" />
           <BorderBeam duration={10} />
         </div>
         <div className="hero-stat-widget hero-enter">
           <div className="hero-stat-item">
-            <span className="hero-stat-num">6</span>
+            <span className="hero-stat-num">{SERVICES.length}</span>
             <span className="hero-stat-label">Services</span>
           </div>
           <div className="hero-stat-divider" />
@@ -125,7 +125,7 @@ export function Hero({
           </span>
         </div>
       </section>
-      <div className="service-ribbon" aria-label="Our six service areas">
+      <div className="service-ribbon" aria-label="Our service areas">
         <Marquee paused={ribbonPaused}>
           {SERVICES.map((service) => (
             <button

@@ -6,6 +6,7 @@ import Link from "next/link";
 
 import {
   ArrowUpRight,
+  Building2,
   CarFront,
   ChartNoAxesCombined,
   FileCheck2,
@@ -45,7 +46,8 @@ const SERVICE_IMAGES: Record<string, string | null> = {
   transport: "/images/hero-luxury-car.jpg",
   finance: "/images/service-finance.jpg",
   computer: "/images/service-computer.jpg",
-  interpreter: "/images/service-translation.jpg"
+  interpreter: "/images/service-translation.jpg",
+  real_estate: "/images/service-real-estate.jpg"
 };
 
 const ICONS = {
@@ -55,7 +57,8 @@ const ICONS = {
   translations: Languages,
   transport: CarFront,
   computer: Laptop,
-  finance: ChartNoAxesCombined
+  finance: ChartNoAxesCombined,
+  real_estate: Building2
 };
 function Advertisements({ ads }: { ads: KlxAdvertisement[] }) {
   return ads.map((ad) => (

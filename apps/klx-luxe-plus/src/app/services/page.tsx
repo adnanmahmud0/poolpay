@@ -21,7 +21,9 @@ const SERVICE_IMAGES: Record<string, string> = {
   translations: "/images/service-translation.jpg",
   transport: "/images/hero-luxury-car.jpg",
   finance: "/images/service-finance.jpg",
-  computer: "/images/service-computer.jpg"
+  computer: "/images/service-computer.jpg",
+  interpreter: "/images/service-translation.jpg",
+  real_estate: "/images/service-real-estate.jpg"
 };
 
 export default async function ServicesPage() {
@@ -80,8 +82,8 @@ export default async function ServicesPage() {
         Services designed for your next step.
       </h1>
       <p className="mt-4 max-w-2xl text-base leading-7 text-slate-600">
-        Six specialized service areas with personalized assistance, reliable scheduling, and
-        transparent pricing.
+        Specialized service areas with personalized assistance, reliable scheduling, and transparent
+        pricing.
       </p>
 
       <div className="mt-12 grid gap-6 md:grid-cols-2 lg:grid-cols-3">

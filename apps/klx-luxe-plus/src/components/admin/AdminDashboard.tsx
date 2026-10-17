@@ -8,6 +8,7 @@ import { useRouter } from "next/navigation";
 import {
   ArrowUpRight,
   BriefcaseBusiness,
+  Building2,
   Calendar,
   CalendarDays,
   CarFront,
@@ -71,7 +72,8 @@ const SERVICE_ICONS: Record<
   translations: Languages,
   transport: CarFront,
   computer: Laptop,
-  finance: ChartNoAxesCombined
+  finance: ChartNoAxesCombined,
+  real_estate: Building2
 };
 
 interface Snapshot {
@@ -1043,6 +1045,23 @@ export function AdminDashboard({
                                 {a.payNow
                                   ? " · [Paid / Stripe Checkout]"
                                   : " · [Reserve on Invoice]"}
+                              </p>
+                            </div>
+                          )}
+                          {(a.realEstateTransactionType ||
+                            a.realEstatePropertyType ||
+                            a.realEstateLocation) && (
+                            <div className="mt-3 space-y-1 rounded-xl border border-slate-200 bg-slate-50/70 p-3 text-xs text-slate-800">
+                              <p className="flex items-center gap-1.5 font-semibold text-slate-900">
+                                <Building2 className="size-3.5 text-sky-600" />
+                                Real Estate: {a.realEstateTransactionType || "Advisory"} ·{" "}
+                                {a.realEstatePropertyType || "Property"}
+                              </p>
+                              <p className="text-slate-600">
+                                Location:{" "}
+                                <span className="font-medium">{a.realEstateLocation || "N/A"}</span>
+                                {a.realEstateBudget ? ` · Budget: ${a.realEstateBudget}` : ""}
+                                {a.realEstateTimeline ? ` · Timeline: ${a.realEstateTimeline}` : ""}
                               </p>
                             </div>
                           )}

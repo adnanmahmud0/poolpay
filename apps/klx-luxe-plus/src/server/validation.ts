@@ -75,7 +75,13 @@ export const appointmentSchema = z.object({
   vehicleClass: z.string().trim().max(50).optional(),
   passengers: z.number().int().min(1).max(20).optional(),
   estimatedFareCents: cents.optional(),
-  payNow: z.boolean().optional()
+  payNow: z.boolean().optional(),
+  // Real Estate fields
+  realEstateTransactionType: z.string().trim().max(100).optional(),
+  realEstatePropertyType: z.string().trim().max(100).optional(),
+  realEstateLocation: z.string().trim().max(255).optional(),
+  realEstateBudget: z.string().trim().max(100).optional(),
+  realEstateTimeline: z.string().trim().max(100).optional()
 });
 export const appointmentUpdateSchema = z.object({
   id: text,

@@ -33,12 +33,12 @@ export const DEFAULT_SITE_CONTENT: SiteContentData = {
     subtitle: "Precision, Reliability, and Discretion",
     story: [
       "KLX LUXE PLUS LLC provides dependable professional services and premium customer assistance designed around your individual schedule and requirements.",
-      "Contact our team about luxury transportation, finance agency, computer technical support, taxes, translations, or immigration document filing. We will discuss your needs, availability, and next steps.",
+      "Contact our team about luxury transportation, finance agency, computer technical support, taxes, translations, immigration document filing, professional interpreter services, or real estate advisory. We will discuss your needs, availability, and next steps.",
       "One point of contact for the practical things that help your day move forward."
     ],
     stats: [
       { label: "Personal assistance", value: "One connection" },
-      { label: "Specialized Services", value: "6 Core Areas" },
+      { label: "Specialized Services", value: "8 Core Areas" },
       { label: "Timezone Alignment", value: "US Eastern (ET)" },
       { label: "Community Commitment", value: "PoolPay Ecosystem" }
     ]
@@ -223,18 +223,37 @@ export const DEFAULT_SERVICES: Omit<KlxService, "_id">[] = [
     id: "svc_interpreter",
     serviceId: "interpreter",
     number: "07",
-    name: "Professional interpreter service",
-    shortName: "Interpretation",
+    name: "Interpreter Services",
+    shortName: "Interpreter Services",
     category: "SPOKEN CLARITY",
     description:
-      "Certified and professional spoken interpretation for legal depositions, court hearings, USCIS interviews, and medical appointments.",
+      "Certified and professional spoken interpretation for legal depositions, court hearings, USCIS asylum interviews, and medical appointments.",
     action: "Book an interpreter",
     pricingMode: "quote",
     priceCents: 0,
     depositCents: 0,
     durationMinutes: 60,
-    isVisible: false,
+    isVisible: true,
     sortOrder: 7,
+    createdAt: new Date(),
+    updatedAt: new Date()
+  },
+  {
+    id: "svc_real_estate",
+    serviceId: "real_estate",
+    number: "08",
+    name: "Real Estate",
+    shortName: "Real Estate",
+    category: "PROPERTY & INVESTMENT",
+    description:
+      "Expert guidance for residential and commercial real estate. Buy, sell, lease, or consult with trusted advisors on your next property transaction.",
+    action: "Discuss real estate",
+    pricingMode: "quote",
+    priceCents: 0,
+    depositCents: 0,
+    durationMinutes: 60,
+    isVisible: true,
+    sortOrder: 8,
     createdAt: new Date(),
     updatedAt: new Date()
   }

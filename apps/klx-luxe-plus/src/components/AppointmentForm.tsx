@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from "react";
 
 import {
   ArrowUpRight,
+  Building2,
   CalendarDays,
   ChartNoAxesCombined,
   CheckCircle2,
@@ -64,6 +65,38 @@ const INTERPRETATION_SETTINGS = [
   "Legal Deposition / Attorney Consultation",
   "Business Conference / Meeting",
   "Remote Phone / Zoom Conference"
+];
+
+const REAL_ESTATE_TRANSACTION_TYPES = [
+  "Buying (Purchasing a property)",
+  "Selling (Listing a property)",
+  "Renting / Leasing",
+  "Commercial / Investment Advisory",
+  "Property Management Consultation"
+];
+
+const REAL_ESTATE_PROPERTY_TYPES = [
+  "Single-Family Home",
+  "Condo / Townhouse",
+  "Multi-Family Residential (2-4 units)",
+  "Commercial / Retail / Office",
+  "Land / Development Lot",
+  "Luxury Estate"
+];
+
+const REAL_ESTATE_BUDGET_RANGES = [
+  "Under $250,000",
+  "$250,000 – $500,000",
+  "$500,000 – $1,000,000",
+  "$1,000,000 – $2,500,000",
+  "$2,500,000+"
+];
+
+const REAL_ESTATE_TIMELINES = [
+  "Immediate / Within 30 days",
+  "1 – 3 Months",
+  "3 – 6 Months",
+  "6+ Months / Planning & Exploring"
 ];
 
 export function AppointmentForm({
@@ -128,6 +161,13 @@ export function AppointmentForm({
   const [vehicleClass, setVehicleClass] = useState("executive_sedan");
   const [passengers, setPassengers] = useState(1);
 
+  // Real Estate States
+  const [reTransactionType, setReTransactionType] = useState(REAL_ESTATE_TRANSACTION_TYPES[0]!);
+  const [rePropertyType, setRePropertyType] = useState(REAL_ESTATE_PROPERTY_TYPES[0]!);
+  const [reLocation, setReLocation] = useState("");
+  const [reBudget, setReBudget] = useState(REAL_ESTATE_BUDGET_RANGES[1]!);
+  const [reTimeline, setReTimeline] = useState(REAL_ESTATE_TIMELINES[1]!);
+
   // Sync service from URL hash/query on hashchange and smoothly scroll to section
   useEffect(() => {
     const handleHash = () => {
@@ -186,6 +226,10 @@ export function AppointmentForm({
   const isImmigration = serviceKey === "immigration" || serviceNameLower.includes("immigration");
   const isFinance = serviceKey === "finance" || serviceNameLower.includes("finance");
   const isComputer = serviceKey === "computer" || serviceNameLower.includes("computer");
+  const isRealEstate =
+    serviceKey === "real_estate" ||
+    serviceNameLower.includes("real estate") ||
+    serviceNameLower.includes("property");
 
   const effectiveSourceLang = sourceLang === "Other" ? customSourceLang || "Other" : sourceLang;
   const effectiveTargetLang = targetLang === "Other" ? customTargetLang || "Other" : targetLang;
@@ -235,6 +279,14 @@ export function AppointmentForm({
       payload.payNow = false;
     }
 
+    if (isRealEstate) {
+      payload.realEstateTransactionType = reTransactionType;
+      payload.realEstatePropertyType = rePropertyType;
+      payload.realEstateLocation = reLocation;
+      payload.realEstateBudget = reBudget;
+      payload.realEstateTimeline = reTimeline;
+    }
+
     // Attach documents for any service where files were uploaded
     if (attachedDocs.length > 0) {
       payload.attachedDocuments = attachedDocs;
@@ -278,7 +330,7 @@ export function AppointmentForm({
         </h2>
         <p className="mt-6 max-w-xs text-sm leading-7 text-slate-300">
           Personalized assistance for taxes, immigration documents, certified translations,
-          professional interpreters, and luxury private transportation.
+          professional interpreters, real estate, and luxury private transportation.
         </p>
         <div className="mt-8 max-w-xs space-y-3 text-xs text-sky-200/90">
           <div className="flex items-center gap-2">
@@ -443,6 +495,13 @@ export function AppointmentForm({
                     ))}
                   </select>
                 </label>
+
+                <DocumentUploader
+                  documents={attachedDocs}
+                  onChange={setAttachedDocs}
+                  label="Attach hearing notice or context documents (optional)"
+                  hint="(Hearing notices, USCIS interview letters, medical referrals, deposition notes)"
+                />
               </div>
             )}
 
@@ -676,6 +735,103 @@ export function AppointmentForm({
                   onVehicleChange={setVehicleClass}
                   passengers={passengers}
                   onPassengersChange={setPassengers}
+                />
+              </div>
+            )}
+
+            {/* REAL ESTATE SERVICE SECTION */}
+            {isRealEstate && (
+              <div className="space-y-4 rounded-2xl border border-sky-100 bg-sky-50/50 p-4 sm:col-span-2 sm:p-5">
+                <div className="flex items-center justify-between border-b border-sky-100/80 pb-3">
+                  <div className="flex items-center gap-2 text-sm font-semibold text-sky-950">
+                    <Building2 className="size-4 text-sky-600" />
+                    <span>Real Estate Consultation &amp; Property Details</span>
+                  </div>
+                  <span className="rounded-full bg-sky-100 px-2.5 py-0.5 text-[11px] font-semibold text-sky-800">
+                    Property Advisory
+                  </span>
+                </div>
+
+                <div className="grid gap-3 sm:grid-cols-2">
+                  <label className="text-xs font-medium text-slate-700">
+                    Transaction Interest *
+                    <select
+                      value={reTransactionType}
+                      onChange={(e) => setReTransactionType(e.target.value)}
+                      className="klx-input mt-1 text-xs"
+                    >
+                      {REAL_ESTATE_TRANSACTION_TYPES.map((t) => (
+                        <option key={t} value={t}>
+                          {t}
+                        </option>
+                      ))}
+                    </select>
+                  </label>
+
+                  <label className="text-xs font-medium text-slate-700">
+                    Property Type *
+                    <select
+                      value={rePropertyType}
+                      onChange={(e) => setRePropertyType(e.target.value)}
+                      className="klx-input mt-1 text-xs"
+                    >
+                      {REAL_ESTATE_PROPERTY_TYPES.map((p) => (
+                        <option key={p} value={p}>
+                          {p}
+                        </option>
+                      ))}
+                    </select>
+                  </label>
+                </div>
+
+                <div className="grid gap-3 sm:grid-cols-2">
+                  <label className="text-xs font-medium text-slate-700">
+                    Estimated Budget / Price Range *
+                    <select
+                      value={reBudget}
+                      onChange={(e) => setReBudget(e.target.value)}
+                      className="klx-input mt-1 text-xs"
+                    >
+                      {REAL_ESTATE_BUDGET_RANGES.map((b) => (
+                        <option key={b} value={b}>
+                          {b}
+                        </option>
+                      ))}
+                    </select>
+                  </label>
+
+                  <label className="text-xs font-medium text-slate-700">
+                    Timeline / Readiness *
+                    <select
+                      value={reTimeline}
+                      onChange={(e) => setReTimeline(e.target.value)}
+                      className="klx-input mt-1 text-xs"
+                    >
+                      {REAL_ESTATE_TIMELINES.map((t) => (
+                        <option key={t} value={t}>
+                          {t}
+                        </option>
+                      ))}
+                    </select>
+                  </label>
+                </div>
+
+                <label className="block text-xs font-medium text-slate-700">
+                  Target Location / Area (City, Neighborhood, or Zip Code)
+                  <input
+                    type="text"
+                    value={reLocation}
+                    onChange={(e) => setReLocation(e.target.value)}
+                    placeholder="e.g. Binghamton, Vestal, Broome County, NY or Zip Code"
+                    className="klx-input mt-1 text-xs"
+                  />
+                </label>
+
+                <DocumentUploader
+                  documents={attachedDocs}
+                  onChange={setAttachedDocs}
+                  label="Attach property documents (optional)"
+                  hint="(Pre-approval letter, property deed, inspection report, listing notes, or photos)"
                 />
               </div>
             )}

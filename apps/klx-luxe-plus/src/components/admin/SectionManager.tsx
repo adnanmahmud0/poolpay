@@ -9,6 +9,7 @@ import {
   ArrowUp,
   ArrowUpRight,
   BriefcaseBusiness,
+  Building2,
   CalendarDays,
   CarFront,
   ChartNoAxesCombined,
@@ -29,6 +30,7 @@ import {
   ReceiptText,
   RotateCcw,
   Smartphone,
+  Speech,
   UsersRound
 } from "lucide-react";
 
@@ -44,10 +46,12 @@ const SERVICE_ICONS: Record<
 > = {
   taxes: ReceiptText,
   immigration: FileCheck2,
+  interpreter: Speech,
   translations: Languages,
   transport: CarFront,
   computer: Laptop,
-  finance: ChartNoAxesCombined
+  finance: ChartNoAxesCombined,
+  real_estate: Building2
 };
 
 interface SectionManagerProps {

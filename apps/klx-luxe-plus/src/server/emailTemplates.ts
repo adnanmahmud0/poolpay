@@ -107,6 +107,59 @@ function buildServiceDetails(appointment: KlxAppointment, siteUrl: string, admin
     }
   }
 
+  // Real Estate details
+  if (
+    appointment.realEstateTransactionType ||
+    appointment.realEstatePropertyType ||
+    appointment.realEstateLocation
+  ) {
+    if (appointment.realEstateTransactionType) {
+      serviceDetailsRows.push(`
+        <tr>
+          <td style="padding:6px 0;color:#64748b;font-size:13px;font-weight:600;">Transaction:</td>
+          <td style="padding:6px 0;color:#0f172a;font-size:14px;font-weight:600;">${escapeHtml(appointment.realEstateTransactionType)}</td>
+        </tr>
+      `);
+      textDetails.push(`Transaction: ${appointment.realEstateTransactionType}`);
+    }
+    if (appointment.realEstatePropertyType) {
+      serviceDetailsRows.push(`
+        <tr>
+          <td style="padding:6px 0;color:#64748b;font-size:13px;font-weight:600;">Property Type:</td>
+          <td style="padding:6px 0;color:#0f172a;font-size:14px;">${escapeHtml(appointment.realEstatePropertyType)}</td>
+        </tr>
+      `);
+      textDetails.push(`Property Type: ${appointment.realEstatePropertyType}`);
+    }
+    if (appointment.realEstateLocation) {
+      serviceDetailsRows.push(`
+        <tr>
+          <td style="padding:6px 0;color:#64748b;font-size:13px;font-weight:600;">Target Location:</td>
+          <td style="padding:6px 0;color:#0f172a;font-size:14px;">${escapeHtml(appointment.realEstateLocation)}</td>
+        </tr>
+      `);
+      textDetails.push(`Target Location: ${appointment.realEstateLocation}`);
+    }
+    if (appointment.realEstateBudget) {
+      serviceDetailsRows.push(`
+        <tr>
+          <td style="padding:6px 0;color:#64748b;font-size:13px;font-weight:600;">Budget Range:</td>
+          <td style="padding:6px 0;color:#0f172a;font-size:14px;">${escapeHtml(appointment.realEstateBudget)}</td>
+        </tr>
+      `);
+      textDetails.push(`Budget Range: ${appointment.realEstateBudget}`);
+    }
+    if (appointment.realEstateTimeline) {
+      serviceDetailsRows.push(`
+        <tr>
+          <td style="padding:6px 0;color:#64748b;font-size:13px;font-weight:600;">Timeline:</td>
+          <td style="padding:6px 0;color:#0f172a;font-size:14px;">${escapeHtml(appointment.realEstateTimeline)}</td>
+        </tr>
+      `);
+      textDetails.push(`Timeline: ${appointment.realEstateTimeline}`);
+    }
+  }
+
   // Attached files block
   let attachedHtml = "";
   if (appointment.attachedDocuments && appointment.attachedDocuments.length > 0) {
