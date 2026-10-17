@@ -78,12 +78,25 @@ if [ -f "nginx/poolpay.conf" ]; then
     }
 fi
 
-# 3. Pull new images
-echo "📥 Pulling images: ${BACKEND_IMAGE}, ${ADMIN_IMAGE}, and ${KLX_IMAGE}..."
-docker compose -f docker-compose.prod.yml pull backend admin klx || {
-    echo "⚠️ Failed to pull all Docker images from GHCR; pulling available and continuing..."
-    docker compose -f docker-compose.prod.yml pull backend admin || true
-}
+# 2.5 Disk Cleanup: Ensure free space for layer extraction
+echo "🧹 Checking and freeing disk space before pulling new images..."
+sudo find /var/lib/docker/containers/ -name "*-json.log" -size +50M -exec truncate -s 10M {} + 2>/dev/null || true
+sudo journalctl --vacuum-size=50M 2>/dev/null || true
+sudo apt-get clean 2>/dev/null || true
+docker container prune -f 2>/dev/null || true
+docker image prune -af 2>/dev/null || true
+docker builder prune -af 2>/dev/null || true
+echo "📊 Disk Space before pulling:"
+df -h /
+
+# 3. Pull new images sequentially to minimize concurrent disk buffer usage
+echo "📥 Pulling images sequentially: ${BACKEND_IMAGE}, ${ADMIN_IMAGE}, and ${KLX_IMAGE}..."
+for svc in backend admin klx; do
+    echo "Pulling $svc..."
+    docker compose -f docker-compose.prod.yml pull "$svc" || {
+        echo "⚠️ Failed to pull $svc from GHCR; continuing..."
+    }
+done
 
 # 4. Save previous tag for rollback capability
 if [ -f ".current_tag" ]; then
@@ -158,7 +171,10 @@ bash deploy/deploy-klx.sh "$IMAGE_TAG"
 
 # 8. Clean up unused images
 echo "🧹 Pruning old Docker images..."
-docker image prune -f
+docker image prune -af 2>/dev/null || true
+docker builder prune -af 2>/dev/null || true
+echo "📊 Final Disk Space:"
+df -h /
 
 echo "=================================================="
 echo "🎉 Deployment completed successfully! Tag: ${IMAGE_TAG}"

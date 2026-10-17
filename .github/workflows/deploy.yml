@@ -253,6 +253,28 @@ jobs:
             set -euo pipefail
             echo "🔧 [Bootstrap] Verifying server dependencies on $(hostname)..."
 
+            # 0. Disk Space Maintenance: Free unused Docker layers, oversized logs, and apt cache
+            echo "🧹 [Disk Maintenance] Cleaning up unused images, cache, and logs on EC2..."
+            sudo find /var/lib/docker/containers/ -name "*-json.log" -size +50M -exec truncate -s 10M {} + 2>/dev/null || true
+            sudo journalctl --vacuum-size=50M 2>/dev/null || true
+            sudo apt-get clean 2>/dev/null || true
+            if command -v docker &> /dev/null; then
+              docker container prune -f 2>/dev/null || true
+              docker image prune -af 2>/dev/null || true
+              docker builder prune -af 2>/dev/null || true
+            fi
+            echo "📊 Available Disk Space on /:"
+            df -h /
+
+            # Configure Docker log rotation to prevent infinite container log growth
+            if [ ! -f /etc/docker/daemon.json ]; then
+              sudo mkdir -p /etc/docker
+              echo '{"log-driver":"json-file","log-opts":{"max-size":"20m","max-file":"3"}}' | sudo tee /etc/docker/daemon.json > /dev/null
+              if systemctl is-active --quiet docker; then
+                sudo systemctl reload docker 2>/dev/null || true
+              fi
+            fi
+
             # 1. Configure 2GB Swap file to prevent Out-Of-Memory (OOM) crashes
             if [ ! -f /swapfile ]; then
               echo "Creating 2GB swap file..."
@@ -831,6 +853,20 @@ jobs:
           script: |
             set -euo pipefail
             echo "🚀 Connecting to EC2 host..."
+
+            # Pre-deployment disk cleanup on host
+            echo "🧹 [Pre-deployment Cleanup] Ensuring sufficient disk space on host..."
+            sudo find /var/lib/docker/containers/ -name "*-json.log" -size +50M -exec truncate -s 10M {} + 2>/dev/null || true
+            sudo journalctl --vacuum-size=50M 2>/dev/null || true
+            sudo apt-get clean 2>/dev/null || true
+            if command -v docker &> /dev/null; then
+              docker container prune -f 2>/dev/null || true
+              docker image prune -af 2>/dev/null || true
+              docker builder prune -af 2>/dev/null || true
+            fi
+            echo "📊 Available Disk Space on /:"
+            df -h /
+
             TARGET_DIR="$HOME/poolpay"
             mkdir -p "$TARGET_DIR"
             cd "$TARGET_DIR"
