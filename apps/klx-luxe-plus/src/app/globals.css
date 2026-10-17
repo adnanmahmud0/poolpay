@@ -1820,3 +1820,10 @@
     animation: none;
   }
 }
+
+/* Suppress Google Maps API authorization failure modal alerts */
+.gm-err-container,
+.gm-err-autocomplete,
+.gm-style-moc {
+  display: none !important;
+}

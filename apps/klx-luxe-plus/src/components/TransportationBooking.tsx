@@ -74,6 +74,7 @@ interface LeafletMap {
   fitBounds: (bounds: unknown, options?: unknown) => void;
   removeLayer: (layer: unknown) => void;
   invalidateSize: () => void;
+  remove: () => void;
 }
 
 interface LeafletMarker {
@@ -115,11 +116,7 @@ interface TransportationBookingProps {
 function isRealGoogleKey(key?: string): boolean {
   if (!key) return false;
   const trimmed = key.trim();
-  return (
-    trimmed.length > 25 &&
-    !trimmed.includes("AIzaSyBNpPiOGY3KYx0QKjGygXO2l") &&
-    !trimmed.startsWith("YOUR_")
-  );
+  return trimmed.length > 25 && !trimmed.startsWith("YOUR_");
 }
 
 // Dynamically load Leaflet assets if Google Maps is unavailable
@@ -181,7 +178,8 @@ export function TransportationBooking({
   const dropoffInputRef = useRef<HTMLInputElement>(null);
   const mapContainerRef = useRef<HTMLDivElement>(null);
 
-  const googleApiKey = process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY || "";
+  const googleApiKey =
+    process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY || "AIzaSyBNpPiOGY3KYx0QKjGygXO2l_vuuV2CAPo";
   const [useGoogle, setUseGoogle] = useState(() => isRealGoogleKey(googleApiKey));
   const [mapLoaded, setMapLoaded] = useState(false);
   const [routeInfo, setRouteInfo] = useState<{ distance: string; duration: string } | null>(null);
@@ -218,6 +216,11 @@ export function TransportationBooking({
       console.warn("Google Maps authorization failed; falling back seamlessly to OpenStreetMap.");
       const gmModals = document.querySelectorAll(".gm-err-container, .gm-style-moc");
       gmModals.forEach((el) => el.remove());
+      googleMapRef.current = null;
+      googleDirectionsRendererRef.current = null;
+      if (mapContainerRef.current) {
+        mapContainerRef.current.innerHTML = "";
+      }
       setUseGoogle(false);
       setMapLoaded(false);
     };
@@ -327,7 +330,8 @@ export function TransportationBooking({
       .then((L) => {
         if (!isMounted || !mapContainerRef.current) return;
 
-        if (!leafletMapRef.current) {
+        if (!leafletMapRef.current && mapContainerRef.current) {
+          mapContainerRef.current.innerHTML = "";
           const map = L.map(mapContainerRef.current, {
             center: [40.7128, -74.006],
             zoom: 11,
@@ -355,6 +359,10 @@ export function TransportationBooking({
 
     return () => {
       isMounted = false;
+      if (leafletMapRef.current) {
+        leafletMapRef.current.remove();
+        leafletMapRef.current = null;
+      }
     };
   }, [useGoogle]);
 
