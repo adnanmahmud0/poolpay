@@ -834,6 +834,14 @@
   padding-block: 100px 110px;
   background: #0b1d2e;
 }
+.testimonials-video-wrap {
+  @apply pointer-events-none absolute inset-0 -z-20 h-full w-full overflow-hidden;
+}
+.testimonials-video {
+  @apply h-full w-full object-cover object-center;
+  opacity: 0.45;
+  filter: saturate(1.15) brightness(0.92);
+}
 .testimonials-bg {
   @apply absolute inset-0 -z-10 h-full w-full;
   background-image: url("/images/testimonials-bg.jpg");
@@ -842,11 +850,11 @@
   opacity: 0.4;
 }
 .testimonials-overlay {
-  @apply absolute inset-0 -z-10;
+  @apply pointer-events-none absolute inset-0 -z-10;
   background: linear-gradient(
     135deg,
-    rgb(7 18 30 / 90%) 0%,
-    rgb(12 28 44 / 75%) 50%,
+    rgb(7 18 30 / 88%) 0%,
+    rgb(12 28 44 / 72%) 50%,
     rgb(7 18 30 / 92%) 100%
   );
 }

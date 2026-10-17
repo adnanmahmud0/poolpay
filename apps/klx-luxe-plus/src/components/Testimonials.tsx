@@ -39,7 +39,20 @@ export function Testimonials() {
       className="testimonials-section"
       aria-labelledby="testimonials-heading"
     >
-      <div className="testimonials-bg" aria-hidden="true" />
+      <div className="testimonials-video-wrap" aria-hidden="true">
+        <video
+          autoPlay
+          loop
+          muted
+          playsInline
+          preload="auto"
+          poster="/images/testimonials-bg.jpg"
+          className="testimonials-video"
+        >
+          <source src="/videos/testimonials-bg.webm" type="video/webm" />
+          <source src="/videos/testimonials-bg.mp4" type="video/mp4" />
+        </video>
+      </div>
       <div className="testimonials-overlay" aria-hidden="true" />
       <div className="section-shell relative z-10">
         <div className="testimonials-header" data-reveal>
