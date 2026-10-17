@@ -283,7 +283,7 @@ export async function createAppointment(
   await enqueueOutbox({
     type: "appointment_requested",
     recipient: appointment.customerEmail,
-    subject: `Appointment Request Received — ${appointment.reference}`,
+    subject: `Appointment Request Received: ${appointment.serviceName} — KLX LUXE PLUS LLC [${appointment.reference}]`,
     bodyHtml: `<p>Dear ${appointment.customerName},</p><p>We have received your appointment request for <strong>${appointment.serviceName}</strong> on <strong>${appointment.requestedDate} at ${appointment.requestedTimeSlot} (${appointment.timezone})</strong>.</p><p>Reference: <strong>${appointment.reference}</strong></p><p>Our team will review your request and confirm shortly.</p><p>Best regards,<br/>KLX LUXE PLUS LLC</p>`,
     bodyText: `Dear ${appointment.customerName},\n\nWe have received your appointment request for ${appointment.serviceName} on ${appointment.requestedDate} at ${appointment.requestedTimeSlot} (${appointment.timezone}).\nReference: ${appointment.reference}\n\nOur team will review your request and confirm shortly.\n\nKLX LUXE PLUS LLC`
   });
@@ -349,7 +349,7 @@ export async function updateAppointmentStatus(
     await enqueueOutbox({
       type: "appointment_confirmed",
       recipient: apt.customerEmail,
-      subject: `Appointment Confirmed — ${apt.reference}`,
+      subject: `Appointment Confirmed: ${apt.serviceName} on ${apt.requestedDate} — KLX LUXE PLUS LLC [${apt.reference}]`,
       bodyHtml: `<p>Dear ${apt.customerName},</p><p>Your appointment for <strong>${apt.serviceName}</strong> has been <strong>CONFIRMED</strong> for <strong>${apt.requestedDate} at ${apt.requestedTimeSlot} (${apt.timezone})</strong>.</p><p>${adminNotes ? `Note: ${adminNotes}` : ""}</p><p>We look forward to serving you.<br/>KLX LUXE PLUS LLC</p>`,
       bodyText: `Dear ${apt.customerName},\n\nYour appointment for ${apt.serviceName} has been CONFIRMED for ${apt.requestedDate} at ${apt.requestedTimeSlot} (${apt.timezone}).\n\nKLX LUXE PLUS LLC`
     });

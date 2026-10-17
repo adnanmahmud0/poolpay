@@ -605,7 +605,9 @@ test("admin appointment request email blocks direct replies and includes one-cli
   assert.ok(adminEmail);
   assert.equal(adminEmail.replyTo, "no-reply");
   assert.equal(adminEmail.noReply, true);
-  assert.ok(adminEmail.subject.startsWith("[No-Reply]"));
+  assert.ok(adminEmail.subject.includes("New Appointment Request: Taxes — Elena Rostova"));
+  assert.ok(adminEmail.subject.includes("[KLX-"));
+  assert.ok(!adminEmail.subject.startsWith("[No-Reply]"));
   assert.ok(adminEmail.bodyHtml.includes("DO NOT REPLY"));
   assert.ok(adminEmail.bodyHtml.includes("Automated Notification — Direct Replies Blocked"));
   assert.ok(adminEmail.bodyHtml.includes("/api/auth/magic?token="));
