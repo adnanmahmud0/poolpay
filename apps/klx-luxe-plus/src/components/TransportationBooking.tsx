@@ -212,9 +212,14 @@ export function TransportationBooking({
   useEffect(() => {
     if (typeof window === "undefined") return;
     const win = window as WindowWithMaps;
-    win.gm_authFailure = () => {
-      console.warn("Google Maps authorization failed; falling back seamlessly to OpenStreetMap.");
-      const gmModals = document.querySelectorAll(".gm-err-container, .gm-style-moc");
+
+    const triggerFallback = (reason: string) => {
+      console.warn(
+        `[KLX Map] Google Maps unavailable (${reason}); falling back seamlessly to OpenStreetMap engine.`
+      );
+      const gmModals = document.querySelectorAll(
+        ".gm-err-container, .gm-style-moc, .gm-err-content, .gm-err-autocomplete"
+      );
       gmModals.forEach((el) => el.remove());
       googleMapRef.current = null;
       googleDirectionsRendererRef.current = null;
@@ -223,6 +228,52 @@ export function TransportationBooking({
       }
       setUseGoogle(false);
       setMapLoaded(false);
+    };
+
+    win.gm_authFailure = () => triggerFallback("gm_authFailure");
+
+    // Intercept console.error for LegacyApiNotActivatedMapError / ApiNotActivatedMapError
+    const originalConsoleError = console.error;
+    console.error = (...args: unknown[]) => {
+      const msg = args
+        .map((a) => {
+          if (typeof a === "string") return a;
+          if (a instanceof Error) return a.message;
+          try {
+            return JSON.stringify(a);
+          } catch {
+            return String(a);
+          }
+        })
+        .join(" ");
+
+      if (
+        msg.includes("LegacyApiNotActivatedMapError") ||
+        msg.includes("ApiNotActivatedMapError") ||
+        msg.includes("Google Maps JavaScript API error") ||
+        msg.includes("MissingKeyMapError") ||
+        msg.includes("BillingNotEnabledMapError")
+      ) {
+        triggerFallback("API restriction error detected in console");
+      }
+      originalConsoleError.apply(console, args);
+    };
+
+    // DOM MutationObserver to detect and instantly suppress any injected Google error banners
+    const observer = new MutationObserver(() => {
+      const errNodes = document.querySelectorAll(
+        ".gm-err-container, .gm-err-content, .gm-style-moc, .gm-err-autocomplete"
+      );
+      if (errNodes.length > 0) {
+        triggerFallback("DOM error modal detected");
+      }
+    });
+
+    observer.observe(document.body, { childList: true, subtree: true });
+
+    return () => {
+      console.error = originalConsoleError;
+      observer.disconnect();
     };
   }, []);
 
@@ -267,54 +318,67 @@ export function TransportationBooking({
     const win = window as WindowWithMaps;
     if (!win.google?.maps) return;
 
-    if (!googleMapRef.current) {
-      const map = new win.google.maps.Map(mapContainerRef.current, {
-        center: { lat: 40.7128, lng: -74.006 },
-        zoom: 11,
-        mapTypeControl: false,
-        streetViewControl: false,
-        fullscreenControl: false,
-        zoomControl: true,
-        styles: [
-          { featureType: "poi", elementType: "labels", stylers: [{ visibility: "off" }] },
-          { featureType: "transit", elementType: "labels.icon", stylers: [{ visibility: "off" }] }
-        ]
-      });
+    try {
+      if (!googleMapRef.current) {
+        const map = new win.google.maps.Map(mapContainerRef.current, {
+          center: { lat: 40.7128, lng: -74.006 },
+          zoom: 11,
+          mapTypeControl: false,
+          streetViewControl: false,
+          fullscreenControl: false,
+          zoomControl: true,
+          styles: [
+            { featureType: "poi", elementType: "labels", stylers: [{ visibility: "off" }] },
+            { featureType: "transit", elementType: "labels.icon", stylers: [{ visibility: "off" }] }
+          ]
+        });
 
-      const directionsRenderer = new win.google.maps.DirectionsRenderer({
-        map,
-        suppressMarkers: true,
-        polylineOptions: {
-          strokeColor: "#0284c7",
-          strokeWeight: 4,
-          strokeOpacity: 0.9
-        }
-      });
+        const directionsRenderer = new win.google.maps.DirectionsRenderer({
+          map,
+          suppressMarkers: true,
+          polylineOptions: {
+            strokeColor: "#0284c7",
+            strokeWeight: 4,
+            strokeOpacity: 0.9
+          }
+        });
 
-      googleDirectionsRendererRef.current = directionsRenderer;
-      googleMapRef.current = map;
-    }
+        googleDirectionsRendererRef.current = directionsRenderer;
+        googleMapRef.current = map;
+      }
 
-    // Google Places Autocomplete
-    if (pickupInputRef.current) {
-      const pickupAuto = new win.google.maps.places.Autocomplete(pickupInputRef.current, {
-        fields: ["formatted_address", "geometry", "name"]
-      });
-      pickupAuto.addListener("place_changed", () => {
-        const place = pickupAuto.getPlace();
-        const address = place.formatted_address || place.name || "";
-        onPickupChange(address);
-      });
-    }
+      // Google Places Autocomplete
+      if (pickupInputRef.current) {
+        const pickupAuto = new win.google.maps.places.Autocomplete(pickupInputRef.current, {
+          fields: ["formatted_address", "geometry", "name"]
+        });
+        pickupAuto.addListener("place_changed", () => {
+          const place = pickupAuto.getPlace();
+          const address = place.formatted_address || place.name || "";
+          onPickupChange(address);
+        });
+      }
 
-    if (dropoffInputRef.current) {
-      const dropoffAuto = new win.google.maps.places.Autocomplete(dropoffInputRef.current, {
-        fields: ["formatted_address", "geometry", "name"]
-      });
-      dropoffAuto.addListener("place_changed", () => {
-        const place = dropoffAuto.getPlace();
-        const address = place.formatted_address || place.name || "";
-        onDropoffChange(address);
+      if (dropoffInputRef.current) {
+        const dropoffAuto = new win.google.maps.places.Autocomplete(dropoffInputRef.current, {
+          fields: ["formatted_address", "geometry", "name"]
+        });
+        dropoffAuto.addListener("place_changed", () => {
+          const place = dropoffAuto.getPlace();
+          const address = place.formatted_address || place.name || "";
+          onDropoffChange(address);
+        });
+      }
+    } catch (err) {
+      console.warn("Failed initializing Google Maps, falling back to OpenStreetMap:", err);
+      googleMapRef.current = null;
+      googleDirectionsRendererRef.current = null;
+      if (mapContainerRef.current) {
+        mapContainerRef.current.innerHTML = "";
+      }
+      queueMicrotask(() => {
+        setUseGoogle(false);
+        setMapLoaded(false);
       });
     }
   }, [useGoogle, mapLoaded, onPickupChange, onDropoffChange]);
