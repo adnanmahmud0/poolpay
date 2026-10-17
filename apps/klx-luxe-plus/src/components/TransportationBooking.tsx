@@ -61,22 +61,6 @@ interface NominatimResult {
   lon: string;
 }
 
-interface PlacesNewPrediction {
-  placePrediction?: {
-    place?: string;
-    placeId?: string;
-    text?: { text?: string };
-    structuredFormat?: {
-      mainText?: { text?: string };
-      secondaryText?: { text?: string };
-    };
-  };
-}
-
-interface PlacesNewResponse {
-  suggestions?: PlacesNewPrediction[];
-}
-
 interface RoutesApiResponse {
   routes?: Array<{
     distanceMeters?: number;
@@ -415,11 +399,11 @@ export function TransportationBooking({
             zoomControl: true
           });
 
-          // Luxury CartoDB Voyager tiles (100% free, no API key required)
-          L.tileLayer("https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png", {
-            attribution: '&copy; <a href="https://carto.com/">CARTO</a> &copy; OpenStreetMap',
-            maxZoom: 19,
-            subdomains: "abcd"
+          // Standard OpenStreetMap tiles (100% free, no API key required, zero watermarks)
+          L.tileLayer("https://tile.openstreetmap.org/{z}/{x}/{y}.png", {
+            attribution:
+              '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
+            maxZoom: 19
           }).addTo(map);
 
           leafletMapRef.current = map;
@@ -444,7 +428,7 @@ export function TransportationBooking({
   }, [useGoogle]);
 
   // ---------------------------------------------------------------------------
-  // 5. Autocomplete Suggestions (Google Places API New + Nominatim fallback)
+  // 5. Autocomplete Suggestions (Server Places API with Nominatim Fallback)
   // ---------------------------------------------------------------------------
   const searchLocations = useCallback(
     async (
@@ -459,44 +443,22 @@ export function TransportationBooking({
       }
       setLoading(true);
 
-      // 1. Try Google Places API (New) if key is configured
-      if (googleApiKey && isRealGoogleKey(googleApiKey)) {
-        try {
-          const res = await fetch("https://places.googleapis.com/v1/places:autocomplete", {
-            method: "POST",
-            headers: {
-              "Content-Type": "application/json",
-              "X-Goog-Api-Key": googleApiKey
-            },
-            body: JSON.stringify({ input: query.trim() })
-          });
-          if (res.ok) {
-            const data = (await res.json()) as PlacesNewResponse;
-            if (Array.isArray(data.suggestions) && data.suggestions.length > 0) {
-              const suggestions: LocationSuggestion[] = data.suggestions
-                .map((item) => ({
-                  displayName:
-                    item.placePrediction?.text?.text ||
-                    item.placePrediction?.structuredFormat?.mainText?.text ||
-                    "",
-                  lat: 0,
-                  lon: 0
-                }))
-                .filter((s) => s.displayName);
-
-              if (suggestions.length > 0) {
-                setResults(suggestions);
-                setLoading(false);
-                return;
-              }
-            }
+      // 1. Try server Places proxy route (Google Places + server Nominatim fallback)
+      try {
+        const res = await fetch(`/api/places?q=${encodeURIComponent(query.trim())}`);
+        if (res.ok) {
+          const data = (await res.json()) as { suggestions?: LocationSuggestion[] };
+          if (Array.isArray(data.suggestions) && data.suggestions.length > 0) {
+            setResults(data.suggestions);
+            setLoading(false);
+            return;
           }
-        } catch {
-          // Fall through to Nominatim
         }
+      } catch {
+        // Fall through to client Nominatim
       }
 
-      // 2. Fallback to OpenStreetMap Nominatim
+      // 2. Direct client fallback to OpenStreetMap Nominatim
       try {
         const url = `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(
           query.trim()
@@ -522,7 +484,7 @@ export function TransportationBooking({
         setLoading(false);
       }
     },
-    [googleApiKey]
+    []
   );
 
   // Debounced input search for Pickup
@@ -545,34 +507,26 @@ export function TransportationBooking({
     return () => clearTimeout(timer);
   }, [dropoffLocation, dropoffFocused, searchLocations]);
 
-  // Geocode address to lat/lng using Google Geocoding (with Nominatim fallback)
+  // Geocode address to lat/lng using Server Places API (with client Nominatim fallback)
   const handleManualGeocode = async (address: string, isPickup: boolean) => {
     if (!address.trim()) return;
 
-    // 1. Try Google Geocoding API if key configured
-    if (googleApiKey && isRealGoogleKey(googleApiKey)) {
-      try {
-        const url = `https://maps.googleapis.com/maps/api/geocode/json?address=${encodeURIComponent(
-          address.trim()
-        )}&key=${googleApiKey}`;
-        const res = await fetch(url);
-        if (res.ok) {
-          const data = (await res.json()) as {
-            results?: Array<{ geometry?: { location?: { lat: number; lng: number } } }>;
-          };
-          if (data.results && data.results[0]?.geometry?.location) {
-            const { lat, lng } = data.results[0].geometry.location;
-            if (isPickup) {
-              setPickupCoords([lat, lng]);
-            } else {
-              setDropoffCoords([lat, lng]);
-            }
-            return;
+    // 1. Try server Places geocoding proxy
+    try {
+      const res = await fetch(`/api/places?address=${encodeURIComponent(address.trim())}`);
+      if (res.ok) {
+        const data = (await res.json()) as { lat?: number; lon?: number };
+        if (data.lat && data.lon) {
+          if (isPickup) {
+            setPickupCoords([data.lat, data.lon]);
+          } else {
+            setDropoffCoords([data.lat, data.lon]);
           }
+          return;
         }
-      } catch {
-        // Fall through to Nominatim
       }
+    } catch {
+      // Fall through to client Nominatim
     }
 
     // 2. Fallback to OpenStreetMap Nominatim
@@ -843,9 +797,9 @@ export function TransportationBooking({
       </div>
 
       {/* Location Inputs with Autocomplete Dropdowns */}
-      <div className="grid gap-3 sm:grid-cols-2">
+      <div className="relative z-30 grid gap-3 sm:grid-cols-2">
         {/* Pickup Input */}
-        <div className="relative">
+        <div className={`relative ${pickupFocused ? "z-50" : "z-20"}`}>
           <label className="text-xs font-medium text-slate-700">
             Pickup Location *
             <div className="relative mt-1">
@@ -877,7 +831,7 @@ export function TransportationBooking({
 
           {/* Pickup Suggestions Dropdown */}
           {pickupFocused && pickupSuggestions.length > 0 && (
-            <div className="absolute top-full right-0 left-0 z-50 mt-1 max-h-56 overflow-auto rounded-xl border border-slate-200 bg-white p-1 shadow-xl">
+            <div className="absolute top-full right-0 left-0 z-50 mt-1 max-h-56 overflow-auto rounded-xl border border-slate-200 bg-white p-1 shadow-2xl">
               {pickupSuggestions.map((item, idx) => (
                 <button
                   type="button"
@@ -904,7 +858,7 @@ export function TransportationBooking({
         </div>
 
         {/* Drop-off Input */}
-        <div className="relative">
+        <div className={`relative ${dropoffFocused ? "z-50" : "z-20"}`}>
           <label className="text-xs font-medium text-slate-700">
             Drop-off Location *
             <div className="relative mt-1">
@@ -936,7 +890,7 @@ export function TransportationBooking({
 
           {/* Drop-off Suggestions Dropdown */}
           {dropoffFocused && dropoffSuggestions.length > 0 && (
-            <div className="absolute top-full right-0 left-0 z-50 mt-1 max-h-56 overflow-auto rounded-xl border border-slate-200 bg-white p-1 shadow-xl">
+            <div className="absolute top-full right-0 left-0 z-50 mt-1 max-h-56 overflow-auto rounded-xl border border-slate-200 bg-white p-1 shadow-2xl">
               {dropoffSuggestions.map((item, idx) => (
                 <button
                   type="button"
@@ -964,7 +918,7 @@ export function TransportationBooking({
       </div>
 
       {/* Interactive Map Container */}
-      <div className="space-y-2">
+      <div className="relative z-10 space-y-2">
         <div className="relative h-60 w-full overflow-hidden rounded-xl border border-slate-200 bg-slate-100 shadow-inner">
           <div ref={mapContainerRef} className="h-full w-full" />
           {!mapLoaded && (
