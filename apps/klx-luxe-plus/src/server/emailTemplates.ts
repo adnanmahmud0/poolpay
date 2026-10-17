@@ -28,7 +28,7 @@ function formatTimeSlot(time: string): string {
 // -----------------------------------------------------------------------------
 // Service Details & Attachments Builder Helper
 // -----------------------------------------------------------------------------
-function buildServiceDetails(appointment: KlxAppointment, siteUrl: string) {
+function buildServiceDetails(appointment: KlxAppointment, siteUrl: string, adminToken?: string) {
   const serviceDetailsRows: string[] = [];
   const textDetails: string[] = [];
 
@@ -113,15 +113,18 @@ function buildServiceDetails(appointment: KlxAppointment, siteUrl: string) {
     textDetails.push(`Attached Documents:`);
     const docItems = appointment.attachedDocuments
       .map((doc: AttachedDocument) => {
-        const fullDocUrl = `${siteUrl}${doc.url}`;
-        textDetails.push(`  • ${doc.name} (${(doc.size / 1024).toFixed(0)} KB): ${fullDocUrl}`);
+        const directDocUrl = `${siteUrl}${doc.url}`;
+        const clickDocUrl = adminToken
+          ? `${siteUrl}/api/auth/magic?token=${encodeURIComponent(adminToken)}&next=${doc.url}`
+          : directDocUrl;
+        textDetails.push(`  • ${doc.name} (${(doc.size / 1024).toFixed(0)} KB): ${clickDocUrl}`);
         return `
           <div style="margin:8px 0;padding:10px 14px;background:#ffffff;border:1px solid #cbd5e1;border-radius:8px;display:flex;align-items:center;justify-content:space-between;">
             <div style="font-size:13px;font-weight:600;color:#0f172a;">
               <span style="font-size:16px;margin-right:6px;">📄</span> ${escapeHtml(doc.name)}
               <span style="font-size:11px;color:#64748b;margin-left:6px;font-weight:400;">(${(doc.size / 1024).toFixed(0)} KB)</span>
             </div>
-            <a href="${fullDocUrl}" target="_blank" style="display:inline-block;padding:5px 12px;background:#0284c7;color:#ffffff;text-decoration:none;border-radius:6px;font-size:12px;font-weight:600;">Download</a>
+            <a href="${clickDocUrl}" target="_blank" style="display:inline-block;padding:5px 12px;background:#0284c7;color:#ffffff;text-decoration:none;border-radius:6px;font-size:12px;font-weight:600;">Download</a>
           </div>
         `;
       })
@@ -154,17 +157,28 @@ export function renderAdminAppointmentRequestEmail({
   settings: KlxSettings;
   siteUrl: string;
 }): { html: string; text: string; subject: string } {
-  const subject = `New Appointment Request [${appointment.reference}] — ${service.name} (${appointment.customerName})`;
-  const approveUrl = `${siteUrl}/admin/appointments?appointment=${appointment.id}&decision=confirmed`;
-  const rejectUrl = `${siteUrl}/admin/appointments?appointment=${appointment.id}&decision=declined`;
-  const dashboardUrl = `${siteUrl}/admin/appointments`;
+  const subject = `[No-Reply] New Appointment Request [${appointment.reference}] — ${service.name} (${appointment.customerName})`;
+  const adminToken = appointment.adminToken || "";
+  const buildActionUrl = (path: string) => {
+    if (!adminToken) return `${siteUrl}${path}`;
+    return `${siteUrl}/api/auth/magic?token=${encodeURIComponent(adminToken)}&next=${encodeURIComponent(path)}`;
+  };
+
+  const approveUrl = buildActionUrl(
+    `/admin/appointments?appointment=${appointment.id}&decision=confirmed`
+  );
+  const rejectUrl = buildActionUrl(
+    `/admin/appointments?appointment=${appointment.id}&decision=declined`
+  );
+  const dashboardUrl = buildActionUrl(`/admin/appointments`);
 
   const timeFormatted = formatTimeSlot(appointment.requestedTimeSlot);
 
   // Build service-specific details
   const { serviceDetailsRows, textDetails, attachedHtml } = buildServiceDetails(
     appointment,
-    siteUrl
+    siteUrl,
+    adminToken
   );
 
   const html = `
@@ -191,6 +205,9 @@ export function renderAdminAppointmentRequestEmail({
             </div>
           </td>
           <td align="right">
+            <span style="display:inline-block;padding:5px 12px;background:#ef4444;color:#ffffff;border-radius:20px;font-size:10px;font-weight:800;letter-spacing:0.06em;text-transform:uppercase;margin-right:6px;">
+              🚫 Do Not Reply
+            </span>
             <span style="display:inline-block;padding:6px 12px;background:rgba(245,158,11,0.15);border:1px solid #f59e0b;color:#fbbf24;border-radius:20px;font-size:11px;font-weight:700;letter-spacing:0.06em;text-transform:uppercase;">
               Pending Review
             </span>
@@ -201,6 +218,23 @@ export function renderAdminAppointmentRequestEmail({
 
     <!-- Main Body Container -->
     <div style="padding:32px 32px 24px 32px;">
+
+      <!-- Do-Not-Reply Warning Callout -->
+      <div style="margin-bottom:20px;padding:14px 18px;background:#fef2f2;border:1px solid #fecaca;border-radius:12px;">
+        <table width="100%" cellpadding="0" cellspacing="0" border="0">
+          <tr>
+            <td width="28" style="vertical-align:top;font-size:22px;line-height:1;">⛔</td>
+            <td style="vertical-align:top;padding-left:12px;">
+              <div style="font-size:12px;font-weight:800;color:#991b1b;text-transform:uppercase;letter-spacing:0.05em;">
+                Automated Notification — Direct Replies Blocked
+              </div>
+              <div style="font-size:13px;color:#7f1d1d;margin-top:3px;line-height:1.4;">
+                This message was automatically generated by the booking system. Replies sent to this email address are <strong>unmonitored and blocked</strong>. To approve, reject, or manage this booking without manually entering your credentials, use the one-click options below.
+              </div>
+            </td>
+          </tr>
+        </table>
+      </div>
 
       <h1 style="margin:0 0 6px 0;font-size:22px;font-weight:800;color:#0f172a;line-height:1.3;">
         New Appointment Request
@@ -301,8 +335,11 @@ export function renderAdminAppointmentRequestEmail({
         <div style="font-size:14px;font-weight:800;color:#0f172a;margin-bottom:6px;text-transform:uppercase;letter-spacing:0.05em;">
           Immediate Action Required
         </div>
-        <div style="font-size:13px;color:#64748b;margin-bottom:20px;">
+        <div style="font-size:13px;color:#64748b;margin-bottom:12px;">
           Approving will confirm the schedule and block the calendar duration. Rejecting will release the reserved time slot.
+        </div>
+        <div style="margin-bottom:18px;display:inline-block;padding:6px 14px;background:#e0f2fe;border:1px solid #bae6fd;border-radius:20px;font-size:11px;font-weight:700;color:#0369a1;letter-spacing:0.04em;">
+          ⚡ One-Click Auto-Login: Clicking any action automatically signs you into your admin workspace.
         </div>
 
         <table width="100%" cellpadding="0" cellspacing="0" border="0">
@@ -329,8 +366,8 @@ export function renderAdminAppointmentRequestEmail({
           </tr>
           <tr>
             <td align="center" style="padding-top:8px;">
-              <a href="${dashboardUrl}" target="_blank" style="color:#64748b;font-size:12px;text-decoration:underline;">
-                Open Full Appointments Dashboard →
+              <a href="${dashboardUrl}" target="_blank" style="color:#0284c7;font-size:13px;font-weight:600;text-decoration:underline;">
+                Open Full Appointments Dashboard (Auto-Login) →
               </a>
             </td>
           </tr>
@@ -340,10 +377,13 @@ export function renderAdminAppointmentRequestEmail({
     </div>
 
     <!-- Footer -->
-    <div style="background:#f8fafc;padding:20px 32px;border-top:1px solid #e2e8f0;font-size:12px;color:#64748b;text-align:center;">
+    <div style="background:#f8fafc;padding:24px 32px;border-top:1px solid #e2e8f0;font-size:12px;color:#64748b;text-align:center;">
+      <div style="display:inline-block;padding:6px 14px;background:#fee2e2;border:1px solid #fca5a5;border-radius:8px;color:#991b1b;font-weight:700;font-size:11px;margin-bottom:12px;">
+        ⚠️ REPLIES CANNOT BE PROCESSED · DO NOT REPLY DIRECTLY TO THIS EMAIL
+      </div>
       <div style="font-weight:700;color:#334155;margin-bottom:4px;">KLX LUXE PLUS LLC</div>
       <div>Support: ${escapeHtml(settings.supportEmail || "support@klxluxeplus.poolpay.space")} · Phone: ${escapeHtml(settings.phone || "+1 (607) 900-4569")}</div>
-      <div style="margin-top:8px;color:#94a3b8;font-size:11px;">This automated dispatch was generated by the KLX Luxe Plus booking engine.</div>
+      <div style="margin-top:8px;color:#94a3b8;font-size:11px;">This automated dispatch was generated by the KLX Luxe Plus booking engine. Direct email replies are blocked.</div>
     </div>
 
   </div>
@@ -354,6 +394,7 @@ export function renderAdminAppointmentRequestEmail({
   const text = `
 ============================================================
 KLX LUXE PLUS LLC — NEW APPOINTMENT REQUEST
+[DO NOT REPLY — AUTOMATED NOTIFICATION · DIRECT REPLIES BLOCKED]
 ============================================================
 
 A new appointment booking requires review.
@@ -370,14 +411,19 @@ CLIENT DETAILS:
 ${appointment.customerNotes ? `- Notes: ${appointment.customerNotes}` : ""}
 
 ${textDetails.length > 0 ? `DETAILS:\n${textDetails.join("\n")}\n` : ""}
-DECISION ACTIONS:
+DECISION ACTIONS (ONE-CLICK AUTO-LOGIN):
 • APPROVE (Confirm & Block Time):
   ${approveUrl}
 
 • REJECT (Decline & Release Slot):
   ${rejectUrl}
 
-Full Dashboard: ${dashboardUrl}
+• FULL DASHBOARD (Auto-Login):
+  ${dashboardUrl}
+
+*** DO NOT REPLY TO THIS EMAIL ***
+Direct email replies to this address are unmonitored and blocked.
+All management must be done via the one-click secure links above.
 
 KLX LUXE PLUS LLC · ${settings.supportEmail}
 ============================================================

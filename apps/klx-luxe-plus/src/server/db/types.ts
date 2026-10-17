@@ -145,6 +145,7 @@ export interface KlxAppointment {
   servicePriceCents?: number;
   serviceDepositCents?: number;
   token: string;
+  adminToken?: string;
   sourceLanguage?: string;
   targetLanguage?: string;
   interpretationSetting?: string;
@@ -265,6 +266,8 @@ export interface KlxOutbox {
   id: string;
   type: OutboxType;
   recipient: string;
+  replyTo?: string | null;
+  noReply?: boolean;
   subject: string;
   bodyHtml: string;
   bodyText: string;

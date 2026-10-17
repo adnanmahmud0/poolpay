@@ -182,6 +182,8 @@ export async function requestAppointment(input: unknown) {
         : 0
       : service.priceCents;
 
+  const adminToken = randomBytes(32).toString("hex");
+
   const appointment: KlxAppointment = {
     ...data,
     id,
@@ -192,6 +194,7 @@ export async function requestAppointment(input: unknown) {
     servicePriceCents: priceCents,
     serviceDepositCents: service.pricingMode === "deposit" ? service.depositCents : 0,
     token: randomBytes(32).toString("hex"),
+    adminToken,
     createdAt: new Date(),
     updatedAt: new Date()
   };
@@ -215,6 +218,7 @@ export async function requestAppointment(input: unknown) {
       id: `appointment-${id}-customer`,
       type: "appointment_requested",
       recipient: data.customerEmail,
+      replyTo: "no-reply",
       subject: customerEmail.subject,
       bodyHtml: customerEmail.html,
       bodyText: customerEmail.text
@@ -225,6 +229,8 @@ export async function requestAppointment(input: unknown) {
       id: `appointment-${id}-business`,
       type: "appointment_requested",
       recipient: settings.supportEmail,
+      replyTo: "no-reply",
+      noReply: true,
       subject: adminEmail.subject,
       bodyHtml: adminEmail.html,
       bodyText: adminEmail.text

@@ -2,21 +2,15 @@
 
 import { useRef, useState } from "react";
 
-import {
-  AlertCircle,
-  FileCheck2,
-  FileText,
-  Loader2,
-  Paperclip,
-  UploadCloud,
-  X
-} from "lucide-react";
+import { AlertCircle, FileCheck2, Loader2, UploadCloud, X } from "lucide-react";
 
 import type { AttachedDocument } from "@/server/db/types";
 
 interface DocumentUploaderProps {
   documents: AttachedDocument[];
   onChange: (docs: AttachedDocument[]) => void;
+  label?: string;
+  hint?: string;
 }
 
 function formatBytes(bytes: number) {
@@ -27,7 +21,12 @@ function formatBytes(bytes: number) {
   return `${(bytes / Math.pow(k, i)).toFixed(1)} ${sizes[i]}`;
 }
 
-export function DocumentUploader({ documents, onChange }: DocumentUploaderProps) {
+export function DocumentUploader({
+  documents,
+  onChange,
+  label = "Attach relevant documents",
+  hint = "(PDF, JPG, PNG up to 10 MB)"
+}: DocumentUploaderProps) {
   const [isDragging, setIsDragging] = useState(false);
   const [uploading, setUploading] = useState(false);
   const [error, setError] = useState("");
@@ -89,10 +88,7 @@ export function DocumentUploader({ documents, onChange }: DocumentUploaderProps)
     <div className="space-y-3">
       <div className="flex items-center justify-between">
         <label className="text-sm font-medium text-slate-700">
-          Attach documents to translate{" "}
-          <span className="text-xs font-normal text-slate-500">
-            (Birth certificates, marriage licenses, diplomas, etc.)
-          </span>
+          {label} {hint && <span className="text-xs font-normal text-slate-500">{hint}</span>}
         </label>
         {documents.length > 0 && (
           <span className="rounded-full bg-emerald-50 px-2 py-0.5 text-xs font-medium text-emerald-700">

@@ -1,6 +1,6 @@
 import { ArrowDown, ArrowUpRight, ChevronDown, Mail, Phone, Sparkles } from "lucide-react";
 
-import { BorderBeam, Button } from "@repo/ui";
+import { BorderBeam, InteractiveHoverButton } from "@repo/ui";
 
 import { COMPANY, inquiryLink, SERVICES, type ServiceId } from "@/data/site";
 
@@ -90,11 +90,14 @@ export function Contact({
               </select>
               <ChevronDown aria-hidden="true" />
             </div>
-            <Button asChild size="lg" className="light-button shimmer w-full">
-              <a href={inquiryLink(selectedService)}>
-                Email Jean <ArrowUpRight />
-              </a>
-            </Button>
+            <InteractiveHoverButton
+              href={inquiryLink(selectedService)}
+              className="h-11 w-full border border-white/30 bg-white text-xs font-semibold text-slate-900 shadow-sm hover:border-sky-400"
+              dotClassName="bg-sky-600"
+              hoverTextClassName="text-white"
+            >
+              Email Jean
+            </InteractiveHoverButton>
             <p>Opens your email app with your service inquiry ready to edit.</p>
           </div>
         </div>

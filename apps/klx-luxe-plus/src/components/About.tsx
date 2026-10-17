@@ -2,11 +2,9 @@ import Image from "next/image";
 
 import { ArrowUpRight, Check, MessageCircle } from "lucide-react";
 
-import { Button } from "@repo/ui";
+import { InteractiveHoverButton } from "@repo/ui";
 
 import { COMPANY, SERVICES } from "@/data/site";
-
-import { BrandMark } from "./Brand";
 
 const STEPS = [
   { number: "01", title: "Say hello", text: "Call or email our team and tell us what you need." },
@@ -73,11 +71,9 @@ export function About() {
               </div>
               <MessageCircle />
             </div>
-            <Button asChild size="lg" className="dark-button">
-              <a href="#contact">
-                Let&apos;s have a conversation <ArrowUpRight />
-              </a>
-            </Button>
+            <InteractiveHoverButton href="#contact" className="mt-2 text-xs">
+              Let&apos;s have a conversation
+            </InteractiveHoverButton>
           </div>
         </div>
         <div className="steps-heading" data-reveal>

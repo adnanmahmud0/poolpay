@@ -5,10 +5,13 @@ import { useEffect, useRef, useState } from "react";
 import {
   ArrowUpRight,
   CalendarDays,
+  ChartNoAxesCombined,
   CheckCircle2,
   FileCheck2,
   Languages,
+  Laptop,
   Mic,
+  ReceiptText,
   ShieldCheck,
   Sparkles
 } from "lucide-react";
@@ -65,17 +68,44 @@ const INTERPRETATION_SETTINGS = [
 
 export function AppointmentForm({
   services,
-  timezone
+  timezone,
+  selectedServiceId,
+  onServiceChange
 }: {
   services: KlxService[];
   timezone: string;
+  selectedServiceId?: string;
+  onServiceChange?: (id: string) => void;
 }) {
   const [message, setMessage] = useState("");
   const [reference, setReference] = useState("");
   const [paymentUrl, setPaymentUrl] = useState("");
   const [busy, setBusy] = useState(false);
   const [date, setDate] = useState("");
-  const [serviceId, setServiceId] = useState(services[0]?.id || "");
+  const [internalServiceId, setInternalServiceId] = useState(() => {
+    if (typeof window === "undefined") return "";
+    const hash = window.location.hash || "";
+    const search = window.location.search || "";
+    let target = "";
+    if (hash.includes("service=")) {
+      target = hash.split("service=")[1]?.split("&")[0]?.split("#")[0] || "";
+    } else if (search.includes("service=")) {
+      const params = new URLSearchParams(search);
+      target = params.get("service") || "";
+    }
+    if (target) {
+      const match = services.find(
+        (s) =>
+          s.serviceId === target ||
+          s.id === target ||
+          s.id === `svc_${target}` ||
+          s.name.toLowerCase().includes(target.toLowerCase())
+      );
+      if (match) return match.id;
+    }
+    return "";
+  });
+  const serviceId = selectedServiceId || internalServiceId || services[0]?.id || "";
   const [availabilityVersion, setAvailabilityVersion] = useState(0);
   const requestId = useRef("");
 
@@ -98,20 +128,52 @@ export function AppointmentForm({
   const [vehicleClass, setVehicleClass] = useState("executive_sedan");
   const [passengers, setPassengers] = useState(1);
 
-  // Sync service from URL hash if clicked from service card
+  // Sync service from URL hash/query on hashchange and smoothly scroll to section
   useEffect(() => {
     const handleHash = () => {
+      if (typeof window === "undefined") return;
       const hash = window.location.hash;
+      const search = window.location.search;
+      let target = "";
       if (hash.includes("service=")) {
-        const target = hash.split("service=")[1]?.split("&")[0];
-        const match = services.find((s) => s.serviceId === target || s.id === target);
-        if (match) setServiceId(match.id);
+        target = hash.split("service=")[1]?.split("&")[0]?.split("#")[0] || "";
+      } else if (search.includes("service=")) {
+        const params = new URLSearchParams(search);
+        target = params.get("service") || "";
+      }
+
+      if (target) {
+        const match = services.find(
+          (s) =>
+            s.serviceId === target ||
+            s.id === target ||
+            s.id === `svc_${target}` ||
+            s.name.toLowerCase().includes(target.toLowerCase())
+        );
+        if (match) {
+          setInternalServiceId(match.id);
+          onServiceChange?.(match.id);
+        }
+      }
+
+      if (hash.startsWith("#appointments")) {
+        const el = document.getElementById("appointments");
+        if (el) {
+          el.scrollIntoView({ behavior: "smooth", block: "start" });
+        }
       }
     };
-    handleHash();
+
+    if (window.location.hash.startsWith("#appointments")) {
+      const el = document.getElementById("appointments");
+      if (el) {
+        setTimeout(() => el.scrollIntoView({ behavior: "smooth", block: "start" }), 100);
+      }
+    }
+
     window.addEventListener("hashchange", handleHash);
     return () => window.removeEventListener("hashchange", handleHash);
-  }, [services]);
+  }, [services, onServiceChange]);
 
   const activeService = services.find((s) => s.id === serviceId) || services[0];
   const serviceKey = activeService?.serviceId || "";
@@ -120,6 +182,10 @@ export function AppointmentForm({
   const isInterpreter = serviceKey === "interpreter" || serviceNameLower.includes("interpreter");
   const isTranslation = serviceKey === "translations" || serviceNameLower.includes("translation");
   const isTransportation = serviceKey === "transport" || serviceNameLower.includes("transport");
+  const isTax = serviceKey === "taxes" || serviceNameLower.includes("tax");
+  const isImmigration = serviceKey === "immigration" || serviceNameLower.includes("immigration");
+  const isFinance = serviceKey === "finance" || serviceNameLower.includes("finance");
+  const isComputer = serviceKey === "computer" || serviceNameLower.includes("computer");
 
   const effectiveSourceLang = sourceLang === "Other" ? customSourceLang || "Other" : sourceLang;
   const effectiveTargetLang = targetLang === "Other" ? customTargetLang || "Other" : targetLang;
@@ -158,7 +224,6 @@ export function AppointmentForm({
       payload.targetLanguage = effectiveTargetLang;
       payload.translationReason = effectiveReason;
       payload.documentTypes = selectedDocTypes;
-      payload.attachedDocuments = attachedDocs;
     }
 
     if (isTransportation) {
@@ -168,6 +233,14 @@ export function AppointmentForm({
       payload.passengers = passengers;
       payload.estimatedFareCents = 0;
       payload.payNow = false;
+    }
+
+    // Attach documents for any service where files were uploaded
+    if (attachedDocs.length > 0) {
+      payload.attachedDocuments = attachedDocs;
+    }
+    if (selectedDocTypes.length > 0) {
+      payload.documentTypes = selectedDocTypes;
     }
 
     try {
@@ -276,7 +349,10 @@ export function AppointmentForm({
                 name="serviceId"
                 required
                 value={serviceId}
-                onChange={(event) => setServiceId(event.target.value)}
+                onChange={(event) => {
+                  setInternalServiceId(event.target.value);
+                  onServiceChange?.(event.target.value);
+                }}
                 className="klx-input mt-2"
               >
                 {services.map((s) => (
@@ -491,7 +567,100 @@ export function AppointmentForm({
                 </div>
 
                 {/* Document Uploader */}
-                <DocumentUploader documents={attachedDocs} onChange={setAttachedDocs} />
+                <DocumentUploader
+                  documents={attachedDocs}
+                  onChange={setAttachedDocs}
+                  label="Attach documents to translate"
+                  hint="(Birth certificates, marriage licenses, diplomas, etc.)"
+                />
+              </div>
+            )}
+
+            {/* TAX SERVICE SECTION */}
+            {isTax && (
+              <div className="space-y-4 rounded-2xl border border-sky-100 bg-sky-50/50 p-4 sm:col-span-2 sm:p-5">
+                <div className="flex items-center justify-between border-b border-sky-100/80 pb-3">
+                  <div className="flex items-center gap-2 text-sm font-semibold text-sky-950">
+                    <ReceiptText className="size-4 text-sky-600" />
+                    <span>Tax Filing Documents &amp; Upload</span>
+                  </div>
+                  <span className="rounded-full bg-sky-100 px-2.5 py-0.5 text-[11px] font-semibold text-sky-800">
+                    Tax Services
+                  </span>
+                </div>
+
+                <DocumentUploader
+                  documents={attachedDocs}
+                  onChange={setAttachedDocs}
+                  label="Attach tax documents (optional)"
+                  hint="(W-2, 1099, 1098, prior filings, receipts, IRS notices)"
+                />
+              </div>
+            )}
+
+            {/* IMMIGRATION SERVICE SECTION */}
+            {isImmigration && (
+              <div className="space-y-4 rounded-2xl border border-sky-100 bg-sky-50/50 p-4 sm:col-span-2 sm:p-5">
+                <div className="flex items-center justify-between border-b border-sky-100/80 pb-3">
+                  <div className="flex items-center gap-2 text-sm font-semibold text-sky-950">
+                    <FileCheck2 className="size-4 text-sky-600" />
+                    <span>Immigration Paperwork &amp; File Upload</span>
+                  </div>
+                  <span className="rounded-full bg-sky-100 px-2.5 py-0.5 text-[11px] font-semibold text-sky-800">
+                    Document Assistance
+                  </span>
+                </div>
+
+                <DocumentUploader
+                  documents={attachedDocs}
+                  onChange={setAttachedDocs}
+                  label="Upload your immigration documents (optional)"
+                  hint="(Passports, USCIS notices, petition forms, visas, certificates)"
+                />
+              </div>
+            )}
+
+            {/* FINANCE SERVICE SECTION */}
+            {isFinance && (
+              <div className="space-y-4 rounded-2xl border border-sky-100 bg-sky-50/50 p-4 sm:col-span-2 sm:p-5">
+                <div className="flex items-center justify-between border-b border-sky-100/80 pb-3">
+                  <div className="flex items-center gap-2 text-sm font-semibold text-sky-950">
+                    <ChartNoAxesCombined className="size-4 text-sky-600" />
+                    <span>Financial Consultation &amp; Document Upload</span>
+                  </div>
+                  <span className="rounded-full bg-sky-100 px-2.5 py-0.5 text-[11px] font-semibold text-sky-800">
+                    Finance Agent
+                  </span>
+                </div>
+
+                <DocumentUploader
+                  documents={attachedDocs}
+                  onChange={setAttachedDocs}
+                  label="Attach financial documents (optional)"
+                  hint="(Bank statements, pay stubs, agency records, business balance sheets, ID verification)"
+                />
+              </div>
+            )}
+
+            {/* COMPUTER SUPPORT SERVICE SECTION */}
+            {isComputer && (
+              <div className="space-y-4 rounded-2xl border border-sky-100 bg-sky-50/50 p-4 sm:col-span-2 sm:p-5">
+                <div className="flex items-center justify-between border-b border-sky-100/80 pb-3">
+                  <div className="flex items-center gap-2 text-sm font-semibold text-sky-950">
+                    <Laptop className="size-4 text-sky-600" />
+                    <span>Technical Support &amp; Screenshots Upload</span>
+                  </div>
+                  <span className="rounded-full bg-sky-100 px-2.5 py-0.5 text-[11px] font-semibold text-sky-800">
+                    Computer Support
+                  </span>
+                </div>
+
+                <DocumentUploader
+                  documents={attachedDocs}
+                  onChange={setAttachedDocs}
+                  label="Upload error screenshots or logs (optional)"
+                  hint="(Photos of error screens, system specs, logs, crash reports, device details)"
+                />
               </div>
             )}
 

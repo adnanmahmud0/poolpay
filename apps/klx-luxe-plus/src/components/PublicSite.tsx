@@ -1,6 +1,6 @@
 "use client";
 
-import { useRef } from "react";
+import { useRef, useState } from "react";
 import Image from "next/image";
 import Link from "next/link";
 
@@ -18,7 +18,7 @@ import { useGSAP } from "@gsap/react";
 import gsap from "gsap";
 import { ScrollTrigger } from "gsap/ScrollTrigger";
 
-import { BorderBeam, Button, cn } from "@repo/ui";
+import { BorderBeam, InteractiveHoverButton } from "@repo/ui";
 
 import { SERVICES as CANONICAL_SERVICES } from "@/data/site";
 
@@ -154,6 +154,48 @@ export function PublicSite({
     };
   });
 
+  const [selectedServiceId, setSelectedServiceId] = useState<string>(() => {
+    if (typeof window === "undefined") return "";
+    const hash = window.location.hash || "";
+    const search = window.location.search || "";
+    let target = "";
+    if (hash.includes("service=")) {
+      target = hash.split("service=")[1]?.split("&")[0]?.split("#")[0] || "";
+    } else if (search.includes("service=")) {
+      const params = new URLSearchParams(search);
+      target = params.get("service") || "";
+    }
+    if (target) {
+      const matched = CANONICAL_SERVICES.find(
+        (s) => s.id === target || s.name.toLowerCase().includes(target.toLowerCase())
+      );
+      if (matched) return `svc_${matched.id}`;
+    }
+    return "";
+  });
+
+  const handleSelectService = (serviceIdentifier: string) => {
+    const matched = displayServices.find(
+      (s) =>
+        s.serviceId === serviceIdentifier ||
+        s.id === serviceIdentifier ||
+        s.id === `svc_${serviceIdentifier}` ||
+        s.name.toLowerCase().includes(serviceIdentifier.toLowerCase())
+    );
+    const targetId = matched?.id || serviceIdentifier;
+    setSelectedServiceId(targetId);
+
+    if (typeof window !== "undefined") {
+      const canonicalKey = matched?.serviceId || serviceIdentifier;
+      window.history.pushState(null, "", `#appointments?service=${canonicalKey}`);
+    }
+
+    const el = document.getElementById("appointments");
+    if (el) {
+      el.scrollIntoView({ behavior: "smooth", block: "start" });
+    }
+  };
+
   const sections: Record<string, React.ReactNode> = {
     poolpay: (
       <>
@@ -187,7 +229,8 @@ export function PublicSite({
                 <article
                   key={s.id}
                   data-reveal
-                  className="group relative flex flex-col overflow-hidden rounded-3xl border border-slate-200 bg-white shadow-sm transition-all duration-300 hover:-translate-y-1 hover:border-slate-300 hover:shadow-xl"
+                  onClick={() => handleSelectService(s.serviceId)}
+                  className="group relative flex cursor-pointer flex-col overflow-hidden rounded-3xl border border-slate-200 bg-white shadow-sm transition-all duration-300 hover:-translate-y-1 hover:border-sky-300 hover:shadow-xl"
                 >
                   {serviceImage ? (
                     <div className="relative h-56 w-full overflow-hidden bg-slate-900">
@@ -240,13 +283,17 @@ export function PublicSite({
                           ? "Pricing on request"
                           : `${new Intl.NumberFormat("en-US", { style: "currency", currency: settings.currency }).format(s.priceCents / 100)}${s.pricingMode === "deposit" ? ` · ${new Intl.NumberFormat("en-US", { style: "currency", currency: settings.currency }).format(s.depositCents / 100)} deposit` : ""}`}
                       </p>
-                      <a
-                        href={`#appointments?service=${s.serviceId}`}
-                        className="inline-flex items-center gap-1.5 text-xs font-semibold text-[#14283b] transition-colors hover:text-[#377db1] sm:text-sm"
+                      <button
+                        type="button"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleSelectService(s.serviceId);
+                        }}
+                        className="inline-flex cursor-pointer items-center gap-1.5 text-xs font-semibold text-[#14283b] transition-colors hover:text-[#377db1] sm:text-sm"
                       >
                         {s.action}
                         <ArrowUpRight className="size-4" />
-                      </a>
+                      </button>
                     </div>
                   </div>
                   {s.serviceId === "transport" && <BorderBeam duration={12} size={150} />}
@@ -282,13 +329,15 @@ export function PublicSite({
                 {displayServices.slice(0, 6).map((s) => {
                   const SIcon = ICONS[s.serviceId as keyof typeof ICONS] || FileCheck2;
                   return (
-                    <span
+                    <button
+                      type="button"
                       key={s.id}
-                      className="flex items-center gap-1.5 rounded-full border border-white/20 bg-slate-950/60 px-3 py-1 text-[10px] font-medium text-slate-200 backdrop-blur-md"
+                      onClick={() => handleSelectService(s.serviceId)}
+                      className="flex cursor-pointer items-center gap-1.5 rounded-full border border-white/20 bg-slate-950/60 px-3 py-1 text-[10px] font-medium text-slate-200 backdrop-blur-md transition-all hover:border-sky-300 hover:text-white"
                     >
                       <SIcon className="size-3 text-sky-300" strokeWidth={1.5} />
                       {s.shortName || s.name.split(" ")[0]}
-                    </span>
+                    </button>
                   );
                 })}
               </div>
@@ -315,15 +364,9 @@ export function PublicSite({
                 ))}
               </div>
               <div className="mt-8">
-                <Button
-                  asChild
-                  size="lg"
-                  className="rounded-full bg-[#14283b] text-white hover:bg-[#1e3b56]"
-                >
-                  <a href="#appointments">
-                    Let&apos;s have a conversation <ArrowUpRight className="ml-2 size-4" />
-                  </a>
-                </Button>
+                <InteractiveHoverButton href="#appointments">
+                  Let&apos;s have a conversation
+                </InteractiveHoverButton>
               </div>
             </div>
           </div>
@@ -366,7 +409,14 @@ export function PublicSite({
         </div>
       </section>
     ),
-    appointments: <AppointmentForm services={displayServices} timezone={settings.timezone} />,
+    appointments: (
+      <AppointmentForm
+        services={displayServices}
+        timezone={settings.timezone}
+        selectedServiceId={selectedServiceId}
+        onServiceChange={setSelectedServiceId}
+      />
+    ),
     faqs: (
       <section
         className="section-shell grid gap-10 py-14 pb-24 lg:grid-cols-[.7fr_1.3fr]"
@@ -416,16 +466,13 @@ export function PublicSite({
           <Link href="/services">Services</Link>
           <a href="#about">About</a>
           <a href="#pay-order">Pay an order</a>
-          <Button asChild size="sm">
-            <a href="#appointments">
-              Book an appointment
-              <ArrowUpRight />
-            </a>
-          </Button>
+          <InteractiveHoverButton href="#appointments" className="px-4 py-1.5 text-xs">
+            Book an appointment
+          </InteractiveHoverButton>
         </nav>
       </header>
       <main id="main">
-        <Hero content={content.hero} />
+        <Hero content={content.hero} onSelectService={handleSelectService} />
         {content.sectionOrder.map(
           (section) =>
             content.sectionVisibility[section as keyof typeof content.sectionVisibility] && (

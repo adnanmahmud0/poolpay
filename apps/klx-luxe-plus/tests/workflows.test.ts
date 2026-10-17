@@ -564,3 +564,85 @@ test("transportation service records ride route, vehicle tier, and generates che
   assert.ok(adminEmail.bodyText.includes("Luxury SUV"));
   assert.ok(adminEmail.bodyText.includes("$140.00"));
 });
+
+test("admin appointment request email blocks direct replies and includes one-click auto-login magic links", async () => {
+  const database = await db.getDb();
+  await database
+    .collection(db.COLLECTIONS.SERVICES)
+    .updateOne({ $or: [{ id: "svc_tax" }, { serviceId: "taxes" }] }, { $set: { isVisible: true } });
+
+  const reqId = randomUUID();
+  await appointments.requestAppointment({
+    requestId: reqId,
+    serviceId: "taxes",
+    customerName: "Elena Rostova",
+    customerEmail: "elena@example.com",
+    customerPhone: "+15559998888",
+    requestedDate: "2026-11-19",
+    requestedTimeSlot: "11:00",
+    customerNotes: "Tax preparation consultation"
+  });
+
+  const saved = await database
+    .collection<dbTypes.KlxAppointment>(db.COLLECTIONS.APPOINTMENTS)
+    .findOne({ id: reqId });
+  assert.ok(saved);
+  assert.ok(saved.adminToken, "Appointment should have an adminToken generated");
+
+  const notifications = (
+    saved as unknown as {
+      notificationIntents: Array<{
+        recipient: string;
+        replyTo?: string | null;
+        noReply?: boolean;
+        subject: string;
+        bodyText: string;
+        bodyHtml: string;
+      }>;
+    }
+  ).notificationIntents;
+  const adminEmail = notifications.find((n) => n.recipient === "support@poolpay.space");
+  assert.ok(adminEmail);
+  assert.equal(adminEmail.replyTo, "no-reply");
+  assert.equal(adminEmail.noReply, true);
+  assert.ok(adminEmail.subject.startsWith("[No-Reply]"));
+  assert.ok(adminEmail.bodyHtml.includes("DO NOT REPLY"));
+  assert.ok(adminEmail.bodyHtml.includes("Automated Notification — Direct Replies Blocked"));
+  assert.ok(adminEmail.bodyHtml.includes("/api/auth/magic?token="));
+  assert.ok(adminEmail.bodyHtml.includes(encodeURIComponent(saved.adminToken)));
+
+  // Test Magic Link Auto-Login
+  const { GET: magicLogin } = await import("../src/app/api/auth/magic/route");
+  const approveTarget = `/admin/appointments?appointment=${saved.id}&decision=confirmed`;
+  const magicReq = new Request(
+    `https://klxluxeplus.poolpay.space/api/auth/magic?token=${saved.adminToken}&next=${encodeURIComponent(approveTarget)}`
+  );
+  const response = await magicLogin(magicReq);
+  assert.equal(response.status, 307); // NextResponse.redirect defaults to 307 or 302
+  assert.equal(
+    response.headers.get("location"),
+    `https://klxluxeplus.poolpay.space${approveTarget}`
+  );
+
+  const setCookie = response.headers.get("set-cookie");
+  assert.ok(setCookie, "Response must include Set-Cookie header");
+  assert.ok(setCookie.includes("klx_session="));
+  assert.ok(setCookie.includes("HttpOnly"));
+
+  // Verify that an active session was created in MongoDB
+  const sessionToken = setCookie.split("klx_session=")[1]?.split(";")[0]?.trim();
+  assert.ok(sessionToken);
+  const { digest } = await import("../src/server/http");
+  const session = await database.collection(db.COLLECTIONS.SESSIONS).findOne({
+    tokenHash: digest(sessionToken)
+  });
+  assert.ok(session, "A session document must exist for the token");
+  assert.equal(session.role, "owner");
+
+  // Verify that an invalid token does not login and redirects to /admin/login
+  const invalidReq = new Request(
+    "https://klxluxeplus.poolpay.space/api/auth/magic?token=invalid_dummy_token"
+  );
+  const invalidResp = await magicLogin(invalidReq);
+  assert.ok(invalidResp.headers.get("location")?.includes("/admin/login"));
+});

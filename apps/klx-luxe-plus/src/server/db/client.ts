@@ -93,6 +93,9 @@ export async function ensureIndexes(): Promise<void> {
     await db.collection(COLLECTIONS.APPOINTMENTS).createIndex({ reference: 1 }, { unique: true });
     await db.collection(COLLECTIONS.APPOINTMENTS).createIndex({ id: 1 }, { unique: true });
     await db.collection(COLLECTIONS.APPOINTMENTS).createIndex({ token: 1 }, { unique: true });
+    await db
+      .collection(COLLECTIONS.APPOINTMENTS)
+      .createIndex({ adminToken: 1 }, { unique: true, sparse: true });
     await db.collection(COLLECTIONS.APPOINTMENTS).createIndex({ requestedDate: 1, status: 1 });
 
     // Quotes & Payments

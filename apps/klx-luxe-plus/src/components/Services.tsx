@@ -92,9 +92,17 @@ export function Services({ onSelectService }: { onSelectService: (service: Servi
                 <h3>{service.name}</h3>
                 <p className="service-description">{service.description}</p>
                 <a
-                  href="#contact"
+                  href={`#appointments?service=${service.id}`}
                   className="service-link"
-                  onClick={() => onSelectService(service.id)}
+                  onClick={(e) => {
+                    e.preventDefault();
+                    onSelectService(service.id);
+                    const el = document.getElementById("appointments");
+                    if (el) el.scrollIntoView({ behavior: "smooth", block: "start" });
+                    if (typeof window !== "undefined") {
+                      window.history.pushState(null, "", `#appointments?service=${service.id}`);
+                    }
+                  }}
                 >
                   {service.action}
                   <ArrowUpRight />

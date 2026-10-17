@@ -115,7 +115,12 @@ export default async function ServicesPage() {
               <div className="flex flex-1 flex-col justify-between p-7">
                 <div>
                   <h2 className="text-xl font-semibold tracking-tight text-[#14283b]">
-                    {service.name}
+                    <Link
+                      href={`/#appointments?service=${service.serviceId}`}
+                      className="transition-colors hover:text-[#377db1]"
+                    >
+                      {service.name}
+                    </Link>
                   </h2>
                   <p className="mt-3 text-xs leading-6 text-slate-600 sm:text-sm sm:leading-7">
                     {service.description}

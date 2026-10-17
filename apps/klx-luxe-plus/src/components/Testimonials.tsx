@@ -1,7 +1,5 @@
 "use client";
 
-import Image from "next/image";
-
 import { Quote, Star } from "lucide-react";
 
 const TESTIMONIALS = [

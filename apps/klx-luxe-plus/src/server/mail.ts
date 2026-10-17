@@ -36,6 +36,33 @@ export async function processOutbox() {
         env.EMAIL_PROVIDER === "smtp" ||
         (Boolean(env.SMTP_HOST) && env.KLX_EMAIL_PROVIDER !== "resend");
 
+      const fromEmail = env.KLX_EMAIL_FROM;
+      const domainMatch = fromEmail.match(/@([^>]+)/);
+      const emailDomain = domainMatch ? domainMatch[1]?.trim() : "poolpay.space";
+      const noReplyAddress = `no-reply@${emailDomain}`;
+
+      const isBlockedReply =
+        item.noReply === true ||
+        item.replyTo === "no-reply" ||
+        item.type === "appointment_requested";
+
+      const effectiveReplyTo = isBlockedReply
+        ? noReplyAddress
+        : item.replyTo || env.KLX_SUPPORT_EMAIL;
+
+      const antiReplyHeaders: Record<string, string> = isBlockedReply
+        ? {
+            "Auto-Submitted": "auto-generated",
+            "X-Auto-Response-Suppress": "All",
+            Precedence: "bulk",
+            "X-Report-Abuse-To": noReplyAddress
+          }
+        : {};
+
+      const fromHeader = isBlockedReply
+        ? `KLX LUXE PLUS [No-Reply] <${fromEmail}>`
+        : `KLX LUXE PLUS <${fromEmail}>`;
+
       if (useSmtp && env.SMTP_HOST) {
         await nodemailer
           .createTransport({
@@ -45,11 +72,12 @@ export async function processOutbox() {
             auth: env.SMTP_USER ? { user: env.SMTP_USER, pass: env.SMTP_PASS } : undefined
           })
           .sendMail({
-            from: env.KLX_EMAIL_FROM,
-            replyTo: env.KLX_SUPPORT_EMAIL,
+            from: fromHeader,
+            replyTo: effectiveReplyTo,
             to: item.recipient,
             subject: item.subject,
             text: item.bodyText,
+            headers: antiReplyHeaders,
             ...(item.bodyHtml ? { html: item.bodyHtml } : {})
           });
       } else if (env.RESEND_API_KEY) {
@@ -61,9 +89,10 @@ export async function processOutbox() {
             "Idempotency-Key": item.id
           },
           body: JSON.stringify({
-            from: env.KLX_EMAIL_FROM,
+            from: fromHeader,
             to: item.recipient,
-            reply_to: env.KLX_SUPPORT_EMAIL,
+            reply_to: effectiveReplyTo,
+            headers: antiReplyHeaders,
             subject: item.subject,
             text: item.bodyText,
             ...(item.bodyHtml ? { html: item.bodyHtml } : {})

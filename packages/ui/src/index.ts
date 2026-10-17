@@ -6,3 +6,7 @@ export { Button, buttonVariants } from "./button";
 export { cn } from "./utils";
 export { BorderBeam } from "./magicui/border-beam";
 export { Marquee } from "./magicui/marquee";
+export {
+  InteractiveHoverButton,
+  type InteractiveHoverButtonProps
+} from "./magicui/interactive-hover-button";

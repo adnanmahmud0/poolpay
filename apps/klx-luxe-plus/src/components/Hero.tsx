@@ -1,41 +1,50 @@
 import { useState } from "react";
 import Image from "next/image";
 
-import {
-  ArrowDown,
-  ArrowRight,
-  ArrowUpRight,
-  CarFront,
-  Check,
-  Pause,
-  Play,
-  Sparkles
-} from "lucide-react";
+import { ArrowDown, ArrowRight, Check, Pause, Play, ShieldCheck, Sparkles } from "lucide-react";
 
-import { BorderBeam, Button, Marquee } from "@repo/ui";
+import { BorderBeam, Button, InteractiveHoverButton, Marquee } from "@repo/ui";
 
 import { SERVICES } from "@/data/site";
 
 import type { SiteContentData } from "@/server/db/types";
 
-export function Hero({ content }: { content?: SiteContentData["hero"] } = {}) {
+export function Hero({
+  content,
+  onSelectService
+}: {
+  content?: SiteContentData["hero"];
+  onSelectService?: (serviceId: string) => void;
+} = {}) {
   const [ribbonPaused, setRibbonPaused] = useState(false);
+
+  const handleRibbonClick = (serviceId: string) => {
+    if (onSelectService) {
+      onSelectService(serviceId);
+    } else {
+      if (typeof window !== "undefined") {
+        window.history.pushState(null, "", `#appointments?service=${serviceId}`);
+        const el = document.getElementById("appointments");
+        if (el) el.scrollIntoView({ behavior: "smooth", block: "start" });
+      }
+    }
+  };
   return (
     <>
       <section id="home" className="hero" aria-labelledby="hero-heading">
         <figure className="hero-visual">
           <Image
             className="hero-photo hero-photo-zoom"
-            src="/images/hero-luxury-car.jpg"
-            alt="Cinematic black Mercedes-Maybach parked on a palm-lined hotel driveway at blue hour"
+            src="/images/hero-service-provider.jpg"
+            alt="Distinguished executive consultant in a luxury advisory lounge"
             width={1920}
             height={1080}
             loading="eager"
             fetchPriority="high"
           />
           <figcaption className="sr-only">
-            Illustrative transportation image; vehicle availability is confirmed directly with our
-            team.
+            Professional executive advisory and multi-service concierge consultation with KLX LUXE
+            PLUS LLC.
           </figcaption>
         </figure>
         <div className="hero-shade" />
@@ -61,11 +70,14 @@ export function Hero({ content }: { content?: SiteContentData["hero"] } = {}) {
               "From the journey you take to the next step in life. Transportation and professional services, all through one personal connection."}
           </p>
           <div className="hero-actions hero-enter">
-            <Button asChild size="lg" className="light-button shimmer">
-              <a href={content?.ctaHref || "#services"}>
-                {content?.ctaText || "Explore our services"} <ArrowUpRight />
-              </a>
-            </Button>
+            <InteractiveHoverButton
+              href={content?.ctaHref || "#services"}
+              className="h-12 border border-white/40 bg-white px-7 text-xs font-semibold text-slate-900 shadow-md hover:border-sky-400 hover:shadow-lg hover:shadow-sky-500/20"
+              dotClassName="bg-sky-600"
+              hoverTextClassName="text-white"
+            >
+              {content?.ctaText || "Explore our services"}
+            </InteractiveHoverButton>
             <a className="hero-contact" href={content?.secondaryCtaHref || "#appointments"}>
               {content?.secondaryCtaText || "Request an appointment"} <ArrowRight />
             </a>
@@ -76,11 +88,11 @@ export function Hero({ content }: { content?: SiteContentData["hero"] } = {}) {
         </div>
         <div className="hero-floating hero-enter">
           <span className="floating-icon">
-            <CarFront />
+            <ShieldCheck className="size-5 text-sky-300" />
           </span>
           <div>
-            <span className="eyebrow">THE JOURNEY MATTERS</span>
-            <p>Arrive with a little more luxe.</p>
+            <span className="eyebrow">EXECUTIVE SERVICES &amp; ADVISORY</span>
+            <p>6 specialized services. One personal connection.</p>
           </div>
           <Sparkles className="size-4 text-sky-200" />
           <BorderBeam duration={10} />
@@ -116,13 +128,18 @@ export function Hero({ content }: { content?: SiteContentData["hero"] } = {}) {
       <div className="service-ribbon" aria-label="Our six service areas">
         <Marquee paused={ribbonPaused}>
           {SERVICES.map((service) => (
-            <span key={service.id} className="ribbon-item">
+            <button
+              type="button"
+              key={service.id}
+              onClick={() => handleRibbonClick(service.id)}
+              className="ribbon-item cursor-pointer transition-colors hover:text-sky-300"
+            >
               <service.icon />
               {service.shortName}
               <span className="ribbon-star" aria-hidden="true">
                 ✦
               </span>
-            </span>
+            </button>
           ))}
         </Marquee>
         <Button

@@ -20,7 +20,7 @@ export default async function AdminPage({
   searchParams
 }: {
   params: Promise<{ section?: string[] }>;
-  searchParams: Promise<{ appointment?: string; decision?: string }>;
+  searchParams: Promise<{ appointment?: string; decision?: string; token?: string }>;
 }) {
   const query = await searchParams;
   const sectionParam = (await params).section?.[0];
@@ -33,6 +33,17 @@ export default async function AdminPage({
       : undefined;
 
   if (!(await currentUser())) {
+    if (query.token) {
+      const targetUrl = appointmentDecision
+        ? `/admin/appointments?appointment=${encodeURIComponent(appointmentDecision.id)}&decision=${appointmentDecision.status}`
+        : sectionParam && sectionParam !== "overview"
+          ? `/admin/${sectionParam}`
+          : "/admin/appointments";
+      redirect(
+        `/api/auth/magic?token=${encodeURIComponent(query.token)}&next=${encodeURIComponent(targetUrl)}`
+      );
+    }
+
     const next = appointmentDecision
       ? `/admin/appointments?appointment=${encodeURIComponent(appointmentDecision.id)}&decision=${appointmentDecision.status}`
       : sectionParam && sectionParam !== "overview"
