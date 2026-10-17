@@ -61,6 +61,29 @@ interface NominatimResult {
   lon: string;
 }
 
+interface PlacesNewPrediction {
+  placePrediction?: {
+    place?: string;
+    placeId?: string;
+    text?: { text?: string };
+    structuredFormat?: {
+      mainText?: { text?: string };
+      secondaryText?: { text?: string };
+    };
+  };
+}
+
+interface PlacesNewResponse {
+  suggestions?: PlacesNewPrediction[];
+}
+
+interface RoutesApiResponse {
+  routes?: Array<{
+    distanceMeters?: number;
+    duration?: string;
+  }>;
+}
+
 interface OsrmResponse {
   routes?: Array<{
     distance: number;
@@ -204,7 +227,9 @@ export function TransportationBooking({
 
   // Google Maps refs
   const googleMapRef = useRef<google.maps.Map | null>(null);
-  const googleDirectionsRendererRef = useRef<google.maps.DirectionsRenderer | null>(null);
+  const googlePickupMarkerRef = useRef<google.maps.Marker | null>(null);
+  const googleDropoffMarkerRef = useRef<google.maps.Marker | null>(null);
+  const googlePolylineRef = useRef<google.maps.Polyline | null>(null);
 
   // ---------------------------------------------------------------------------
   // 1. Google Maps Error Interception (Graceful fallback)
@@ -221,8 +246,19 @@ export function TransportationBooking({
         ".gm-err-container, .gm-style-moc, .gm-err-content, .gm-err-autocomplete"
       );
       gmModals.forEach((el) => el.remove());
+      if (googlePickupMarkerRef.current) {
+        googlePickupMarkerRef.current.setMap(null);
+        googlePickupMarkerRef.current = null;
+      }
+      if (googleDropoffMarkerRef.current) {
+        googleDropoffMarkerRef.current.setMap(null);
+        googleDropoffMarkerRef.current = null;
+      }
+      if (googlePolylineRef.current) {
+        googlePolylineRef.current.setMap(null);
+        googlePolylineRef.current = null;
+      }
       googleMapRef.current = null;
-      googleDirectionsRendererRef.current = null;
       if (mapContainerRef.current) {
         mapContainerRef.current.innerHTML = "";
       }
@@ -298,7 +334,7 @@ export function TransportationBooking({
 
     const script = document.createElement("script");
     script.id = scriptId;
-    script.src = `https://maps.googleapis.com/maps/api/js?key=${googleApiKey}&libraries=places,geometry`;
+    script.src = `https://maps.googleapis.com/maps/api/js?key=${googleApiKey}&libraries=geometry`;
     script.async = true;
     script.defer = true;
     script.onload = () => setMapLoaded(true);
@@ -333,46 +369,23 @@ export function TransportationBooking({
           ]
         });
 
-        const directionsRenderer = new win.google.maps.DirectionsRenderer({
-          map,
-          suppressMarkers: true,
-          polylineOptions: {
-            strokeColor: "#0284c7",
-            strokeWeight: 4,
-            strokeOpacity: 0.9
-          }
-        });
-
-        googleDirectionsRendererRef.current = directionsRenderer;
         googleMapRef.current = map;
-      }
-
-      // Google Places Autocomplete
-      if (pickupInputRef.current) {
-        const pickupAuto = new win.google.maps.places.Autocomplete(pickupInputRef.current, {
-          fields: ["formatted_address", "geometry", "name"]
-        });
-        pickupAuto.addListener("place_changed", () => {
-          const place = pickupAuto.getPlace();
-          const address = place.formatted_address || place.name || "";
-          onPickupChange(address);
-        });
-      }
-
-      if (dropoffInputRef.current) {
-        const dropoffAuto = new win.google.maps.places.Autocomplete(dropoffInputRef.current, {
-          fields: ["formatted_address", "geometry", "name"]
-        });
-        dropoffAuto.addListener("place_changed", () => {
-          const place = dropoffAuto.getPlace();
-          const address = place.formatted_address || place.name || "";
-          onDropoffChange(address);
-        });
       }
     } catch (err) {
       console.warn("Failed initializing Google Maps, falling back to OpenStreetMap:", err);
+      if (googlePickupMarkerRef.current) {
+        googlePickupMarkerRef.current.setMap(null);
+        googlePickupMarkerRef.current = null;
+      }
+      if (googleDropoffMarkerRef.current) {
+        googleDropoffMarkerRef.current.setMap(null);
+        googleDropoffMarkerRef.current = null;
+      }
+      if (googlePolylineRef.current) {
+        googlePolylineRef.current.setMap(null);
+        googlePolylineRef.current = null;
+      }
       googleMapRef.current = null;
-      googleDirectionsRendererRef.current = null;
       if (mapContainerRef.current) {
         mapContainerRef.current.innerHTML = "";
       }
@@ -381,7 +394,7 @@ export function TransportationBooking({
         setMapLoaded(false);
       });
     }
-  }, [useGoogle, mapLoaded, onPickupChange, onDropoffChange]);
+  }, [useGoogle, mapLoaded]);
 
   // ---------------------------------------------------------------------------
   // 4. Initialize Leaflet / OpenStreetMap Engine (Default & Fallback)
@@ -431,9 +444,9 @@ export function TransportationBooking({
   }, [useGoogle]);
 
   // ---------------------------------------------------------------------------
-  // 5. OpenStreetMap Autocomplete / Suggestions (Nominatim)
+  // 5. Autocomplete Suggestions (Google Places API New + Nominatim fallback)
   // ---------------------------------------------------------------------------
-  const searchNominatim = useCallback(
+  const searchLocations = useCallback(
     async (
       query: string,
       setResults: (items: LocationSuggestion[]) => void,
@@ -445,6 +458,45 @@ export function TransportationBooking({
         return;
       }
       setLoading(true);
+
+      // 1. Try Google Places API (New) if key is configured
+      if (googleApiKey && isRealGoogleKey(googleApiKey)) {
+        try {
+          const res = await fetch("https://places.googleapis.com/v1/places:autocomplete", {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+              "X-Goog-Api-Key": googleApiKey
+            },
+            body: JSON.stringify({ input: query.trim() })
+          });
+          if (res.ok) {
+            const data = (await res.json()) as PlacesNewResponse;
+            if (Array.isArray(data.suggestions) && data.suggestions.length > 0) {
+              const suggestions: LocationSuggestion[] = data.suggestions
+                .map((item) => ({
+                  displayName:
+                    item.placePrediction?.text?.text ||
+                    item.placePrediction?.structuredFormat?.mainText?.text ||
+                    "",
+                  lat: 0,
+                  lon: 0
+                }))
+                .filter((s) => s.displayName);
+
+              if (suggestions.length > 0) {
+                setResults(suggestions);
+                setLoading(false);
+                return;
+              }
+            }
+          }
+        } catch {
+          // Fall through to Nominatim
+        }
+      }
+
+      // 2. Fallback to OpenStreetMap Nominatim
       try {
         const url = `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(
           query.trim()
@@ -470,142 +522,60 @@ export function TransportationBooking({
         setLoading(false);
       }
     },
-    []
+    [googleApiKey]
   );
 
   // Debounced input search for Pickup
   useEffect(() => {
-    if (useGoogle) return;
     const timer = setTimeout(() => {
       if (pickupFocused) {
-        searchNominatim(pickupLocation, setPickupSuggestions, setPickupSearching);
+        searchLocations(pickupLocation, setPickupSuggestions, setPickupSearching);
       }
     }, 350);
     return () => clearTimeout(timer);
-  }, [pickupLocation, pickupFocused, useGoogle, searchNominatim]);
+  }, [pickupLocation, pickupFocused, searchLocations]);
 
   // Debounced input search for Drop-off
   useEffect(() => {
-    if (useGoogle) return;
     const timer = setTimeout(() => {
       if (dropoffFocused) {
-        searchNominatim(dropoffLocation, setDropoffSuggestions, setDropoffSearching);
+        searchLocations(dropoffLocation, setDropoffSuggestions, setDropoffSearching);
       }
     }, 350);
     return () => clearTimeout(timer);
-  }, [dropoffLocation, dropoffFocused, useGoogle, searchNominatim]);
+  }, [dropoffLocation, dropoffFocused, searchLocations]);
 
-  // ---------------------------------------------------------------------------
-  // 6. Update Leaflet Markers & Route (OSRM)
-  // ---------------------------------------------------------------------------
-  useEffect(() => {
-    if (useGoogle || !mapLoaded) return;
-    const win = window as WindowWithMaps;
-    const L = win.L;
-    const map = leafletMapRef.current;
-    if (!L || !map) return;
-
-    // Pickup Marker
-    if (pickupCoords) {
-      if (!leafletPickupMarkerRef.current) {
-        const icon = L.divIcon({
-          className: "klx-map-marker",
-          html: `<div style="display:inline-flex;align-items:center;gap:4px;background:#059669;color:#ffffff;padding:5px 10px;border-radius:20px;font-size:11px;font-weight:700;box-shadow:0 4px 12px rgba(5,150,105,0.4);border:2px solid #ffffff;white-space:nowrap;transform:translate(-50%,-100%);">
-            <span>📍</span> Pickup
-          </div>`,
-          iconSize: [0, 0]
-        });
-        leafletPickupMarkerRef.current = L.marker(pickupCoords, { icon }).addTo(map);
-      } else {
-        leafletPickupMarkerRef.current.setLatLng(pickupCoords);
-      }
-    } else if (leafletPickupMarkerRef.current) {
-      map.removeLayer(leafletPickupMarkerRef.current);
-      leafletPickupMarkerRef.current = null;
-    }
-
-    // Dropoff Marker
-    if (dropoffCoords) {
-      if (!leafletDropoffMarkerRef.current) {
-        const icon = L.divIcon({
-          className: "klx-map-marker",
-          html: `<div style="display:inline-flex;align-items:center;gap:4px;background:#0284c7;color:#ffffff;padding:5px 10px;border-radius:20px;font-size:11px;font-weight:700;box-shadow:0 4px 12px rgba(2,132,199,0.4);border:2px solid #ffffff;white-space:nowrap;transform:translate(-50%,-100%);">
-            <span>🎯</span> Destination
-          </div>`,
-          iconSize: [0, 0]
-        });
-        leafletDropoffMarkerRef.current = L.marker(dropoffCoords, { icon }).addTo(map);
-      } else {
-        leafletDropoffMarkerRef.current.setLatLng(dropoffCoords);
-      }
-    } else if (leafletDropoffMarkerRef.current) {
-      map.removeLayer(leafletDropoffMarkerRef.current);
-      leafletDropoffMarkerRef.current = null;
-    }
-
-    // Single marker centering
-    if (pickupCoords && !dropoffCoords) {
-      map.setView(pickupCoords, 13);
-    } else if (!pickupCoords && dropoffCoords) {
-      map.setView(dropoffCoords, 13);
-    }
-
-    // Route calculation via OSRM
-    if (pickupCoords && dropoffCoords) {
-      const [pLat, pLon] = pickupCoords;
-      const [dLat, dLon] = dropoffCoords;
-      const osrmUrl = `https://router.project-osrm.org/route/v1/driving/${pLon},${pLat};${dLon},${dLat}?overview=full&geometries=geojson`;
-
-      fetch(osrmUrl)
-        .then((res) => res.json())
-        .then((data: OsrmResponse) => {
-          if (data.routes && data.routes[0]) {
-            const route = data.routes[0];
-            if (leafletRouteLayerRef.current) {
-              map.removeLayer(leafletRouteLayerRef.current);
-            }
-
-            leafletRouteLayerRef.current = L.geoJSON(route.geometry, {
-              style: {
-                color: "#0284c7",
-                weight: 5,
-                opacity: 0.85
-              }
-            }).addTo(map);
-
-            const distMiles = (route.distance / 1609.34).toFixed(1);
-            const durMins = Math.round(route.duration / 60);
-            setRouteInfo({
-              distance: `${distMiles} miles`,
-              duration: `${durMins} mins`
-            });
-
-            const bounds = L.latLngBounds([pickupCoords, dropoffCoords]);
-            map.fitBounds(bounds, { padding: [40, 40] });
-          }
-        })
-        .catch(() => {
-          if (leafletRouteLayerRef.current) {
-            map.removeLayer(leafletRouteLayerRef.current);
-          }
-          leafletRouteLayerRef.current = L.polyline([pickupCoords, dropoffCoords], {
-            color: "#0284c7",
-            weight: 4
-          }).addTo(map);
-          map.fitBounds(L.latLngBounds([pickupCoords, dropoffCoords]), { padding: [40, 40] });
-        });
-    } else {
-      if (leafletRouteLayerRef.current) {
-        map.removeLayer(leafletRouteLayerRef.current);
-        leafletRouteLayerRef.current = null;
-      }
-      queueMicrotask(() => setRouteInfo(null));
-    }
-  }, [useGoogle, mapLoaded, pickupCoords, dropoffCoords]);
-
-  // Geocode typed address on blur if not selected from suggestions
+  // Geocode address to lat/lng using Google Geocoding (with Nominatim fallback)
   const handleManualGeocode = async (address: string, isPickup: boolean) => {
-    if (!address.trim() || useGoogle) return;
+    if (!address.trim()) return;
+
+    // 1. Try Google Geocoding API if key configured
+    if (googleApiKey && isRealGoogleKey(googleApiKey)) {
+      try {
+        const url = `https://maps.googleapis.com/maps/api/geocode/json?address=${encodeURIComponent(
+          address.trim()
+        )}&key=${googleApiKey}`;
+        const res = await fetch(url);
+        if (res.ok) {
+          const data = (await res.json()) as {
+            results?: Array<{ geometry?: { location?: { lat: number; lng: number } } }>;
+          };
+          if (data.results && data.results[0]?.geometry?.location) {
+            const { lat, lng } = data.results[0].geometry.location;
+            if (isPickup) {
+              setPickupCoords([lat, lng]);
+            } else {
+              setDropoffCoords([lat, lng]);
+            }
+            return;
+          }
+        }
+      } catch {
+        // Fall through to Nominatim
+      }
+    }
+
+    // 2. Fallback to OpenStreetMap Nominatim
     try {
       const url = `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(
         address.trim()
@@ -625,6 +595,238 @@ export function TransportationBooking({
       // Ignore network errors
     }
   };
+
+  // ---------------------------------------------------------------------------
+  // 6. Update Map Markers & Route (Google Routes API / OSRM)
+  // ---------------------------------------------------------------------------
+  useEffect(() => {
+    if (!mapLoaded) return;
+    const win = window as WindowWithMaps;
+
+    // A. Update Google Map
+    if (useGoogle && googleMapRef.current && win.google?.maps) {
+      const map = googleMapRef.current;
+
+      // Pickup Marker
+      if (pickupCoords) {
+        if (!googlePickupMarkerRef.current) {
+          googlePickupMarkerRef.current = new win.google.maps.Marker({
+            position: { lat: pickupCoords[0], lng: pickupCoords[1] },
+            map,
+            title: "Pickup",
+            icon: {
+              path: win.google.maps.SymbolPath.CIRCLE,
+              scale: 8,
+              fillColor: "#059669",
+              fillOpacity: 1,
+              strokeColor: "#ffffff",
+              strokeWeight: 2
+            }
+          });
+        } else {
+          googlePickupMarkerRef.current.setPosition({ lat: pickupCoords[0], lng: pickupCoords[1] });
+        }
+      } else if (googlePickupMarkerRef.current) {
+        googlePickupMarkerRef.current.setMap(null);
+        googlePickupMarkerRef.current = null;
+      }
+
+      // Dropoff Marker
+      if (dropoffCoords) {
+        if (!googleDropoffMarkerRef.current) {
+          googleDropoffMarkerRef.current = new win.google.maps.Marker({
+            position: { lat: dropoffCoords[0], lng: dropoffCoords[1] },
+            map,
+            title: "Destination",
+            icon: {
+              path: win.google.maps.SymbolPath.CIRCLE,
+              scale: 8,
+              fillColor: "#0284c7",
+              fillOpacity: 1,
+              strokeColor: "#ffffff",
+              strokeWeight: 2
+            }
+          });
+        } else {
+          googleDropoffMarkerRef.current.setPosition({
+            lat: dropoffCoords[0],
+            lng: dropoffCoords[1]
+          });
+        }
+      } else if (googleDropoffMarkerRef.current) {
+        googleDropoffMarkerRef.current.setMap(null);
+        googleDropoffMarkerRef.current = null;
+      }
+
+      // Center & fit
+      if (pickupCoords && !dropoffCoords) {
+        map.setCenter({ lat: pickupCoords[0], lng: pickupCoords[1] });
+        map.setZoom(13);
+      } else if (!pickupCoords && dropoffCoords) {
+        map.setCenter({ lat: dropoffCoords[0], lng: dropoffCoords[1] });
+        map.setZoom(13);
+      } else if (pickupCoords && dropoffCoords) {
+        const bounds = new win.google.maps.LatLngBounds();
+        bounds.extend({ lat: pickupCoords[0], lng: pickupCoords[1] });
+        bounds.extend({ lat: dropoffCoords[0], lng: dropoffCoords[1] });
+        map.fitBounds(bounds, 50);
+
+        if (googlePolylineRef.current) {
+          googlePolylineRef.current.setMap(null);
+        }
+        googlePolylineRef.current = new win.google.maps.Polyline({
+          path: [
+            { lat: pickupCoords[0], lng: pickupCoords[1] },
+            { lat: dropoffCoords[0], lng: dropoffCoords[1] }
+          ],
+          geodesic: true,
+          strokeColor: "#0284c7",
+          strokeOpacity: 0.9,
+          strokeWeight: 4,
+          map
+        });
+      } else if (googlePolylineRef.current) {
+        googlePolylineRef.current.setMap(null);
+        googlePolylineRef.current = null;
+      }
+    }
+
+    // B. Update Leaflet Map
+    if (!useGoogle && leafletMapRef.current) {
+      const L = win.L;
+      const map = leafletMapRef.current;
+      if (L && map) {
+        // Pickup Marker
+        if (pickupCoords) {
+          if (!leafletPickupMarkerRef.current) {
+            const icon = L.divIcon({
+              className: "klx-map-marker",
+              html: `<div style="display:inline-flex;align-items:center;gap:4px;background:#059669;color:#ffffff;padding:5px 10px;border-radius:20px;font-size:11px;font-weight:700;box-shadow:0 4px 12px rgba(5,150,105,0.4);border:2px solid #ffffff;white-space:nowrap;transform:translate(-50%,-100%);">
+                <span>📍</span> Pickup
+              </div>`,
+              iconSize: [0, 0]
+            });
+            leafletPickupMarkerRef.current = L.marker(pickupCoords, { icon }).addTo(map);
+          } else {
+            leafletPickupMarkerRef.current.setLatLng(pickupCoords);
+          }
+        } else if (leafletPickupMarkerRef.current) {
+          map.removeLayer(leafletPickupMarkerRef.current);
+          leafletPickupMarkerRef.current = null;
+        }
+
+        // Dropoff Marker
+        if (dropoffCoords) {
+          if (!leafletDropoffMarkerRef.current) {
+            const icon = L.divIcon({
+              className: "klx-map-marker",
+              html: `<div style="display:inline-flex;align-items:center;gap:4px;background:#0284c7;color:#ffffff;padding:5px 10px;border-radius:20px;font-size:11px;font-weight:700;box-shadow:0 4px 12px rgba(2,132,199,0.4);border:2px solid #ffffff;white-space:nowrap;transform:translate(-50%,-100%);">
+                <span>🎯</span> Destination
+              </div>`,
+              iconSize: [0, 0]
+            });
+            leafletDropoffMarkerRef.current = L.marker(dropoffCoords, { icon }).addTo(map);
+          } else {
+            leafletDropoffMarkerRef.current.setLatLng(dropoffCoords);
+          }
+        } else if (leafletDropoffMarkerRef.current) {
+          map.removeLayer(leafletDropoffMarkerRef.current);
+          leafletDropoffMarkerRef.current = null;
+        }
+
+        // Centering & route line
+        if (pickupCoords && !dropoffCoords) {
+          map.setView(pickupCoords, 13);
+        } else if (!pickupCoords && dropoffCoords) {
+          map.setView(dropoffCoords, 13);
+        } else if (pickupCoords && dropoffCoords) {
+          const bounds = L.latLngBounds([pickupCoords, dropoffCoords]);
+          map.fitBounds(bounds, { padding: [40, 40] });
+
+          if (leafletRouteLayerRef.current) {
+            map.removeLayer(leafletRouteLayerRef.current);
+          }
+          leafletRouteLayerRef.current = L.polyline([pickupCoords, dropoffCoords], {
+            color: "#0284c7",
+            weight: 4
+          }).addTo(map);
+        } else if (leafletRouteLayerRef.current) {
+          map.removeLayer(leafletRouteLayerRef.current);
+          leafletRouteLayerRef.current = null;
+        }
+      }
+    }
+
+    // C. Route calculation via Google Routes API (with OSRM fallback)
+    if (pickupCoords && dropoffCoords) {
+      const [pLat, pLon] = pickupCoords;
+      const [dLat, dLon] = dropoffCoords;
+
+      if (googleApiKey && isRealGoogleKey(googleApiKey)) {
+        fetch("https://routes.googleapis.com/directions/v2:computeRoutes", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            "X-Goog-Api-Key": googleApiKey,
+            "X-Goog-FieldMask": "routes.duration,routes.distanceMeters"
+          },
+          body: JSON.stringify({
+            origin: { location: { latLng: { latitude: pLat, longitude: pLon } } },
+            destination: { location: { latLng: { latitude: dLat, longitude: dLon } } },
+            travelMode: "DRIVE"
+          })
+        })
+          .then((res) => (res.ok ? res.json() : Promise.reject(new Error("Routes API fail"))))
+          .then((data: RoutesApiResponse) => {
+            if (data.routes && data.routes[0]) {
+              const meters = data.routes[0].distanceMeters || 0;
+              const durRaw = data.routes[0].duration || "0s";
+              const durSeconds = parseInt(durRaw.replace("s", ""), 10) || 0;
+              const distMiles = (meters / 1609.34).toFixed(1);
+              const durMins = Math.round(durSeconds / 60);
+              setRouteInfo({
+                distance: `${distMiles} miles`,
+                duration: `${durMins} mins`
+              });
+            }
+          })
+          .catch(() => {
+            // If Routes API fails, calculate via OSRM
+            const osrmUrl = `https://router.project-osrm.org/route/v1/driving/${pLon},${pLat};${dLon},${dLat}?overview=full&geometries=geojson`;
+            fetch(osrmUrl)
+              .then((r) => r.json())
+              .then((d: OsrmResponse) => {
+                if (d.routes && d.routes[0]) {
+                  const distMiles = (d.routes[0].distance / 1609.34).toFixed(1);
+                  const durMins = Math.round(d.routes[0].duration / 60);
+                  setRouteInfo({
+                    distance: `${distMiles} miles`,
+                    duration: `${durMins} mins`
+                  });
+                }
+              })
+              .catch(() => {});
+          });
+      } else {
+        const osrmUrl = `https://router.project-osrm.org/route/v1/driving/${pLon},${pLat};${dLon},${dLat}?overview=full&geometries=geojson`;
+        fetch(osrmUrl)
+          .then((r) => r.json())
+          .then((d: OsrmResponse) => {
+            if (d.routes && d.routes[0]) {
+              const distMiles = (d.routes[0].distance / 1609.34).toFixed(1);
+              const durMins = Math.round(d.routes[0].duration / 60);
+              setRouteInfo({
+                distance: `${distMiles} miles`,
+                duration: `${durMins} mins`
+              });
+            }
+          })
+          .catch(() => {});
+      }
+    } else {
+      queueMicrotask(() => setRouteInfo(null));
+    }
+  }, [useGoogle, mapLoaded, pickupCoords, dropoffCoords, googleApiKey]);
 
   const effectiveRouteInfo = pickupLocation && dropoffLocation ? routeInfo : null;
 
@@ -674,7 +876,7 @@ export function TransportationBooking({
           </label>
 
           {/* Pickup Suggestions Dropdown */}
-          {!useGoogle && pickupFocused && pickupSuggestions.length > 0 && (
+          {pickupFocused && pickupSuggestions.length > 0 && (
             <div className="absolute top-full right-0 left-0 z-50 mt-1 max-h-56 overflow-auto rounded-xl border border-slate-200 bg-white p-1 shadow-xl">
               {pickupSuggestions.map((item, idx) => (
                 <button
@@ -683,7 +885,11 @@ export function TransportationBooking({
                   onMouseDown={(e) => {
                     e.preventDefault();
                     onPickupChange(item.displayName);
-                    setPickupCoords([item.lat, item.lon]);
+                    if (item.lat && item.lon) {
+                      setPickupCoords([item.lat, item.lon]);
+                    } else {
+                      void handleManualGeocode(item.displayName, true);
+                    }
                     setPickupSuggestions([]);
                     setPickupFocused(false);
                   }}
@@ -729,7 +935,7 @@ export function TransportationBooking({
           </label>
 
           {/* Drop-off Suggestions Dropdown */}
-          {!useGoogle && dropoffFocused && dropoffSuggestions.length > 0 && (
+          {dropoffFocused && dropoffSuggestions.length > 0 && (
             <div className="absolute top-full right-0 left-0 z-50 mt-1 max-h-56 overflow-auto rounded-xl border border-slate-200 bg-white p-1 shadow-xl">
               {dropoffSuggestions.map((item, idx) => (
                 <button
@@ -738,7 +944,11 @@ export function TransportationBooking({
                   onMouseDown={(e) => {
                     e.preventDefault();
                     onDropoffChange(item.displayName);
-                    setDropoffCoords([item.lat, item.lon]);
+                    if (item.lat && item.lon) {
+                      setDropoffCoords([item.lat, item.lon]);
+                    } else {
+                      void handleManualGeocode(item.displayName, false);
+                    }
                     setDropoffSuggestions([]);
                     setDropoffFocused(false);
                   }}
