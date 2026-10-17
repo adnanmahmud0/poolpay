@@ -61,11 +61,7 @@ const schema = z.object({
   CONTACT_EMAIL: z.string().email().optional(),
   NEXT_PUBLIC_GOOGLE_MAPS_API_KEY: z
     .string()
-    .default(
-      process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY ||
-        process.env.GOOGLE_MAPS_API_KEY ||
-        "AIzaSyBNpPiOGY3KYx0QKjGygXO2l_vuuV2CAPo"
-    )
+    .default(process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY || process.env.GOOGLE_MAPS_API_KEY || "")
 });
 export const env = schema.parse(process.env);
 export function getOwnerCredentials() {
