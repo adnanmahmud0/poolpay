@@ -10,7 +10,7 @@ import { Settings } from "../modules/settings/settings.model";
 const smtpTransporter = nodemailer.createTransport({
   host: envVars.EMAIL_SENDER.SMTP_HOST,
   port: Number(envVars.EMAIL_SENDER.SMTP_PORT),
-  secure: true,
+  secure: Number(envVars.EMAIL_SENDER.SMTP_PORT) === 465,
   auth: {
     user: envVars.EMAIL_SENDER.SMTP_USER,
     pass: envVars.EMAIL_SENDER.SMTP_PASS,
