@@ -57,6 +57,19 @@ class AdvertisementModel {
     );
   }
 
+  /// Default fallback banner shown when no advertisements have been created in the admin panel
+  factory AdvertisementModel.contactUsFallback() {
+    return AdvertisementModel(
+      id: 'fallback_contact_us_ad',
+      title: 'Promote Your Business Here',
+      description: 'Reach thousands of members daily. Contact us at support@poolpay.space to place your ad.',
+      bannerImage: '',
+      actionType: 'email',
+      actionValue: 'support@poolpay.space',
+      priority: 0,
+    );
+  }
+
   /// Executes the configured action when a user taps the advertisement.
   Future<void> performAction() async {
     try {

@@ -17,7 +17,9 @@ class HomeController extends GetxController {
 
   var advertisements = <AdvertisementModel>[].obs;
   var currentAdIndex = 0.obs;
+  final PageController adPageController = PageController();
   Timer? _adTimer;
+  Timer? _adRefreshTimer;
 
   @override
   void onInit() {
@@ -25,14 +27,24 @@ class HomeController extends GetxController {
     getProfile();
     fetchFinancialStats();
     fetchAdvertisements();
+    // Auto-poll for newly created ads every 20 seconds while app is running
+    _adRefreshTimer = Timer.periodic(const Duration(seconds: 20), (_) {
+      fetchAdvertisements(silent: true);
+    });
   }
 
   void startAdTimer() {
     _adTimer?.cancel();
-    if (advertisements.isNotEmpty) {
-      _adTimer = Timer.periodic(const Duration(seconds: 5), (timer) {
-        if (advertisements.isNotEmpty) {
-          currentAdIndex.value = (currentAdIndex.value + 1) % advertisements.length;
+    if (advertisements.length > 1) {
+      _adTimer = Timer.periodic(const Duration(seconds: 4), (timer) {
+        if (advertisements.length > 1 && adPageController.hasClients) {
+          final nextIndex = (currentAdIndex.value + 1) % advertisements.length;
+          currentAdIndex.value = nextIndex;
+          adPageController.animateToPage(
+            nextIndex,
+            duration: const Duration(milliseconds: 500),
+            curve: Curves.easeInOutCubic,
+          );
         }
       });
     }
@@ -105,7 +117,7 @@ class HomeController extends GetxController {
     }
   }
 
-  Future<void> fetchAdvertisements() async {
+  Future<void> fetchAdvertisements({bool silent = false}) async {
     try {
       String? token = await PrefsHelper.getString(PrefsHelper.token);
       final Map<String, String> headers = {
@@ -126,19 +138,51 @@ class HomeController extends GetxController {
           var adsList = (data['data'] as List? ?? [])
               .map((e) => AdvertisementModel.fromJson(e))
               .toList();
-          
+
           // Sort by priority descending
           adsList.sort((a, b) => b.priority.compareTo(a.priority));
-          
-          advertisements.assignAll(adsList);
-          debugPrint("[Home] Successfully loaded ${adsList.length} active advertisements");
-          startAdTimer();
+
+          // If no ads configured on backend, provide default "Advertise with us" banner
+          if (adsList.isEmpty) {
+            adsList = [
+              AdvertisementModel.contactUsFallback(),
+            ];
+          }
+
+          // Check if data changed
+          final existingIds = advertisements.map((a) => a.id).join(',');
+          final newIds = adsList.map((a) => a.id).join(',');
+
+          if (existingIds != newIds) {
+            advertisements.assignAll(adsList);
+            currentAdIndex.value = 0;
+            if (adPageController.hasClients) {
+              adPageController.jumpToPage(0);
+            }
+            startAdTimer();
+          } else if (_adTimer == null || !_adTimer!.isActive) {
+            startAdTimer();
+          }
+
+          if (!silent) {
+            debugPrint("[Home] Successfully loaded ${adsList.length} active advertisements");
+          }
         }
       } else {
-        debugPrint("[Home] Failed to load ads. Status: ${response.statusCode}");
+        if (advertisements.isEmpty) {
+          advertisements.assignAll([AdvertisementModel.contactUsFallback()]);
+        }
+        if (!silent) {
+          debugPrint("[Home] Failed to load ads. Status: ${response.statusCode}");
+        }
       }
     } catch (e) {
-      debugPrint("Error fetching advertisements: $e");
+      if (advertisements.isEmpty) {
+        advertisements.assignAll([AdvertisementModel.contactUsFallback()]);
+      }
+      if (!silent) {
+        debugPrint("Error fetching advertisements: $e");
+      }
     }
   }
 
@@ -228,6 +272,8 @@ class HomeController extends GetxController {
   @override
   void onClose() {
     _adTimer?.cancel();
+    _adRefreshTimer?.cancel();
+    adPageController.dispose();
     super.onClose();
   }
 }

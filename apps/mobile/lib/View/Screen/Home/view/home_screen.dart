@@ -75,19 +75,31 @@ class _HomeView extends StatelessWidget {
     final HomeController controller = Get.find<HomeController>();
     final GroupController groupController = Get.find<GroupController>();
 
-    return SingleChildScrollView(
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          _buildHeader(controller),
-          const SizedBox(height: 24),
-          _buildQuickActions(),
-          const SizedBox(height: 24),
-          _buildAdvertisementCarousel(controller),
-          const SizedBox(height: 24),
-          _buildMyGroupsSection(groupController),
-          const SizedBox(height: 120), // Extra space for custom nav bar
-        ],
+    return RefreshIndicator(
+      color: const Color(0xFF1A227F),
+      onRefresh: () async {
+        await Future.wait([
+          controller.fetchAdvertisements(),
+          controller.fetchFinancialStats(),
+          controller.getProfile(),
+          groupController.fetchMyGroups(),
+        ]);
+      },
+      child: SingleChildScrollView(
+        physics: const AlwaysScrollableScrollPhysics(),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            _buildHeader(controller),
+            const SizedBox(height: 24),
+            _buildQuickActions(),
+            const SizedBox(height: 24),
+            _buildAdvertisementCarousel(controller),
+            const SizedBox(height: 24),
+            _buildMyGroupsSection(groupController),
+            const SizedBox(height: 120), // Extra space for custom nav bar
+          ],
+        ),
       ),
     );
   }
@@ -332,12 +344,15 @@ class _HomeView extends StatelessWidget {
         child: Stack(
           children: [
             PageView.builder(
+              controller: controller.adPageController,
               itemCount: controller.advertisements.length,
               onPageChanged: (index) {
                 controller.currentAdIndex.value = index;
               },
               itemBuilder: (context, index) {
                 final ad = controller.advertisements[index];
+                final bool isContactFallback = ad.id == 'fallback_contact_us_ad';
+
                 return GestureDetector(
                   onTap: () => ad.performAction(),
                   child: Container(
@@ -345,7 +360,9 @@ class _HomeView extends StatelessWidget {
                       borderRadius: BorderRadius.circular(20),
                       boxShadow: [
                         BoxShadow(
-                          color: Colors.black.withOpacity(0.08),
+                          color: isContactFallback
+                              ? const Color(0xFF1A227F).withOpacity(0.15)
+                              : Colors.black.withOpacity(0.08),
                           blurRadius: 10,
                           offset: const Offset(0, 4),
                         ),
@@ -356,40 +373,65 @@ class _HomeView extends StatelessWidget {
                       child: Stack(
                         fit: StackFit.expand,
                         children: [
-                          // High-Speed Progressive Banner Image (Zero-Delay Memory Caching)
-                          Image.network(
-                            ad.bannerImage,
-                            fit: BoxFit.cover,
-                            cacheWidth: 800,
-                            frameBuilder: (context, child, frame, wasSynchronouslyLoaded) {
-                              if (wasSynchronouslyLoaded || frame != null) {
-                                return child;
-                              }
-                              return Container(
-                                decoration: const BoxDecoration(
-                                  gradient: LinearGradient(
-                                    colors: [Color(0xFF2E3A9E), Color(0xFF1A2278)],
-                                    begin: Alignment.topLeft,
-                                    end: Alignment.bottomRight,
+                          if (ad.bannerImage.isNotEmpty)
+                            // High-Speed Progressive Banner Image
+                            Image.network(
+                              ad.bannerImage,
+                              fit: BoxFit.cover,
+                              cacheWidth: 800,
+                              frameBuilder: (context, child, frame, wasSynchronouslyLoaded) {
+                                if (wasSynchronouslyLoaded || frame != null) {
+                                  return child;
+                                }
+                                return Container(
+                                  decoration: const BoxDecoration(
+                                    gradient: LinearGradient(
+                                      colors: [Color(0xFF2E3A9E), Color(0xFF1A2278)],
+                                      begin: Alignment.topLeft,
+                                      end: Alignment.bottomRight,
+                                    ),
                                   ),
-                                ),
-                              );
-                            },
-                            errorBuilder: (context, error, stackTrace) {
-                              return Container(
-                                decoration: const BoxDecoration(
-                                  gradient: LinearGradient(
-                                    colors: [Color(0xFF6773FF), Color(0xFF1A227F)],
-                                    begin: Alignment.topLeft,
-                                    end: Alignment.bottomRight,
+                                );
+                              },
+                              errorBuilder: (context, error, stackTrace) {
+                                return Container(
+                                  decoration: const BoxDecoration(
+                                    gradient: LinearGradient(
+                                      colors: [Color(0xFF6773FF), Color(0xFF1A227F)],
+                                      begin: Alignment.topLeft,
+                                      end: Alignment.bottomRight,
+                                    ),
                                   ),
+                                  child: const Center(
+                                    child: Icon(Icons.campaign_rounded, color: Colors.white54, size: 48),
+                                  ),
+                                );
+                              },
+                            )
+                          else
+                            // Elegant Fallback Banner when no ads or image
+                            Container(
+                              decoration: const BoxDecoration(
+                                gradient: LinearGradient(
+                                  colors: [Color(0xFF1E293B), Color(0xFF0F172A)],
+                                  begin: Alignment.topLeft,
+                                  end: Alignment.bottomRight,
                                 ),
-                                child: const Center(
-                                  child: Icon(Icons.campaign_rounded, color: Colors.white54, size: 48),
-                                ),
-                              );
-                            },
-                          ),
+                              ),
+                              child: Stack(
+                                children: [
+                                  Positioned(
+                                    right: -20,
+                                    bottom: -20,
+                                    child: Icon(
+                                      Icons.campaign_outlined,
+                                      size: 130,
+                                      color: Colors.white.withOpacity(0.06),
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
 
                           // Gradient Overlay for Readability
                           Container(
@@ -494,19 +536,22 @@ class _HomeView extends StatelessWidget {
                     color: Colors.black.withOpacity(0.4),
                     borderRadius: BorderRadius.circular(12),
                   ),
-                  child: Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: List.generate(
-                      controller.advertisements.length,
-                      (index) => Container(
-                        margin: const EdgeInsets.symmetric(horizontal: 2),
-                        width: 6,
-                        height: 6,
-                        decoration: BoxDecoration(
-                          shape: BoxShape.circle,
-                          color: controller.currentAdIndex.value == index
-                              ? Colors.white
-                              : Colors.white.withOpacity(0.4),
+                  child: Obx(
+                    () => Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: List.generate(
+                        controller.advertisements.length,
+                        (index) => AnimatedContainer(
+                          duration: const Duration(milliseconds: 250),
+                          margin: const EdgeInsets.symmetric(horizontal: 2),
+                          width: controller.currentAdIndex.value == index ? 14 : 6,
+                          height: 6,
+                          decoration: BoxDecoration(
+                            borderRadius: BorderRadius.circular(3),
+                            color: controller.currentAdIndex.value == index
+                                ? Colors.white
+                                : Colors.white.withOpacity(0.4),
+                          ),
                         ),
                       ),
                     ),
