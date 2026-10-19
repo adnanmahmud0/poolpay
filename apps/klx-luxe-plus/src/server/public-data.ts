@@ -23,7 +23,8 @@ function visibleSettings(settings: KlxSettings): PublicSettings {
     currency,
     seoTitle,
     seoDescription,
-    socialImageUrl
+    socialImageUrl,
+    transportationPricing: settings.transportationPricing || DEFAULT_SETTINGS.transportationPricing
   };
 }
 

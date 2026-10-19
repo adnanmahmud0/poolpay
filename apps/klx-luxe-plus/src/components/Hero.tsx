@@ -86,7 +86,7 @@ export function Hero({
             <Check /> {SERVICES.length} services. One point of contact.
           </div>
         </div>
-        <div className="hero-floating hero-enter">
+        <div className="hero-floating hero-enter hidden lg:flex">
           <span className="floating-icon">
             <ShieldCheck className="size-5 text-sky-300" />
           </span>
@@ -97,7 +97,7 @@ export function Hero({
           <Sparkles className="size-4 text-sky-200" />
           <BorderBeam duration={10} />
         </div>
-        <div className="hero-stat-widget hero-enter">
+        <div className="hero-stat-widget hero-enter hidden lg:flex">
           <div className="hero-stat-item">
             <span className="hero-stat-num">{SERVICES.length}</span>
             <span className="hero-stat-label">Services</span>
@@ -120,7 +120,7 @@ export function Hero({
             </span>{" "}
             SCROLL TO DISCOVER
           </a>
-          <span>
+          <span className="hidden items-center gap-3 sm:inline-flex">
             KLX LUXE PLUS LLC <span className="text-sky-300">✦</span> MORE THAN ONE WAY TO HELP
           </span>
         </div>

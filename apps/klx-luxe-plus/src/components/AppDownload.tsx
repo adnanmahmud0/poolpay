@@ -64,7 +64,7 @@ function StoreLinks({
 function AppPreview({ screenshot = "/images/poolpay/groups.webp" }: { screenshot?: string }) {
   return (
     <figure
-      className="relative mx-auto flex w-full max-w-[500px] flex-col items-center justify-center py-10 lg:py-12"
+      className="relative mx-auto flex w-full max-w-[500px] flex-col items-center justify-center overflow-hidden py-10 sm:overflow-visible lg:py-12"
       data-reveal
     >
       <div
@@ -86,7 +86,7 @@ function AppPreview({ screenshot = "/images/poolpay/groups.webp" }: { screenshot
       </div>
       <div
         aria-hidden="true"
-        className="absolute top-24 left-0 flex items-center gap-3 rounded-2xl border border-white bg-white/95 px-4 py-3 shadow-[0_12px_40px_-15px_#24445e50] max-[380px]:left-[-8px] sm:left-3 lg:left-0 xl:left-3"
+        className="absolute top-24 left-0 hidden items-center gap-3 rounded-2xl border border-white bg-white/95 px-4 py-3 shadow-[0_12px_40px_-15px_#24445e50] sm:left-3 sm:flex lg:left-0 xl:left-3"
       >
         <span className="flex size-10 items-center justify-center rounded-xl bg-[#e9f2f8] text-[#377db1]">
           <UsersRound className="size-5" />
@@ -100,7 +100,7 @@ function AppPreview({ screenshot = "/images/poolpay/groups.webp" }: { screenshot
       </div>
       <div
         aria-hidden="true"
-        className="absolute right-0 bottom-28 flex items-center gap-2.5 rounded-full border border-white bg-white px-4 py-3 shadow-[0_12px_40px_-15px_#24445e50] sm:right-3"
+        className="absolute right-0 bottom-28 hidden items-center gap-2.5 rounded-full border border-white bg-white px-4 py-3 shadow-[0_12px_40px_-15px_#24445e50] sm:right-3 sm:flex"
       >
         <span className="size-1.5 rounded-full bg-emerald-600" />
         <span className="text-[10px] font-medium tracking-wide text-slate-600">

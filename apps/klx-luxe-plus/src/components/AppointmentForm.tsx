@@ -19,7 +19,7 @@ import {
 
 import { Button } from "@repo/ui";
 
-import type { AttachedDocument, KlxService } from "@/server/db/types";
+import type { AttachedDocument, KlxService, TransportationPricingConfig } from "@/server/db/types";
 
 import { AppointmentTimes } from "./AppointmentTimes";
 import { DocumentUploader } from "./DocumentUploader";
@@ -103,12 +103,14 @@ export function AppointmentForm({
   services,
   timezone,
   selectedServiceId,
-  onServiceChange
+  onServiceChange,
+  transportationPricing
 }: {
   services: KlxService[];
   timezone: string;
   selectedServiceId?: string;
   onServiceChange?: (id: string) => void;
+  transportationPricing?: TransportationPricingConfig;
 }) {
   const [message, setMessage] = useState("");
   const [reference, setReference] = useState("");
@@ -160,6 +162,7 @@ export function AppointmentForm({
   const [dropoffLocation, setDropoffLocation] = useState("");
   const [vehicleClass, setVehicleClass] = useState("executive_sedan");
   const [passengers, setPassengers] = useState(1);
+  const [estimatedFareCents, setEstimatedFareCents] = useState(0);
 
   // Real Estate States
   const [reTransactionType, setReTransactionType] = useState(REAL_ESTATE_TRANSACTION_TYPES[0]!);
@@ -275,8 +278,8 @@ export function AppointmentForm({
       payload.dropoffLocation = dropoffLocation;
       payload.vehicleClass = selectedTier.name;
       payload.passengers = passengers;
-      payload.estimatedFareCents = 0;
-      payload.payNow = false;
+      payload.estimatedFareCents = estimatedFareCents;
+      payload.payNow = Boolean(estimatedFareCents && estimatedFareCents > 0);
     }
 
     if (isRealEstate) {
@@ -306,6 +309,9 @@ export function AppointmentForm({
       setReference(result.reference);
       setPaymentUrl(result.paymentUrl || "");
       requestId.current = "";
+      if (result.paymentUrl) {
+        window.location.href = result.paymentUrl;
+      }
     } catch (error) {
       setMessage(error instanceof Error ? error.message : "Please try again.");
       setAvailabilityVersion((value) => value + 1);
@@ -317,9 +323,9 @@ export function AppointmentForm({
   return (
     <section
       id="appointments"
-      className="section-shell my-24 grid overflow-hidden rounded-[32px] bg-[#14283b] text-white lg:grid-cols-[0.82fr_1.18fr]"
+      className="section-shell my-16 grid overflow-hidden rounded-[24px] bg-[#14283b] text-white sm:my-24 sm:rounded-[32px] lg:grid-cols-[0.82fr_1.18fr]"
     >
-      <div className="p-7 sm:p-12 lg:p-14" data-reveal>
+      <div className="p-5 sm:p-12 lg:p-14" data-reveal>
         <CalendarDays className="mb-8 size-9 text-sky-300" />
         <p className="eyebrow mb-5 text-sky-200">YOUR NEXT STEP STARTS HERE</p>
         <h2>
@@ -347,7 +353,7 @@ export function AppointmentForm({
         </p>
       </div>
 
-      <div className="m-3 rounded-[24px] bg-white p-6 text-slate-800 sm:m-6 sm:p-9">
+      <div className="m-2 rounded-[20px] bg-white p-4 text-slate-800 sm:m-6 sm:rounded-[24px] sm:p-9">
         {reference ? (
           <div className="flex min-h-96 flex-col items-start justify-center" role="status">
             <CheckCircle2 className="mb-5 size-10 text-emerald-600" />
@@ -364,13 +370,15 @@ export function AppointmentForm({
                 : " Our administration team has been notified and will confirm availability shortly."}
             </p>
 
-            {paymentUrl && !isTransportation ? (
+            {paymentUrl ? (
               <div className="mt-6 w-full rounded-2xl border border-sky-200 bg-sky-50 p-5">
                 <p className="text-xs font-semibold tracking-wide text-sky-900 uppercase">
                   Online Payment Ready
                 </p>
                 <p className="mt-1 text-sm text-sky-800">
-                  You can review price details and pay online now via Stripe.
+                  {isTransportation
+                    ? "Your reservation is registered. Complete your payment online to secure your vehicle."
+                    : "You can review price details and pay online now via Stripe."}
                 </p>
                 <Button asChild className="mt-4 w-full sm:w-auto">
                   <a href={paymentUrl}>
@@ -735,6 +743,8 @@ export function AppointmentForm({
                   onVehicleChange={setVehicleClass}
                   passengers={passengers}
                   onPassengersChange={setPassengers}
+                  pricing={transportationPricing}
+                  onEstimatedFareChange={setEstimatedFareCents}
                 />
               </div>
             )}
@@ -920,7 +930,9 @@ export function AppointmentForm({
               {busy
                 ? "Processing request…"
                 : isTransportation
-                  ? "Submit Reservation Request"
+                  ? estimatedFareCents > 0
+                    ? `Submit & Pay (${(estimatedFareCents / 100).toLocaleString("en-US", { style: "currency", currency: "USD" })})`
+                    : "Submit Reservation Request"
                   : "Submit appointment request"}
               <ArrowUpRight className="size-4" />
             </Button>

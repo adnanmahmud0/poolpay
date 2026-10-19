@@ -36,7 +36,7 @@ interface NominatimResult {
 const GOOGLE_API_KEY =
   process.env.GOOGLE_MAPS_API_KEY ||
   process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY ||
-  "AIzaSyBNpPiOGY3KYx0QKjGygXO2l_vuuV2CAPo";
+  "AIzaSyC_h3zXiX_cpDlRBoxPQY7FNUsyUAXHFRM";
 
 export async function GET(request: Request) {
   const { searchParams } = new URL(request.url);

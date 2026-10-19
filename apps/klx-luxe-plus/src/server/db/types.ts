@@ -312,7 +312,22 @@ export interface KlxSettings {
     emailOnPayment: boolean;
     emailOnRefund: boolean;
   };
+  transportationPricing?: TransportationPricingConfig;
   updatedAt: Date;
+}
+
+export interface VehiclePricingConfig {
+  basePriceCents: number;
+  pricePerKmCents: number;
+}
+
+export interface TransportationPricingConfig {
+  unit: "km" | "mile";
+  tiers: {
+    executive_sedan: VehiclePricingConfig;
+    luxury_suv: VehiclePricingConfig;
+    vip_sprinter: VehiclePricingConfig;
+  };
 }
 
 export type PublicSettings = Pick<
@@ -325,6 +340,7 @@ export type PublicSettings = Pick<
   | "seoTitle"
   | "seoDescription"
   | "socialImageUrl"
+  | "transportationPricing"
 >;
 
 export interface KlxAuditLog {

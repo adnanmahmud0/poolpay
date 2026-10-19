@@ -699,3 +699,45 @@ test("admin appointment request email blocks direct replies and includes one-cli
   const invalidResp = await magicLogin(invalidReq);
   assert.ok(invalidResp.headers.get("location")?.includes("/admin/login"));
 });
+
+test("admin can configure vehicle base price and per km price, and fare calculation matches formula", async () => {
+  const database = await db.getDb();
+  const { transportationPricingSchema } = await import("../src/server/validation");
+  const { calculateVehicleFare } = await import("../src/components/TransportationBooking");
+
+  const customPricing = {
+    unit: "km" as const,
+    tiers: {
+      executive_sedan: { basePriceCents: 6000, pricePerKmCents: 300 }, // $60 base, $3.00/km
+      luxury_suv: { basePriceCents: 9000, pricePerKmCents: 400 }, // $90 base, $4.00/km
+      vip_sprinter: { basePriceCents: 15000, pricePerKmCents: 600 } // $150 base, $6.00/km
+    }
+  };
+
+  const validated = transportationPricingSchema.parse(customPricing);
+  await database
+    .collection(db.COLLECTIONS.SETTINGS)
+    .updateOne({}, { $set: { transportationPricing: validated } }, { upsert: true });
+
+  const settings = await repo.getSettings();
+  assert.equal(settings.transportationPricing?.unit, "km");
+  assert.equal(settings.transportationPricing?.tiers.executive_sedan.basePriceCents, 6000);
+  assert.equal(settings.transportationPricing?.tiers.executive_sedan.pricePerKmCents, 300);
+
+  // Test fare calculation formula: Total = Base + (Distance * PricePerKm)
+  // 15 km trip:
+  // Sedan: 60 + (15 * 3) = $105.00 (10500 cents)
+  const sedanFare = calculateVehicleFare("executive_sedan", 15, settings.transportationPricing);
+  assert.equal(sedanFare.totalCents, 10500);
+  assert.equal(sedanFare.formatted, "$105.00");
+
+  // SUV: 90 + (15 * 4) = $150.00 (15000 cents)
+  const suvFare = calculateVehicleFare("luxury_suv", 15, settings.transportationPricing);
+  assert.equal(suvFare.totalCents, 15000);
+  assert.equal(suvFare.formatted, "$150.00");
+
+  // Sprinter: 150 + (15 * 6) = $240.00 (24000 cents)
+  const sprinterFare = calculateVehicleFare("vip_sprinter", 15, settings.transportationPricing);
+  assert.equal(sprinterFare.totalCents, 24000);
+  assert.equal(sprinterFare.formatted, "$240.00");
+});

@@ -61,6 +61,7 @@ import { AppointmentCalendar } from "./AppointmentCalendar";
 import { Editor } from "./Editor";
 import { MediaGallery } from "./MediaGallery";
 import { SectionManager } from "./SectionManager";
+import { TransportationPricingManager } from "./TransportationPricingManager";
 
 const SERVICE_ICONS: Record<
   string,
@@ -644,6 +645,14 @@ export function AdminDashboard({
                     <Plus className="size-4" /> Add service
                   </Button>
                 </div>
+
+                {/* Transportation Vehicle Fare Configuration (Base + Per KM) */}
+                <TransportationPricingManager
+                  initialPricing={data.settings.transportationPricing}
+                  onSave={async (pricing) => {
+                    await action("transportation-pricing", pricing);
+                  }}
+                />
 
                 <div className="grid gap-6 md:grid-cols-2">
                   {data.services.map((s, i) => {

@@ -34,7 +34,8 @@ import {
   contentSchema,
   serviceSchema,
   settingsSchema,
-  text
+  text,
+  transportationPricingSchema
 } from "@/server/validation";
 
 export const runtime = "nodejs";
@@ -155,6 +156,24 @@ export async function POST(request: Request, context: { params: Promise<{ resour
         details: {}
       });
       return { ok: true };
+    }
+    if (resource === "transportation-pricing" || resource === "transportation_pricing") {
+      const data = transportationPricingSchema.parse(input);
+      await db
+        .collection(COLLECTIONS.SETTINGS)
+        .updateOne(
+          {},
+          { $set: { transportationPricing: data, updatedAt: new Date() } },
+          { upsert: true }
+        );
+      await logAudit({
+        actorEmail: user.email,
+        action: "TRANSPORTATION_PRICING_UPDATED",
+        entityType: "settings",
+        entityId: "transportationPricing",
+        details: data
+      });
+      return { ok: true, transportationPricing: data };
     }
     if (resource === "availability") {
       const scheduling = settingsSchema.shape.scheduling.parse(input);

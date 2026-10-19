@@ -159,6 +159,20 @@ export const adSchema = z
       path: ["endDate"]
     }
   );
+export const vehiclePricingSchema = z.object({
+  basePriceCents: cents,
+  pricePerKmCents: cents
+});
+
+export const transportationPricingSchema = z.object({
+  unit: z.enum(["km", "mile"]).default("km"),
+  tiers: z.object({
+    executive_sedan: vehiclePricingSchema,
+    luxury_suv: vehiclePricingSchema,
+    vip_sprinter: vehiclePricingSchema
+  })
+});
+
 export const settingsSchema = z.object({
   seoTitle: text,
   seoDescription: text,
@@ -193,7 +207,8 @@ export const settingsSchema = z.object({
     emailOnConfirm: z.boolean(),
     emailOnPayment: z.boolean(),
     emailOnRefund: z.boolean()
-  })
+  }),
+  transportationPricing: transportationPricingSchema.optional()
 });
 export const contentSchema = z.object({
   hero: z.object({

@@ -1,4 +1,10 @@
-import { KlxAdvertisement, KlxService, KlxSettings, SiteContentData } from "./types";
+import {
+  KlxAdvertisement,
+  KlxService,
+  KlxSettings,
+  SiteContentData,
+  TransportationPricingConfig
+} from "./types";
 
 export const DEFAULT_SITE_CONTENT: SiteContentData = {
   hero: {
@@ -259,6 +265,24 @@ export const DEFAULT_SERVICES: Omit<KlxService, "_id">[] = [
   }
 ];
 
+export const DEFAULT_TRANSPORTATION_PRICING: TransportationPricingConfig = {
+  unit: "km",
+  tiers: {
+    executive_sedan: {
+      basePriceCents: 5000, // $50.00
+      pricePerKmCents: 250 // $2.50 / km
+    },
+    luxury_suv: {
+      basePriceCents: 8000, // $80.00
+      pricePerKmCents: 350 // $3.50 / km
+    },
+    vip_sprinter: {
+      basePriceCents: 12000, // $120.00
+      pricePerKmCents: 500 // $5.00 / km
+    }
+  }
+};
+
 export const DEFAULT_SETTINGS: Omit<KlxSettings, "_id"> = {
   siteTitle: "KLX LUXE PLUS LLC",
   supportEmail: "support@poolpay.space",
@@ -288,6 +312,7 @@ export const DEFAULT_SETTINGS: Omit<KlxSettings, "_id"> = {
     emailOnPayment: true,
     emailOnRefund: true
   },
+  transportationPricing: DEFAULT_TRANSPORTATION_PRICING,
   updatedAt: new Date()
 };
 

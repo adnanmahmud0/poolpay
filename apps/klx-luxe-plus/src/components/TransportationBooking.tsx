@@ -937,13 +937,13 @@ export function TransportationBooking({
   }, [effectiveRouteInfo, vehicleClass, activePricing, onEstimatedFareChange]);
 
   return (
-    <div className="space-y-5 rounded-2xl border border-slate-200 bg-slate-50/70 p-4 sm:p-6">
+    <div className="space-y-5 rounded-2xl border border-slate-200 bg-slate-50/70 p-3 sm:p-6">
       <div className="flex items-center justify-between border-b border-slate-200/80 pb-3">
         <div className="flex items-center gap-2 text-slate-900">
           <Car className="size-5 text-sky-700" />
           <h4 className="text-sm font-semibold tracking-tight">Luxury Transportation Details</h4>
         </div>
-        <span className="rounded-full bg-sky-100 px-2.5 py-0.5 text-[11px] font-semibold text-sky-800">
+        <span className="hidden rounded-full bg-sky-100 px-2.5 py-0.5 text-[11px] font-semibold text-sky-800 sm:inline-block">
           Chauffeur Service
         </span>
       </div>
@@ -1082,7 +1082,7 @@ export function TransportationBooking({
 
         {/* Route Summary: Total Distance & Total Price */}
         {effectiveRouteInfo && (
-          <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-sky-100 bg-sky-50/90 px-4 py-3 text-xs text-sky-950 shadow-xs">
+          <div className="flex flex-wrap items-center justify-between gap-2 rounded-xl border border-sky-100 bg-sky-50/90 px-3 py-2.5 text-xs text-sky-950 shadow-xs sm:gap-3 sm:px-4 sm:py-3">
             <div className="flex items-center gap-2">
               <Route className="size-4 text-sky-600" />
               <div>
@@ -1109,7 +1109,7 @@ export function TransportationBooking({
                 <span className="block text-[10px] font-medium tracking-wider text-slate-500 uppercase">
                   Total Price
                 </span>
-                <p className="text-sm font-bold text-sky-700">
+                <p className="text-xs font-bold text-sky-700 sm:text-sm">
                   {
                     calculateVehicleFare(
                       selectedVehicle.id,
@@ -1129,7 +1129,7 @@ export function TransportationBooking({
         <label className="text-xs font-medium text-slate-700">
           Select Car Type &amp; View Fare *
         </label>
-        <div className="grid grid-cols-3 gap-2">
+        <div className="grid grid-cols-3 gap-1.5 sm:gap-2">
           {VEHICLE_TIERS.map((tier) => {
             const isSelected = selectedVehicle.id === tier.id;
             const fareDetails = effectiveRouteInfo?.distanceKm
@@ -1144,28 +1144,36 @@ export function TransportationBooking({
                 type="button"
                 key={tier.id}
                 onClick={() => onVehicleChange(tier.id)}
-                className={`flex cursor-pointer flex-col items-center justify-center rounded-xl border px-2 py-2.5 text-center transition-all ${
+                className={`flex cursor-pointer flex-col items-center justify-center rounded-xl border px-1.5 py-2 text-center transition-all sm:px-2 sm:py-2.5 ${
                   isSelected
                     ? "border-sky-600 bg-sky-50/80 font-semibold text-sky-950 shadow-xs ring-1 ring-sky-500/20"
                     : "border-slate-200 bg-white text-slate-700 hover:border-slate-300 hover:bg-slate-50/70"
                 }`}
               >
-                <div className="flex items-center gap-1.5">
-                  <span className="text-xs leading-tight font-semibold">{tier.shortName}</span>
-                  {isSelected && <Check className="size-3 stroke-[3] text-sky-600" />}
+                <div className="flex items-center gap-1 sm:gap-1.5">
+                  <span className="text-[11px] leading-tight font-semibold sm:text-xs">
+                    {tier.shortName}
+                  </span>
+                  {isSelected && <Check className="size-2.5 stroke-[3] text-sky-600 sm:size-3" />}
                 </div>
-                <span className="mt-0.5 text-[10px] text-slate-500">{tier.capacity}</span>
+                <span className="mt-0.5 text-[9px] text-slate-500 sm:text-[10px]">
+                  {tier.capacity}
+                </span>
 
                 {/* Dynamic Price Display */}
                 {fareDetails ? (
-                  <div className="mt-2 flex flex-col items-center">
-                    <span className="text-sm font-bold text-sky-700">{fareDetails.formatted}</span>
-                    <span className="text-[9px] text-slate-400">Total Price</span>
+                  <div className="mt-1.5 flex flex-col items-center sm:mt-2">
+                    <span className="text-xs font-bold text-sky-700 sm:text-sm">
+                      {fareDetails.formatted}
+                    </span>
+                    <span className="text-[8px] text-slate-400 sm:text-[9px]">Total Price</span>
                   </div>
                 ) : (
-                  <div className="mt-2 flex flex-col items-center">
-                    <span className="text-[11px] font-semibold text-slate-800">From ${baseD}</span>
-                    <span className="text-[9px] text-slate-400">+ ${perKmD}/km</span>
+                  <div className="mt-1.5 flex flex-col items-center sm:mt-2">
+                    <span className="text-[10px] font-semibold text-slate-800 sm:text-[11px]">
+                      From ${baseD}
+                    </span>
+                    <span className="text-[8px] text-slate-400 sm:text-[9px]">+ ${perKmD}/km</span>
                   </div>
                 )}
               </button>

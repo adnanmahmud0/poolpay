@@ -5,15 +5,20 @@ import Image from "next/image";
 import Link from "next/link";
 
 import {
+  ArrowRight,
   ArrowUpRight,
   Building2,
+  CalendarDays,
   CarFront,
   ChartNoAxesCombined,
   FileCheck2,
   Languages,
   Laptop,
+  Menu,
+  Phone,
   ReceiptText,
-  Speech
+  Speech,
+  X
 } from "lucide-react";
 import { useGSAP } from "@gsap/react";
 import gsap from "gsap";
@@ -176,6 +181,7 @@ export function PublicSite({
     }
     return "";
   });
+  const [mobileNavOpen, setMobileNavOpen] = useState(false);
 
   const handleSelectService = (serviceIdentifier: string) => {
     const matched = displayServices.find(
@@ -398,6 +404,7 @@ export function PublicSite({
         timezone={settings.timezone}
         selectedServiceId={selectedServiceId}
         onServiceChange={setSelectedServiceId}
+        transportationPricing={settings.transportationPricing}
       />
     ),
     faqs: (
@@ -439,20 +446,112 @@ export function PublicSite({
           </Link>
         </div>
       )}
-      <header className="section-shell flex flex-wrap items-center justify-between gap-5 py-6">
-        <Brand />
-        <nav
-          aria-label="Main navigation"
-          className="flex flex-wrap items-center gap-5 text-xs font-medium"
-        >
-          <a href="#download">PoolPay</a>
-          <Link href="/services">Services</Link>
-          <a href="#about">About</a>
-          <a href="#pay-order">Pay an order</a>
-          <InteractiveHoverButton href="#appointments" className="px-4 py-1.5 text-xs">
-            Book an appointment
-          </InteractiveHoverButton>
-        </nav>
+      <header className="section-shell relative z-50 py-4 sm:py-6">
+        <div className="flex items-center justify-between gap-4">
+          <Brand />
+
+          {/* Desktop Navigation */}
+          <nav
+            aria-label="Main navigation"
+            className="hidden items-center gap-6 text-xs font-medium md:flex"
+          >
+            <a href="#download" className="transition-colors hover:text-sky-700">
+              PoolPay
+            </a>
+            <Link href="/services" className="transition-colors hover:text-sky-700">
+              Services
+            </Link>
+            <a href="#about" className="transition-colors hover:text-sky-700">
+              About
+            </a>
+            <a href="#pay-order" className="transition-colors hover:text-sky-700">
+              Pay an order
+            </a>
+            <InteractiveHoverButton href="#appointments" className="px-4 py-1.5 text-xs">
+              Book an appointment
+            </InteractiveHoverButton>
+          </nav>
+
+          {/* Mobile Actions: Compact Book Button + Hamburger Toggle */}
+          <div className="flex items-center gap-2 md:hidden">
+            <a
+              href="#appointments"
+              className="inline-flex items-center justify-center rounded-full bg-[#14283b] px-3.5 py-1.5 text-xs font-medium text-white shadow-xs transition-colors hover:bg-sky-900"
+            >
+              Book
+            </a>
+            <button
+              type="button"
+              onClick={() => setMobileNavOpen((open) => !open)}
+              aria-label={mobileNavOpen ? "Close menu" : "Open menu"}
+              aria-expanded={mobileNavOpen}
+              className="flex size-9 cursor-pointer items-center justify-center rounded-xl border border-slate-200 bg-white text-slate-700 shadow-xs transition-colors hover:bg-slate-50"
+            >
+              {mobileNavOpen ? <X className="size-5" /> : <Menu className="size-5" />}
+            </button>
+          </div>
+        </div>
+
+        {/* Mobile Slide-down Drawer / Menu */}
+        {mobileNavOpen && (
+          <div className="mt-3 rounded-2xl border border-slate-200/90 bg-white/95 p-4 shadow-xl backdrop-blur-xl md:hidden">
+            <nav className="flex flex-col gap-1 text-sm font-medium text-slate-800">
+              <a
+                href="#download"
+                onClick={() => setMobileNavOpen(false)}
+                className="flex items-center justify-between rounded-xl px-3 py-2.5 transition-colors hover:bg-sky-50 hover:text-sky-800"
+              >
+                <span>PoolPay Mobile App</span>
+                <span className="text-xs text-sky-600">iOS & Android →</span>
+              </a>
+              <Link
+                href="/services"
+                onClick={() => setMobileNavOpen(false)}
+                className="flex items-center justify-between rounded-xl px-3 py-2.5 transition-colors hover:bg-sky-50 hover:text-sky-800"
+              >
+                <span>All Professional Services</span>
+                <span className="text-xs text-slate-400">Explore →</span>
+              </Link>
+              <a
+                href="#about"
+                onClick={() => setMobileNavOpen(false)}
+                className="flex items-center justify-between rounded-xl px-3 py-2.5 transition-colors hover:bg-sky-50 hover:text-sky-800"
+              >
+                <span>About KLX Luxe Plus</span>
+                <span className="text-xs text-slate-400">Our Story →</span>
+              </a>
+              <a
+                href="#pay-order"
+                onClick={() => setMobileNavOpen(false)}
+                className="flex items-center justify-between rounded-xl px-3 py-2.5 transition-colors hover:bg-sky-50 hover:text-sky-800"
+              >
+                <span>Pay an Order</span>
+                <span className="text-xs text-slate-400">Lookup & Pay →</span>
+              </a>
+              <a
+                href="#appointments"
+                onClick={() => setMobileNavOpen(false)}
+                className="mt-2 flex items-center justify-center gap-2 rounded-xl bg-[#14283b] py-3 text-center text-xs font-semibold text-white shadow-sm transition-colors hover:bg-sky-900"
+              >
+                <CalendarDays className="size-4 text-sky-300" />
+                <span>Book an Appointment</span>
+              </a>
+            </nav>
+
+            <div className="mt-4 flex items-center justify-between border-t border-slate-100 pt-3 text-xs text-slate-500">
+              <a
+                href={`tel:${settings.phone.replace(/[^+\d]/g, "")}`}
+                className="flex items-center gap-1.5 hover:text-sky-700"
+              >
+                <Phone className="size-3.5" />
+                <span>{settings.phone}</span>
+              </a>
+              <a href={`mailto:${settings.supportEmail}`} className="hover:text-sky-700">
+                Email support
+              </a>
+            </div>
+          </div>
+        )}
       </header>
       <main id="main">
         <Hero content={content.hero} onSelectService={handleSelectService} />
