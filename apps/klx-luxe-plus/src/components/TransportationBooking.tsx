@@ -2,7 +2,18 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 
-import { Car, Check, Loader2, MapPin, Navigation, Route, ShieldCheck } from "lucide-react";
+import {
+  Calculator,
+  Car,
+  Check,
+  Loader2,
+  MapPin,
+  Navigation,
+  Route,
+  ShieldCheck
+} from "lucide-react";
+
+import type { TransportationPricingConfig } from "@/server/db/types";
 
 export interface VehicleTier {
   id: string;
@@ -65,6 +76,9 @@ interface RoutesApiResponse {
   routes?: Array<{
     distanceMeters?: number;
     duration?: string;
+    polyline?: {
+      encodedPolyline?: string;
+    };
   }>;
 }
 
@@ -72,7 +86,9 @@ interface OsrmResponse {
   routes?: Array<{
     distance: number;
     duration: number;
-    geometry: unknown;
+    geometry?: {
+      coordinates?: Array<[number, number]>;
+    };
   }>;
 }
 
@@ -109,7 +125,43 @@ type WindowWithMaps = Window & {
   gm_authFailure?: () => void;
 };
 
-interface TransportationBookingProps {
+export const DEFAULT_VEHICLE_PRICING: TransportationPricingConfig = {
+  unit: "km",
+  tiers: {
+    executive_sedan: { basePriceCents: 5000, pricePerKmCents: 250 },
+    luxury_suv: { basePriceCents: 8000, pricePerKmCents: 350 },
+    vip_sprinter: { basePriceCents: 12000, pricePerKmCents: 500 }
+  }
+};
+
+export function calculateVehicleFare(
+  tierId: string,
+  distanceKm: number,
+  config?: TransportationPricingConfig
+): {
+  totalCents: number;
+  formatted: string;
+  formula: string;
+  baseFormatted: string;
+  perKmFormatted: string;
+} {
+  const tiers = config?.tiers || DEFAULT_VEHICLE_PRICING.tiers;
+  const key = tierId as keyof typeof tiers;
+  const tier = tiers[key] || DEFAULT_VEHICLE_PRICING.tiers.executive_sedan;
+  const baseDollars = tier.basePriceCents / 100;
+  const perKmDollars = tier.pricePerKmCents / 100;
+  const total = baseDollars + distanceKm * perKmDollars;
+  const totalCents = Math.round(total * 100);
+  return {
+    totalCents,
+    formatted: `$${total.toFixed(2)}`,
+    formula: `$${baseDollars.toFixed(0)} base + (${distanceKm.toFixed(1)} km × $${perKmDollars.toFixed(2)}/km)`,
+    baseFormatted: `$${baseDollars.toFixed(0)}`,
+    perKmFormatted: `$${perKmDollars.toFixed(2)}`
+  };
+}
+
+export interface TransportationBookingProps {
   pickupLocation: string;
   onPickupChange: (val: string) => void;
   dropoffLocation: string;
@@ -118,12 +170,50 @@ interface TransportationBookingProps {
   onVehicleChange: (val: string) => void;
   passengers: number;
   onPassengersChange: (val: number) => void;
+  pricing?: TransportationPricingConfig;
+  onEstimatedFareChange?: (cents: number) => void;
 }
 
 function isRealGoogleKey(key?: string): boolean {
   if (!key) return false;
   const trimmed = key.trim();
   return trimmed.length > 25 && !trimmed.startsWith("YOUR_");
+}
+
+function decodePolyline(encoded: string): Array<{ lat: number; lng: number }> {
+  if (!encoded) return [];
+  const points: Array<{ lat: number; lng: number }> = [];
+  let index = 0;
+  const len = encoded.length;
+  let lat = 0;
+  let lng = 0;
+
+  while (index < len) {
+    let b: number;
+    let shift = 0;
+    let result = 0;
+    do {
+      b = encoded.charCodeAt(index++) - 63;
+      result |= (b & 0x1f) << shift;
+      shift += 5;
+    } while (b >= 0x20);
+    const dlat = (result & 1) !== 0 ? ~(result >> 1) : result >> 1;
+    lat += dlat;
+
+    shift = 0;
+    result = 0;
+    do {
+      b = encoded.charCodeAt(index++) - 63;
+      result |= (b & 0x1f) << shift;
+      shift += 5;
+    } while (b >= 0x20);
+    const dlng = (result & 1) !== 0 ? ~(result >> 1) : result >> 1;
+    lng += dlng;
+
+    points.push({ lat: lat / 1e5, lng: lng / 1e5 });
+  }
+
+  return points;
 }
 
 // Dynamically load Leaflet assets if Google Maps is unavailable
@@ -177,7 +267,9 @@ export function TransportationBooking({
   vehicleClass,
   onVehicleChange,
   passengers,
-  onPassengersChange
+  onPassengersChange,
+  pricing,
+  onEstimatedFareChange
 }: TransportationBookingProps) {
   const selectedVehicle = VEHICLE_TIERS.find((v) => v.id === vehicleClass) || VEHICLE_TIERS[0]!;
 
@@ -186,10 +278,16 @@ export function TransportationBooking({
   const mapContainerRef = useRef<HTMLDivElement>(null);
 
   const googleApiKey =
-    process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY || "AIzaSyBNpPiOGY3KYx0QKjGygXO2l_vuuV2CAPo";
+    process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY || "AIzaSyC_h3zXiX_cpDlRBoxPQY7FNUsyUAXHFRM";
   const [useGoogle, setUseGoogle] = useState(() => isRealGoogleKey(googleApiKey));
   const [mapLoaded, setMapLoaded] = useState(false);
-  const [routeInfo, setRouteInfo] = useState<{ distance: string; duration: string } | null>(null);
+  const [routeInfo, setRouteInfo] = useState<{
+    distance: string;
+    distanceKm: number;
+    duration: string;
+  } | null>(null);
+
+  const activePricing = pricing || DEFAULT_VEHICLE_PRICING;
 
   // Suggestions state for OpenStreetMap Nominatim
   const [pickupSuggestions, setPickupSuggestions] = useState<LocationSuggestion[]>([]);
@@ -199,9 +297,10 @@ export function TransportationBooking({
   const [pickupFocused, setPickupFocused] = useState(false);
   const [dropoffFocused, setDropoffFocused] = useState(false);
 
-  // Coordinates for Leaflet map
+  // Coordinates and road route geometry
   const [pickupCoords, setPickupCoords] = useState<[number, number] | null>(null);
   const [dropoffCoords, setDropoffCoords] = useState<[number, number] | null>(null);
+  const [routePoints, setRoutePoints] = useState<Array<{ lat: number; lng: number }>>([]);
 
   // Leaflet refs
   const leafletMapRef = useRef<LeafletMap | null>(null);
@@ -282,10 +381,14 @@ export function TransportationBooking({
     // DOM MutationObserver to detect and instantly suppress any injected Google error banners
     const observer = new MutationObserver(() => {
       const errNodes = document.querySelectorAll(
-        ".gm-err-container, .gm-err-content, .gm-style-moc, .gm-err-autocomplete"
+        ".gm-err-container, .gm-err-content, .gm-err-autocomplete"
       );
       if (errNodes.length > 0) {
-        triggerFallback("DOM error modal detected");
+        const errorText = Array.from(errNodes)
+          .map((n) => n.textContent)
+          .join(" ");
+        console.warn("[KLX Map] Google Maps error banner detected:", errorText);
+        triggerFallback(`DOM error banner: ${errorText}`);
       }
     });
 
@@ -304,7 +407,7 @@ export function TransportationBooking({
     if (!useGoogle || typeof window === "undefined") return;
 
     const win = window as WindowWithMaps;
-    if (win.google?.maps?.places) {
+    if (win.google?.maps?.Map) {
       queueMicrotask(() => setMapLoaded(true));
       return;
     }
@@ -318,7 +421,7 @@ export function TransportationBooking({
 
     const script = document.createElement("script");
     script.id = scriptId;
-    script.src = `https://maps.googleapis.com/maps/api/js?key=${googleApiKey}&libraries=geometry`;
+    script.src = `https://maps.googleapis.com/maps/api/js?key=${googleApiKey}&libraries=geometry,places`;
     script.async = true;
     script.defer = true;
     script.onload = () => setMapLoaded(true);
@@ -551,7 +654,117 @@ export function TransportationBooking({
   };
 
   // ---------------------------------------------------------------------------
-  // 6. Update Map Markers & Route (Google Routes API / OSRM)
+  // 6. Calculate Route & Driving Road Geometry (Google Routes API / OSRM)
+  // ---------------------------------------------------------------------------
+  useEffect(() => {
+    if (!pickupCoords || !dropoffCoords) {
+      setRouteInfo(null);
+      setRoutePoints([]);
+      return;
+    }
+
+    const [pLat, pLon] = pickupCoords;
+    const [dLat, dLon] = dropoffCoords;
+    let active = true;
+
+    if (googleApiKey && isRealGoogleKey(googleApiKey)) {
+      fetch("https://routes.googleapis.com/directions/v2:computeRoutes", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "X-Goog-Api-Key": googleApiKey,
+          "X-Goog-FieldMask":
+            "routes.duration,routes.distanceMeters,routes.polyline.encodedPolyline"
+        },
+        body: JSON.stringify({
+          origin: { location: { latLng: { latitude: pLat, longitude: pLon } } },
+          destination: { location: { latLng: { latitude: dLat, longitude: dLon } } },
+          travelMode: "DRIVE"
+        })
+      })
+        .then((res) => (res.ok ? res.json() : Promise.reject(new Error("Routes API fail"))))
+        .then((data: RoutesApiResponse) => {
+          if (!active) return;
+          if (data.routes && data.routes[0]) {
+            const meters = data.routes[0].distanceMeters || 0;
+            const durRaw = data.routes[0].duration || "0s";
+            const durSeconds = parseInt(durRaw.replace("s", ""), 10) || 0;
+            const distKm = parseFloat((meters / 1000).toFixed(1));
+            const distMiles = (meters / 1609.34).toFixed(1);
+            const durMins = Math.round(durSeconds / 60);
+            setRouteInfo({
+              distance: `${distKm} km (${distMiles} mi)`,
+              distanceKm: distKm,
+              duration: `${durMins} mins`
+            });
+            if (data.routes[0].polyline?.encodedPolyline) {
+              const decoded = decodePolyline(data.routes[0].polyline.encodedPolyline);
+              setRoutePoints(decoded);
+            }
+          }
+        })
+        .catch(() => {
+          if (!active) return;
+          // Fallback to OSRM driving route
+          const osrmUrl = `https://router.project-osrm.org/route/v1/driving/${pLon},${pLat};${dLon},${dLat}?overview=full&geometries=geojson`;
+          fetch(osrmUrl)
+            .then((r) => r.json())
+            .then((d: OsrmResponse) => {
+              if (!active) return;
+              if (d.routes && d.routes[0]) {
+                const distKm = parseFloat((d.routes[0].distance / 1000).toFixed(1));
+                const distMiles = (d.routes[0].distance / 1609.34).toFixed(1);
+                const durMins = Math.round(d.routes[0].duration / 60);
+                setRouteInfo({
+                  distance: `${distKm} km (${distMiles} mi)`,
+                  distanceKm: distKm,
+                  duration: `${durMins} mins`
+                });
+                if (Array.isArray(d.routes[0].geometry?.coordinates)) {
+                  const points = d.routes[0].geometry.coordinates.map(([lon, lat]) => ({
+                    lat,
+                    lng: lon
+                  }));
+                  setRoutePoints(points);
+                }
+              }
+            })
+            .catch(() => {});
+        });
+    } else {
+      const osrmUrl = `https://router.project-osrm.org/route/v1/driving/${pLon},${pLat};${dLon},${dLat}?overview=full&geometries=geojson`;
+      fetch(osrmUrl)
+        .then((r) => r.json())
+        .then((d: OsrmResponse) => {
+          if (!active) return;
+          if (d.routes && d.routes[0]) {
+            const distKm = parseFloat((d.routes[0].distance / 1000).toFixed(1));
+            const distMiles = (d.routes[0].distance / 1609.34).toFixed(1);
+            const durMins = Math.round(d.routes[0].duration / 60);
+            setRouteInfo({
+              distance: `${distKm} km (${distMiles} mi)`,
+              distanceKm: distKm,
+              duration: `${durMins} mins`
+            });
+            if (Array.isArray(d.routes[0].geometry?.coordinates)) {
+              const points = d.routes[0].geometry.coordinates.map(([lon, lat]) => ({
+                lat,
+                lng: lon
+              }));
+              setRoutePoints(points);
+            }
+          }
+        })
+        .catch(() => {});
+    }
+
+    return () => {
+      active = false;
+    };
+  }, [pickupCoords, dropoffCoords, googleApiKey]);
+
+  // ---------------------------------------------------------------------------
+  // 7. Render Markers & Driving Road Polyline on Map
   // ---------------------------------------------------------------------------
   useEffect(() => {
     if (!mapLoaded) return;
@@ -612,36 +825,35 @@ export function TransportationBooking({
         googleDropoffMarkerRef.current = null;
       }
 
-      // Center & fit
-      if (pickupCoords && !dropoffCoords) {
-        map.setCenter({ lat: pickupCoords[0], lng: pickupCoords[1] });
-        map.setZoom(13);
-      } else if (!pickupCoords && dropoffCoords) {
-        map.setCenter({ lat: dropoffCoords[0], lng: dropoffCoords[1] });
-        map.setZoom(13);
-      } else if (pickupCoords && dropoffCoords) {
-        const bounds = new win.google.maps.LatLngBounds();
-        bounds.extend({ lat: pickupCoords[0], lng: pickupCoords[1] });
-        bounds.extend({ lat: dropoffCoords[0], lng: dropoffCoords[1] });
-        map.fitBounds(bounds, 50);
-
+      // Road Route Polyline & Bounds
+      if (routePoints.length > 0) {
         if (googlePolylineRef.current) {
           googlePolylineRef.current.setMap(null);
         }
         googlePolylineRef.current = new win.google.maps.Polyline({
-          path: [
-            { lat: pickupCoords[0], lng: pickupCoords[1] },
-            { lat: dropoffCoords[0], lng: dropoffCoords[1] }
-          ],
+          path: routePoints,
           geodesic: true,
           strokeColor: "#0284c7",
-          strokeOpacity: 0.9,
-          strokeWeight: 4,
+          strokeOpacity: 0.85,
+          strokeWeight: 5,
           map
         });
-      } else if (googlePolylineRef.current) {
-        googlePolylineRef.current.setMap(null);
-        googlePolylineRef.current = null;
+
+        const bounds = new win.google.maps.LatLngBounds();
+        routePoints.forEach((pt) => bounds.extend(pt));
+        map.fitBounds(bounds, 45);
+      } else {
+        if (googlePolylineRef.current) {
+          googlePolylineRef.current.setMap(null);
+          googlePolylineRef.current = null;
+        }
+        if (pickupCoords && !dropoffCoords) {
+          map.setCenter({ lat: pickupCoords[0], lng: pickupCoords[1] });
+          map.setZoom(13);
+        } else if (!pickupCoords && dropoffCoords) {
+          map.setCenter({ lat: dropoffCoords[0], lng: dropoffCoords[1] });
+          map.setZoom(13);
+        }
       }
     }
 
@@ -688,101 +900,50 @@ export function TransportationBooking({
           leafletDropoffMarkerRef.current = null;
         }
 
-        // Centering & route line
-        if (pickupCoords && !dropoffCoords) {
-          map.setView(pickupCoords, 13);
-        } else if (!pickupCoords && dropoffCoords) {
-          map.setView(dropoffCoords, 13);
-        } else if (pickupCoords && dropoffCoords) {
-          const bounds = L.latLngBounds([pickupCoords, dropoffCoords]);
-          map.fitBounds(bounds, { padding: [40, 40] });
-
+        // Road Route Polyline & Bounds
+        if (routePoints.length > 0) {
           if (leafletRouteLayerRef.current) {
             map.removeLayer(leafletRouteLayerRef.current);
           }
-          leafletRouteLayerRef.current = L.polyline([pickupCoords, dropoffCoords], {
+          const latLngs = routePoints.map((p) => [p.lat, p.lng] as [number, number]);
+          leafletRouteLayerRef.current = L.polyline(latLngs, {
             color: "#0284c7",
-            weight: 4
+            weight: 5,
+            opacity: 0.85
           }).addTo(map);
-        } else if (leafletRouteLayerRef.current) {
-          map.removeLayer(leafletRouteLayerRef.current);
-          leafletRouteLayerRef.current = null;
+
+          const bounds = L.latLngBounds(latLngs);
+          map.fitBounds(bounds, { padding: [40, 40] });
+        } else {
+          if (leafletRouteLayerRef.current) {
+            map.removeLayer(leafletRouteLayerRef.current);
+            leafletRouteLayerRef.current = null;
+          }
+          if (pickupCoords && !dropoffCoords) {
+            map.setView(pickupCoords, 13);
+          } else if (!pickupCoords && dropoffCoords) {
+            map.setView(dropoffCoords, 13);
+          }
         }
       }
     }
-
-    // C. Route calculation via Google Routes API (with OSRM fallback)
-    if (pickupCoords && dropoffCoords) {
-      const [pLat, pLon] = pickupCoords;
-      const [dLat, dLon] = dropoffCoords;
-
-      if (googleApiKey && isRealGoogleKey(googleApiKey)) {
-        fetch("https://routes.googleapis.com/directions/v2:computeRoutes", {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            "X-Goog-Api-Key": googleApiKey,
-            "X-Goog-FieldMask": "routes.duration,routes.distanceMeters"
-          },
-          body: JSON.stringify({
-            origin: { location: { latLng: { latitude: pLat, longitude: pLon } } },
-            destination: { location: { latLng: { latitude: dLat, longitude: dLon } } },
-            travelMode: "DRIVE"
-          })
-        })
-          .then((res) => (res.ok ? res.json() : Promise.reject(new Error("Routes API fail"))))
-          .then((data: RoutesApiResponse) => {
-            if (data.routes && data.routes[0]) {
-              const meters = data.routes[0].distanceMeters || 0;
-              const durRaw = data.routes[0].duration || "0s";
-              const durSeconds = parseInt(durRaw.replace("s", ""), 10) || 0;
-              const distMiles = (meters / 1609.34).toFixed(1);
-              const durMins = Math.round(durSeconds / 60);
-              setRouteInfo({
-                distance: `${distMiles} miles`,
-                duration: `${durMins} mins`
-              });
-            }
-          })
-          .catch(() => {
-            // If Routes API fails, calculate via OSRM
-            const osrmUrl = `https://router.project-osrm.org/route/v1/driving/${pLon},${pLat};${dLon},${dLat}?overview=full&geometries=geojson`;
-            fetch(osrmUrl)
-              .then((r) => r.json())
-              .then((d: OsrmResponse) => {
-                if (d.routes && d.routes[0]) {
-                  const distMiles = (d.routes[0].distance / 1609.34).toFixed(1);
-                  const durMins = Math.round(d.routes[0].duration / 60);
-                  setRouteInfo({
-                    distance: `${distMiles} miles`,
-                    duration: `${durMins} mins`
-                  });
-                }
-              })
-              .catch(() => {});
-          });
-      } else {
-        const osrmUrl = `https://router.project-osrm.org/route/v1/driving/${pLon},${pLat};${dLon},${dLat}?overview=full&geometries=geojson`;
-        fetch(osrmUrl)
-          .then((r) => r.json())
-          .then((d: OsrmResponse) => {
-            if (d.routes && d.routes[0]) {
-              const distMiles = (d.routes[0].distance / 1609.34).toFixed(1);
-              const durMins = Math.round(d.routes[0].duration / 60);
-              setRouteInfo({
-                distance: `${distMiles} miles`,
-                duration: `${durMins} mins`
-              });
-            }
-          })
-          .catch(() => {});
-      }
-    } else {
-      queueMicrotask(() => setRouteInfo(null));
-    }
-  }, [useGoogle, mapLoaded, pickupCoords, dropoffCoords, googleApiKey]);
+  }, [useGoogle, mapLoaded, pickupCoords, dropoffCoords, routePoints]);
 
   const effectiveRouteInfo = pickupLocation && dropoffLocation ? routeInfo : null;
+
+  // Sync estimated fare to parent whenever vehicle or route distance changes
+  useEffect(() => {
+    if (effectiveRouteInfo?.distanceKm) {
+      const { totalCents } = calculateVehicleFare(
+        vehicleClass,
+        effectiveRouteInfo.distanceKm,
+        activePricing
+      );
+      onEstimatedFareChange?.(totalCents);
+    } else {
+      onEstimatedFareChange?.(0);
+    }
+  }, [effectiveRouteInfo, vehicleClass, activePricing, onEstimatedFareChange]);
 
   return (
     <div className="space-y-5 rounded-2xl border border-slate-200 bg-slate-50/70 p-4 sm:p-6">
@@ -928,34 +1089,74 @@ export function TransportationBooking({
           )}
         </div>
 
-        {/* Route Info Pill */}
+        {/* Route Info Pill & Live Fare Calculation */}
         {effectiveRouteInfo && (
-          <div className="flex items-center justify-between rounded-xl border border-sky-100 bg-sky-50/90 px-3.5 py-2 text-xs font-medium text-sky-950 shadow-xs">
-            <span className="flex items-center gap-1.5">
-              <Route className="size-4 text-sky-600" />
-              <span>
-                Route Distance: <strong>{effectiveRouteInfo.distance}</strong>
+          <div className="space-y-2 rounded-xl border border-sky-100 bg-sky-50/90 p-3 text-xs text-sky-950 shadow-xs">
+            <div className="flex items-center justify-between font-medium">
+              <span className="flex items-center gap-1.5">
+                <Route className="size-4 text-sky-600" />
+                <span>
+                  Trip Distance: <strong>{effectiveRouteInfo.distance}</strong>
+                </span>
               </span>
-            </span>
-            <span>
-              Estimated Drive: <strong>{effectiveRouteInfo.duration}</strong>
-            </span>
+              <span>
+                Est. Drive: <strong>{effectiveRouteInfo.duration}</strong>
+              </span>
+            </div>
+            {effectiveRouteInfo.distanceKm > 0 && (
+              <div className="flex flex-wrap items-center justify-between gap-2 border-t border-sky-200/60 pt-2 text-[11px]">
+                <span className="flex items-center gap-1.5 text-slate-600">
+                  <Calculator className="size-3.5 text-sky-700" />
+                  <span>
+                    Formula:{" "}
+                    <code className="rounded bg-sky-100 px-1.5 py-0.5 font-mono text-sky-900">
+                      {
+                        calculateVehicleFare(
+                          selectedVehicle.id,
+                          effectiveRouteInfo.distanceKm,
+                          activePricing
+                        ).formula
+                      }
+                    </code>
+                  </span>
+                </span>
+                <span className="text-xs font-bold text-sky-900">
+                  Fare:{" "}
+                  {
+                    calculateVehicleFare(
+                      selectedVehicle.id,
+                      effectiveRouteInfo.distanceKm,
+                      activePricing
+                    ).formatted
+                  }
+                </span>
+              </div>
+            )}
           </div>
         )}
       </div>
 
-      {/* Vehicle Tier Selection - Compact Minimal Cards */}
+      {/* Vehicle Tier Selection - Live Dynamic Pricing Cards */}
       <div className="space-y-1.5 pt-1">
-        <label className="text-xs font-medium text-slate-700">Select Car Type *</label>
+        <label className="text-xs font-medium text-slate-700">
+          Select Car Type &amp; View Fare *
+        </label>
         <div className="grid grid-cols-3 gap-2">
           {VEHICLE_TIERS.map((tier) => {
             const isSelected = selectedVehicle.id === tier.id;
+            const fareDetails = effectiveRouteInfo?.distanceKm
+              ? calculateVehicleFare(tier.id, effectiveRouteInfo.distanceKm, activePricing)
+              : null;
+            const tierPricing = activePricing.tiers[tier.id as keyof typeof activePricing.tiers];
+            const baseD = tierPricing ? (tierPricing.basePriceCents / 100).toFixed(0) : "50";
+            const perKmD = tierPricing ? (tierPricing.pricePerKmCents / 100).toFixed(2) : "2.50";
+
             return (
               <button
                 type="button"
                 key={tier.id}
                 onClick={() => onVehicleChange(tier.id)}
-                className={`flex cursor-pointer flex-col items-center justify-center rounded-xl border px-2 py-2 text-center transition-all ${
+                className={`flex cursor-pointer flex-col items-center justify-center rounded-xl border px-2 py-2.5 text-center transition-all ${
                   isSelected
                     ? "border-sky-600 bg-sky-50/80 font-semibold text-sky-950 shadow-xs ring-1 ring-sky-500/20"
                     : "border-slate-200 bg-white text-slate-700 hover:border-slate-300 hover:bg-slate-50/70"
@@ -966,6 +1167,19 @@ export function TransportationBooking({
                   {isSelected && <Check className="size-3 stroke-[3] text-sky-600" />}
                 </div>
                 <span className="mt-0.5 text-[10px] text-slate-500">{tier.capacity}</span>
+
+                {/* Dynamic Price Display */}
+                {fareDetails ? (
+                  <div className="mt-2 flex flex-col items-center">
+                    <span className="text-sm font-bold text-sky-700">{fareDetails.formatted}</span>
+                    <span className="text-[9px] text-slate-400">Total Calculated Fare</span>
+                  </div>
+                ) : (
+                  <div className="mt-2 flex flex-col items-center">
+                    <span className="text-[11px] font-semibold text-slate-800">From ${baseD}</span>
+                    <span className="text-[9px] text-slate-400">+ ${perKmD}/km</span>
+                  </div>
+                )}
               </button>
             );
           })}
