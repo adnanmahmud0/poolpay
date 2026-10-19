@@ -2,16 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 
-import {
-  Calculator,
-  Car,
-  Check,
-  Loader2,
-  MapPin,
-  Navigation,
-  Route,
-  ShieldCheck
-} from "lucide-react";
+import { Car, Check, Loader2, MapPin, Navigation, Route, ShieldCheck } from "lucide-react";
 
 import type { TransportationPricingConfig } from "@/server/db/types";
 
@@ -1089,39 +1080,36 @@ export function TransportationBooking({
           )}
         </div>
 
-        {/* Route Info Pill & Live Fare Calculation */}
+        {/* Route Summary: Total Distance & Total Price */}
         {effectiveRouteInfo && (
-          <div className="space-y-2 rounded-xl border border-sky-100 bg-sky-50/90 p-3 text-xs text-sky-950 shadow-xs">
-            <div className="flex items-center justify-between font-medium">
-              <span className="flex items-center gap-1.5">
-                <Route className="size-4 text-sky-600" />
-                <span>
-                  Trip Distance: <strong>{effectiveRouteInfo.distance}</strong>
+          <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-sky-100 bg-sky-50/90 px-4 py-3 text-xs text-sky-950 shadow-xs">
+            <div className="flex items-center gap-2">
+              <Route className="size-4 text-sky-600" />
+              <div>
+                <span className="block text-[10px] font-medium tracking-wider text-slate-500 uppercase">
+                  Total Distance
                 </span>
-              </span>
-              <span>
-                Est. Drive: <strong>{effectiveRouteInfo.duration}</strong>
-              </span>
+                <p className="text-xs font-semibold text-slate-900">
+                  {effectiveRouteInfo.distance}
+                </p>
+              </div>
             </div>
-            {effectiveRouteInfo.distanceKm > 0 && (
-              <div className="flex flex-wrap items-center justify-between gap-2 border-t border-sky-200/60 pt-2 text-[11px]">
-                <span className="flex items-center gap-1.5 text-slate-600">
-                  <Calculator className="size-3.5 text-sky-700" />
-                  <span>
-                    Formula:{" "}
-                    <code className="rounded bg-sky-100 px-1.5 py-0.5 font-mono text-sky-900">
-                      {
-                        calculateVehicleFare(
-                          selectedVehicle.id,
-                          effectiveRouteInfo.distanceKm,
-                          activePricing
-                        ).formula
-                      }
-                    </code>
-                  </span>
+
+            {effectiveRouteInfo.duration && (
+              <div className="hidden text-center sm:block">
+                <span className="block text-[10px] font-medium tracking-wider text-slate-500 uppercase">
+                  Est. Drive
                 </span>
-                <span className="text-xs font-bold text-sky-900">
-                  Fare:{" "}
+                <p className="text-xs font-medium text-slate-700">{effectiveRouteInfo.duration}</p>
+              </div>
+            )}
+
+            {effectiveRouteInfo.distanceKm > 0 && (
+              <div className="text-right">
+                <span className="block text-[10px] font-medium tracking-wider text-slate-500 uppercase">
+                  Total Price
+                </span>
+                <p className="text-sm font-bold text-sky-700">
                   {
                     calculateVehicleFare(
                       selectedVehicle.id,
@@ -1129,7 +1117,7 @@ export function TransportationBooking({
                       activePricing
                     ).formatted
                   }
-                </span>
+                </p>
               </div>
             )}
           </div>
@@ -1172,7 +1160,7 @@ export function TransportationBooking({
                 {fareDetails ? (
                   <div className="mt-2 flex flex-col items-center">
                     <span className="text-sm font-bold text-sky-700">{fareDetails.formatted}</span>
-                    <span className="text-[9px] text-slate-400">Total Calculated Fare</span>
+                    <span className="text-[9px] text-slate-400">Total Price</span>
                   </div>
                 ) : (
                   <div className="mt-2 flex flex-col items-center">
