@@ -319,10 +319,13 @@ export interface KlxSettings {
 export interface VehiclePricingConfig {
   basePriceCents: number;
   pricePerKmCents: number;
+  reducedPricePerKmCents?: number;
+  longDistanceDiscountPercent?: number;
 }
 
 export interface TransportationPricingConfig {
   unit: "km" | "mile";
+  longDistanceThreshold?: number;
   tiers: {
     executive_sedan: VehiclePricingConfig;
     luxury_suv: VehiclePricingConfig;

@@ -161,11 +161,14 @@ export const adSchema = z
   );
 export const vehiclePricingSchema = z.object({
   basePriceCents: cents,
-  pricePerKmCents: cents
+  pricePerKmCents: cents,
+  reducedPricePerKmCents: cents.optional(),
+  longDistanceDiscountPercent: z.number().min(0).max(100).optional()
 });
 
 export const transportationPricingSchema = z.object({
   unit: z.enum(["km", "mile"]).default("km"),
+  longDistanceThreshold: z.number().min(0).max(1000).optional(),
   tiers: z.object({
     executive_sedan: vehiclePricingSchema,
     luxury_suv: vehiclePricingSchema,

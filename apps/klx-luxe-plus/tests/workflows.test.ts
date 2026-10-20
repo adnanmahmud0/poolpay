@@ -741,3 +741,61 @@ test("admin can configure vehicle base price and per km price, and fare calculat
   assert.equal(sprinterFare.totalCents, 24000);
   assert.equal(sprinterFare.formatted, "$240.00");
 });
+
+test("admin can configure long-distance threshold and reduced rates, and long trips receive gradual discount", async () => {
+  const database = await db.getDb();
+  const { transportationPricingSchema } = await import("../src/server/validation");
+  const { calculateVehicleFare } = await import("../src/components/TransportationBooking");
+
+  const customPricing = {
+    unit: "mile" as const,
+    longDistanceThreshold: 10,
+    tiers: {
+      executive_sedan: {
+        basePriceCents: 5000,
+        pricePerKmCents: 250,
+        reducedPricePerKmCents: 175,
+        longDistanceDiscountPercent: 30
+      },
+      luxury_suv: {
+        basePriceCents: 8000,
+        pricePerKmCents: 350,
+        reducedPricePerKmCents: 245,
+        longDistanceDiscountPercent: 30
+      },
+      vip_sprinter: {
+        basePriceCents: 12000,
+        pricePerKmCents: 500,
+        reducedPricePerKmCents: 350,
+        longDistanceDiscountPercent: 30
+      }
+    }
+  };
+
+  const validated = transportationPricingSchema.parse(customPricing);
+  await database
+    .collection(db.COLLECTIONS.SETTINGS)
+    .updateOne({}, { $set: { transportationPricing: validated } }, { upsert: true });
+
+  const settings = await repo.getSettings();
+  assert.equal(settings.transportationPricing?.unit, "mile");
+  assert.equal(settings.transportationPricing?.longDistanceThreshold, 10);
+  assert.equal(settings.transportationPricing?.tiers.luxury_suv.longDistanceDiscountPercent, 30);
+
+  // 1. Short trip within threshold: 8 miles
+  const shortDistKm = 8 * 1.609344;
+  const shortFare = calculateVehicleFare("luxury_suv", shortDistKm, settings.transportationPricing);
+  assert.equal(shortFare.totalCents, 10800);
+  assert.equal(shortFare.formatted, "$108.00");
+  assert.equal(shortFare.discountedDistance, 0);
+
+  // 2. Long trip past 10 miles: 20 miles
+  // Base: $80 + 10 * $3.50 ($35) + 10 * $2.45 ($24.50) = $139.50
+  const longDistKm = 20 * 1.609344;
+  const longFare = calculateVehicleFare("luxury_suv", longDistKm, settings.transportationPricing);
+  assert.equal(longFare.totalCents, 13950);
+  assert.equal(longFare.formatted, "$139.50");
+  assert.equal(Math.round(longFare.standardDistance), 10);
+  assert.equal(Math.round(longFare.discountedDistance), 10);
+  assert.equal(longFare.savingsDollars, 10.5);
+});

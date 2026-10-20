@@ -267,18 +267,25 @@ export const DEFAULT_SERVICES: Omit<KlxService, "_id">[] = [
 
 export const DEFAULT_TRANSPORTATION_PRICING: TransportationPricingConfig = {
   unit: "km",
+  longDistanceThreshold: 16, // ~10 miles
   tiers: {
     executive_sedan: {
       basePriceCents: 5000, // $50.00
-      pricePerKmCents: 250 // $2.50 / km
+      pricePerKmCents: 250, // $2.50 / km
+      reducedPricePerKmCents: 175, // $1.75 / km (30% discount after 10 miles / 16 km)
+      longDistanceDiscountPercent: 30
     },
     luxury_suv: {
       basePriceCents: 8000, // $80.00
-      pricePerKmCents: 350 // $3.50 / km
+      pricePerKmCents: 350, // $3.50 / km
+      reducedPricePerKmCents: 245, // $2.45 / km (30% discount after 10 miles / 16 km)
+      longDistanceDiscountPercent: 30
     },
     vip_sprinter: {
       basePriceCents: 12000, // $120.00
-      pricePerKmCents: 500 // $5.00 / km
+      pricePerKmCents: 500, // $5.00 / km
+      reducedPricePerKmCents: 350, // $3.50 / km (30% discount after 10 miles / 16 km)
+      longDistanceDiscountPercent: 30
     }
   }
 };

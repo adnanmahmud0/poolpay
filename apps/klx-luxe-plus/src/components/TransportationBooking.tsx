@@ -118,10 +118,26 @@ type WindowWithMaps = Window & {
 
 export const DEFAULT_VEHICLE_PRICING: TransportationPricingConfig = {
   unit: "km",
+  longDistanceThreshold: 16, // ~10 miles
   tiers: {
-    executive_sedan: { basePriceCents: 5000, pricePerKmCents: 250 },
-    luxury_suv: { basePriceCents: 8000, pricePerKmCents: 350 },
-    vip_sprinter: { basePriceCents: 12000, pricePerKmCents: 500 }
+    executive_sedan: {
+      basePriceCents: 5000,
+      pricePerKmCents: 250,
+      reducedPricePerKmCents: 175,
+      longDistanceDiscountPercent: 30
+    },
+    luxury_suv: {
+      basePriceCents: 8000,
+      pricePerKmCents: 350,
+      reducedPricePerKmCents: 245,
+      longDistanceDiscountPercent: 30
+    },
+    vip_sprinter: {
+      basePriceCents: 12000,
+      pricePerKmCents: 500,
+      reducedPricePerKmCents: 350,
+      longDistanceDiscountPercent: 30
+    }
   }
 };
 
@@ -135,20 +151,73 @@ export function calculateVehicleFare(
   formula: string;
   baseFormatted: string;
   perKmFormatted: string;
+  standardDistance: number;
+  discountedDistance: number;
+  savingsDollars: number;
 } {
-  const tiers = config?.tiers || DEFAULT_VEHICLE_PRICING.tiers;
+  const activeConfig = config || DEFAULT_VEHICLE_PRICING;
+  const tiers = activeConfig.tiers || DEFAULT_VEHICLE_PRICING.tiers;
   const key = tierId as keyof typeof tiers;
   const tier = tiers[key] || DEFAULT_VEHICLE_PRICING.tiers.executive_sedan;
+
+  const isMile = activeConfig.unit === "mile";
+  const unitLabel = isMile ? "mi" : "km";
+  const distanceInUnit = isMile ? distanceKm / 1.609344 : distanceKm;
+
+  // Threshold: default 10 miles if unit is miles, or 16 km (~10 miles) if unit is km
+  const defaultThreshold = isMile ? 10 : 16;
+  const threshold =
+    typeof activeConfig.longDistanceThreshold === "number" && activeConfig.longDistanceThreshold > 0
+      ? activeConfig.longDistanceThreshold
+      : defaultThreshold;
+
   const baseDollars = tier.basePriceCents / 100;
-  const perKmDollars = tier.pricePerKmCents / 100;
-  const total = baseDollars + distanceKm * perKmDollars;
-  const totalCents = Math.round(total * 100);
+  const standardRateDollars = tier.pricePerKmCents / 100;
+
+  // Determine reduced rate for distance beyond threshold
+  let reducedRateDollars = standardRateDollars;
+  if (typeof tier.reducedPricePerKmCents === "number" && tier.reducedPricePerKmCents > 0) {
+    reducedRateDollars = tier.reducedPricePerKmCents / 100;
+  } else if (
+    typeof tier.longDistanceDiscountPercent === "number" &&
+    tier.longDistanceDiscountPercent > 0
+  ) {
+    reducedRateDollars = standardRateDollars * (1 - tier.longDistanceDiscountPercent / 100);
+  } else {
+    // Default 30% discount on miles/km beyond threshold
+    reducedRateDollars = standardRateDollars * 0.7;
+  }
+
+  let totalDollars = baseDollars;
+  let standardDist = distanceInUnit;
+  let discountedDist = 0;
+
+  if (distanceInUnit <= threshold) {
+    totalDollars += distanceInUnit * standardRateDollars;
+  } else {
+    standardDist = threshold;
+    discountedDist = distanceInUnit - threshold;
+    totalDollars += standardDist * standardRateDollars + discountedDist * reducedRateDollars;
+  }
+
+  const unadjustedTotal = baseDollars + distanceInUnit * standardRateDollars;
+  const savingsDollars = Math.max(0, unadjustedTotal - totalDollars);
+  const totalCents = Math.round(totalDollars * 100);
+
+  const formula =
+    distanceInUnit <= threshold
+      ? `$${baseDollars.toFixed(0)} base + (${distanceInUnit.toFixed(1)} ${unitLabel} × $${standardRateDollars.toFixed(2)}/${unitLabel})`
+      : `$${baseDollars.toFixed(0)} base + (${standardDist.toFixed(1)} ${unitLabel} × $${standardRateDollars.toFixed(2)}) + (${discountedDist.toFixed(1)} ${unitLabel} × $${reducedRateDollars.toFixed(2)} [discounted])`;
+
   return {
     totalCents,
-    formatted: `$${total.toFixed(2)}`,
-    formula: `$${baseDollars.toFixed(0)} base + (${distanceKm.toFixed(1)} km × $${perKmDollars.toFixed(2)}/km)`,
+    formatted: `$${totalDollars.toFixed(2)}`,
+    formula,
     baseFormatted: `$${baseDollars.toFixed(0)}`,
-    perKmFormatted: `$${perKmDollars.toFixed(2)}`
+    perKmFormatted: `$${standardRateDollars.toFixed(2)}/${unitLabel}`,
+    standardDistance: standardDist,
+    discountedDistance: discountedDist,
+    savingsDollars
   };
 }
 
@@ -649,8 +718,10 @@ export function TransportationBooking({
   // ---------------------------------------------------------------------------
   useEffect(() => {
     if (!pickupCoords || !dropoffCoords) {
-      setRouteInfo(null);
-      setRoutePoints([]);
+      queueMicrotask(() => {
+        setRouteInfo(null);
+        setRoutePoints([]);
+      });
       return;
     }
 
@@ -1173,7 +1244,9 @@ export function TransportationBooking({
                     <span className="text-[10px] font-semibold text-slate-800 sm:text-[11px]">
                       From ${baseD}
                     </span>
-                    <span className="text-[8px] text-slate-400 sm:text-[9px]">+ ${perKmD}/km</span>
+                    <span className="text-[8px] text-slate-400 sm:text-[9px]">
+                      + ${perKmD}/{activePricing.unit === "mile" ? "mi" : "km"}
+                    </span>
                   </div>
                 )}
               </button>
