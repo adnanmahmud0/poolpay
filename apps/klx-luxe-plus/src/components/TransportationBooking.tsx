@@ -117,25 +117,25 @@ type WindowWithMaps = Window & {
 };
 
 export const DEFAULT_VEHICLE_PRICING: TransportationPricingConfig = {
-  unit: "km",
-  longDistanceThreshold: 16, // ~10 miles
+  unit: "mile",
+  longDistanceThreshold: 10, // 10 miles
   tiers: {
     executive_sedan: {
-      basePriceCents: 5000,
-      pricePerKmCents: 250,
-      reducedPricePerKmCents: 175,
-      longDistanceDiscountPercent: 30
-    },
-    luxury_suv: {
-      basePriceCents: 8000,
+      basePriceCents: 2500,
       pricePerKmCents: 350,
       reducedPricePerKmCents: 245,
       longDistanceDiscountPercent: 30
     },
+    luxury_suv: {
+      basePriceCents: 3500,
+      pricePerKmCents: 400,
+      reducedPricePerKmCents: 280,
+      longDistanceDiscountPercent: 30
+    },
     vip_sprinter: {
-      basePriceCents: 12000,
-      pricePerKmCents: 500,
-      reducedPricePerKmCents: 350,
+      basePriceCents: 5500,
+      pricePerKmCents: 550,
+      reducedPricePerKmCents: 385,
       longDistanceDiscountPercent: 30
     }
   }

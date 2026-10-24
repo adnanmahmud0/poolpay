@@ -14,25 +14,25 @@ interface Props {
 }
 
 const DEFAULT_PRICING: TransportationPricingConfig = {
-  unit: "km",
-  longDistanceThreshold: 16,
+  unit: "mile",
+  longDistanceThreshold: 10,
   tiers: {
     executive_sedan: {
-      basePriceCents: 5000,
-      pricePerKmCents: 250,
-      reducedPricePerKmCents: 175,
-      longDistanceDiscountPercent: 30
-    },
-    luxury_suv: {
-      basePriceCents: 8000,
+      basePriceCents: 2500,
       pricePerKmCents: 350,
       reducedPricePerKmCents: 245,
       longDistanceDiscountPercent: 30
     },
+    luxury_suv: {
+      basePriceCents: 3500,
+      pricePerKmCents: 400,
+      reducedPricePerKmCents: 280,
+      longDistanceDiscountPercent: 30
+    },
     vip_sprinter: {
-      basePriceCents: 12000,
-      pricePerKmCents: 500,
-      reducedPricePerKmCents: 350,
+      basePriceCents: 5500,
+      pricePerKmCents: 550,
+      reducedPricePerKmCents: 385,
       longDistanceDiscountPercent: 30
     }
   }
@@ -73,55 +73,55 @@ const TIERS_META: TierMeta[] = [
 export function TransportationPricingManager({ initialPricing, onSave }: Props) {
   const current = initialPricing || DEFAULT_PRICING;
 
-  const [unit, setUnit] = useState<"km" | "mile">(current.unit || "km");
+  const [unit, setUnit] = useState<"km" | "mile">(current.unit || "mile");
   const [threshold, setThreshold] = useState<number>(
-    current.longDistanceThreshold ?? (current.unit === "mile" ? 10 : 16)
+    current.longDistanceThreshold ?? (current.unit === "km" ? 16 : 10)
   );
-  const [testDistance, setTestDistance] = useState<number>(20);
+  const [testDistance, setTestDistance] = useState<number>(15);
 
   // Sedan state
   const [sedanBase, setSedanBase] = useState<number>(
-    (current.tiers?.executive_sedan?.basePriceCents ?? 5000) / 100
+    (current.tiers?.executive_sedan?.basePriceCents ?? 2500) / 100
   );
   const [sedanStandard, setSedanStandard] = useState<number>(
-    (current.tiers?.executive_sedan?.pricePerKmCents ?? 250) / 100
+    (current.tiers?.executive_sedan?.pricePerKmCents ?? 350) / 100
   );
   const [sedanDiscountPercent, setSedanDiscountPercent] = useState<number>(
     current.tiers?.executive_sedan?.longDistanceDiscountPercent ?? 30
   );
   const [sedanReduced, setSedanReduced] = useState<number>(
     (current.tiers?.executive_sedan?.reducedPricePerKmCents ??
-      Math.round((current.tiers?.executive_sedan?.pricePerKmCents ?? 250) * 0.7)) / 100
+      Math.round((current.tiers?.executive_sedan?.pricePerKmCents ?? 350) * 0.7)) / 100
   );
 
   // SUV state
   const [suvBase, setSuvBase] = useState<number>(
-    (current.tiers?.luxury_suv?.basePriceCents ?? 8000) / 100
+    (current.tiers?.luxury_suv?.basePriceCents ?? 3500) / 100
   );
   const [suvStandard, setSuvStandard] = useState<number>(
-    (current.tiers?.luxury_suv?.pricePerKmCents ?? 350) / 100
+    (current.tiers?.luxury_suv?.pricePerKmCents ?? 400) / 100
   );
   const [suvDiscountPercent, setSuvDiscountPercent] = useState<number>(
     current.tiers?.luxury_suv?.longDistanceDiscountPercent ?? 30
   );
   const [suvReduced, setSuvReduced] = useState<number>(
     (current.tiers?.luxury_suv?.reducedPricePerKmCents ??
-      Math.round((current.tiers?.luxury_suv?.pricePerKmCents ?? 350) * 0.7)) / 100
+      Math.round((current.tiers?.luxury_suv?.pricePerKmCents ?? 400) * 0.7)) / 100
   );
 
   // Sprinter state
   const [sprinterBase, setSprinterBase] = useState<number>(
-    (current.tiers?.vip_sprinter?.basePriceCents ?? 12000) / 100
+    (current.tiers?.vip_sprinter?.basePriceCents ?? 5500) / 100
   );
   const [sprinterStandard, setSprinterStandard] = useState<number>(
-    (current.tiers?.vip_sprinter?.pricePerKmCents ?? 500) / 100
+    (current.tiers?.vip_sprinter?.pricePerKmCents ?? 550) / 100
   );
   const [sprinterDiscountPercent, setSprinterDiscountPercent] = useState<number>(
     current.tiers?.vip_sprinter?.longDistanceDiscountPercent ?? 30
   );
   const [sprinterReduced, setSprinterReduced] = useState<number>(
     (current.tiers?.vip_sprinter?.reducedPricePerKmCents ??
-      Math.round((current.tiers?.vip_sprinter?.pricePerKmCents ?? 500) * 0.7)) / 100
+      Math.round((current.tiers?.vip_sprinter?.pricePerKmCents ?? 550) * 0.7)) / 100
   );
 
   const [busy, setBusy] = useState(false);
