@@ -121,22 +121,22 @@ export const DEFAULT_VEHICLE_PRICING: TransportationPricingConfig = {
   longDistanceThreshold: 10, // 10 miles
   tiers: {
     executive_sedan: {
-      basePriceCents: 2500,
-      pricePerKmCents: 350,
-      reducedPricePerKmCents: 245,
-      longDistanceDiscountPercent: 30
+      basePriceCents: 2000,
+      pricePerKmCents: 450,
+      reducedPricePerKmCents: 155,
+      longDistanceDiscountPercent: 66
     },
     luxury_suv: {
-      basePriceCents: 3500,
-      pricePerKmCents: 400,
-      reducedPricePerKmCents: 280,
-      longDistanceDiscountPercent: 30
+      basePriceCents: 3000,
+      pricePerKmCents: 480,
+      reducedPricePerKmCents: 185,
+      longDistanceDiscountPercent: 61
     },
     vip_sprinter: {
-      basePriceCents: 5500,
-      pricePerKmCents: 550,
-      reducedPricePerKmCents: 385,
-      longDistanceDiscountPercent: 30
+      basePriceCents: 5000,
+      pricePerKmCents: 600,
+      reducedPricePerKmCents: 250,
+      longDistanceDiscountPercent: 58
     }
   }
 };

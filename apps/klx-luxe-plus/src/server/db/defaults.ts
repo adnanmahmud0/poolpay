@@ -270,22 +270,22 @@ export const DEFAULT_TRANSPORTATION_PRICING: TransportationPricingConfig = {
   longDistanceThreshold: 10, // 10 miles
   tiers: {
     executive_sedan: {
-      basePriceCents: 2500, // $25.00
-      pricePerKmCents: 350, // $3.50 / mile
-      reducedPricePerKmCents: 245, // $2.45 / mile (30% discount after 10 miles)
-      longDistanceDiscountPercent: 30
+      basePriceCents: 2000, // $20.00 base
+      pricePerKmCents: 450, // $4.50 / mile (first 10 miles)
+      reducedPricePerKmCents: 155, // $1.55 / mile (after 10 miles, aligned with UberX)
+      longDistanceDiscountPercent: 66
     },
     luxury_suv: {
-      basePriceCents: 3500, // $35.00
-      pricePerKmCents: 400, // $4.00 / mile
-      reducedPricePerKmCents: 280, // $2.80 / mile (30% discount after 10 miles)
-      longDistanceDiscountPercent: 30
+      basePriceCents: 3000, // $30.00 base
+      pricePerKmCents: 480, // $4.80 / mile (first 10 miles)
+      reducedPricePerKmCents: 185, // $1.85 / mile (after 10 miles, aligned with UberXL)
+      longDistanceDiscountPercent: 61
     },
     vip_sprinter: {
-      basePriceCents: 5500, // $55.00
-      pricePerKmCents: 550, // $5.50 / mile
-      reducedPricePerKmCents: 385, // $3.85 / mile (30% discount after 10 miles)
-      longDistanceDiscountPercent: 30
+      basePriceCents: 5000, // $50.00 base
+      pricePerKmCents: 600, // $6.00 / mile (first 10 miles)
+      reducedPricePerKmCents: 250, // $2.50 / mile (after 10 miles, group luxury van)
+      longDistanceDiscountPercent: 58
     }
   }
 };

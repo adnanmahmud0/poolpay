@@ -539,7 +539,20 @@ export async function getSettings(): Promise<KlxSettings> {
   try {
     const db = await getDb();
     const doc = await db.collection<KlxSettings>(COLLECTIONS.SETTINGS).findOne({});
-    if (doc) return { ...DEFAULT_SETTINGS, ...doc };
+    if (doc) {
+      let transportationPricing = doc.transportationPricing;
+      // Auto-migrate legacy KM / uncalibrated high pricing in DB to calibrated defaults
+      if (
+        !transportationPricing ||
+        (transportationPricing.unit === "km" &&
+          transportationPricing.tiers?.executive_sedan?.basePriceCents === 5000 &&
+          transportationPricing.tiers?.luxury_suv?.basePriceCents === 8000 &&
+          transportationPricing.tiers?.vip_sprinter?.basePriceCents === 12000)
+      ) {
+        transportationPricing = DEFAULT_SETTINGS.transportationPricing;
+      }
+      return { ...DEFAULT_SETTINGS, ...doc, transportationPricing };
+    }
   } catch (err) {
     console.warn("Could not get settings from DB, returning defaults:", err);
   }
