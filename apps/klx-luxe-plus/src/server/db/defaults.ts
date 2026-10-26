@@ -267,25 +267,42 @@ export const DEFAULT_SERVICES: Omit<KlxService, "_id">[] = [
 
 export const DEFAULT_TRANSPORTATION_PRICING: TransportationPricingConfig = {
   unit: "mile",
-  longDistanceThreshold: 10, // 10 miles
+  longDistanceThreshold: 10, // Tier 1: 0 - 10 miles local
+  longHaulThreshold: 50, // Tier 2: 10 - 50 miles regional, Tier 3: 50+ miles intercity
+  bookingFeeCents: 400, // $4.00 booking fee
+  airportFeeCents: 1500, // $15.00 airport regulatory fee
+  surgeMultiplier: 1.0, // baseline
+  driverPayoutPercent: 75, // 75% driver compensation
   tiers: {
     executive_sedan: {
-      basePriceCents: 2000, // $20.00 base
-      pricePerKmCents: 450, // $4.50 / mile (first 10 miles)
-      reducedPricePerKmCents: 155, // $1.55 / mile (after 10 miles, aligned with UberX)
-      longDistanceDiscountPercent: 66
+      basePriceCents: 1500, // $15.00 base
+      pricePerKmCents: 320, // $3.20/mile (first 10 miles)
+      reducedPricePerKmCents: 160, // $1.60/mile (10 - 50 miles)
+      longDistanceDiscountPercent: 50,
+      longHaulPricePerKmCents: 215, // $2.15/mile (50+ miles, matches Uber Black intercity)
+      longHaulDiscountPercent: 33,
+      pricePerMinuteCents: 40, // $0.40/minute in traffic
+      minimumFareCents: 2500 // $25.00 minimum trip fare
     },
     luxury_suv: {
-      basePriceCents: 3000, // $30.00 base
-      pricePerKmCents: 480, // $4.80 / mile (first 10 miles)
-      reducedPricePerKmCents: 185, // $1.85 / mile (after 10 miles, aligned with UberXL)
-      longDistanceDiscountPercent: 61
+      basePriceCents: 2000, // $20.00 base
+      pricePerKmCents: 350, // $3.50/mile (first 10 miles)
+      reducedPricePerKmCents: 180, // $1.80/mile (10 - 50 miles)
+      longDistanceDiscountPercent: 49,
+      longHaulPricePerKmCents: 285, // $2.85/mile (50+ miles, matches Uber Black SUV intercity)
+      longHaulDiscountPercent: 19,
+      pricePerMinuteCents: 50, // $0.50/minute in traffic
+      minimumFareCents: 3500 // $35.00 minimum trip fare
     },
     vip_sprinter: {
-      basePriceCents: 5000, // $50.00 base
-      pricePerKmCents: 600, // $6.00 / mile (first 10 miles)
-      reducedPricePerKmCents: 250, // $2.50 / mile (after 10 miles, group luxury van)
-      longDistanceDiscountPercent: 58
+      basePriceCents: 3500, // $35.00 base
+      pricePerKmCents: 450, // $4.50/mile (first 10 miles)
+      reducedPricePerKmCents: 240, // $2.40/mile (10 - 50 miles)
+      longDistanceDiscountPercent: 47,
+      longHaulPricePerKmCents: 350, // $3.50/mile (50+ miles)
+      longHaulDiscountPercent: 22,
+      pricePerMinuteCents: 75, // $0.75/minute in traffic
+      minimumFareCents: 6000 // $60.00 minimum trip fare
     }
   }
 };

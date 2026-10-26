@@ -75,6 +75,7 @@ export const appointmentSchema = z.object({
   vehicleClass: z.string().trim().max(50).optional(),
   passengers: z.number().int().min(1).max(20).optional(),
   estimatedFareCents: cents.optional(),
+  fareBreakdown: z.record(z.string(), z.any()).optional(),
   payNow: z.boolean().optional(),
   // Real Estate fields
   realEstateTransactionType: z.string().trim().max(100).optional(),
@@ -163,12 +164,21 @@ export const vehiclePricingSchema = z.object({
   basePriceCents: cents,
   pricePerKmCents: cents,
   reducedPricePerKmCents: cents.optional(),
-  longDistanceDiscountPercent: z.number().min(0).max(100).optional()
+  longDistanceDiscountPercent: z.number().min(0).max(100).optional(),
+  longHaulPricePerKmCents: cents.optional(),
+  longHaulDiscountPercent: z.number().min(0).max(100).optional(),
+  pricePerMinuteCents: cents.optional(),
+  minimumFareCents: cents.optional()
 });
 
 export const transportationPricingSchema = z.object({
-  unit: z.enum(["km", "mile"]).default("km"),
+  unit: z.enum(["km", "mile"]).default("mile"),
   longDistanceThreshold: z.number().min(0).max(1000).optional(),
+  longHaulThreshold: z.number().min(0).max(1000).optional(),
+  bookingFeeCents: cents.optional(),
+  airportFeeCents: cents.optional(),
+  surgeMultiplier: z.number().min(1.0).max(5.0).optional(),
+  driverPayoutPercent: z.number().min(1).max(100).optional(),
   tiers: z.object({
     executive_sedan: vehiclePricingSchema,
     luxury_suv: vehiclePricingSchema,

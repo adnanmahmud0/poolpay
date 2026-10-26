@@ -799,3 +799,106 @@ test("admin can configure long-distance threshold and reduced rates, and long tr
   assert.equal(Math.round(longFare.discountedDistance), 10);
   assert.equal(longFare.savingsDollars, 10.5);
 });
+
+test("uber-grade fare engine calibrates local, regional, and intercity long-haul trips with duration and fees", async () => {
+  const { calculateVehicleFare, isAirportLocation, DEFAULT_VEHICLE_PRICING } =
+    await import("../src/components/TransportationBooking");
+
+  // 1. Airport detection helper
+  assert.equal(isAirportLocation("Orlando International Airport (MCO), Jeff Fuqua Blvd"), true);
+  assert.equal(isAirportLocation("Miami International Airport (MIA), Northwest 42nd Ave"), true);
+  assert.equal(isAirportLocation("JFK International Airport"), true);
+  assert.equal(isAirportLocation("Newark Liberty Airport"), true);
+  assert.equal(isAirportLocation("Times Square, New York, NY"), false);
+
+  // 2. Local trip benchmark (NYC 14.3 miles, 40 minutes)
+  // UberX: $74 - $77, UberXL: $81 - $86
+  const nycSedan = calculateVehicleFare(
+    "executive_sedan",
+    14.3 * 1.609344,
+    40,
+    {},
+    DEFAULT_VEHICLE_PRICING
+  );
+  assert.equal(nycSedan.formatted, "$73.88");
+  assert.ok(nycSedan.totalCents >= 7000 && nycSedan.totalCents <= 7800);
+  assert.equal(nycSedan.minRangeFormatted, "$70.92");
+  assert.equal(nycSedan.maxRangeFormatted, "$79.79");
+
+  const nycSuv = calculateVehicleFare(
+    "luxury_suv",
+    14.3 * 1.609344,
+    40,
+    {},
+    DEFAULT_VEHICLE_PRICING
+  );
+  assert.equal(nycSuv.formatted, "$86.74");
+  assert.ok(nycSuv.totalCents >= 8100 && nycSuv.totalCents <= 8800);
+
+  // 3. Medium regional highway trip (55.1 miles, 75 minutes, EWR to Melville Long Island)
+  const ewrSedan = calculateVehicleFare(
+    "executive_sedan",
+    55.1 * 1.609344,
+    75,
+    {},
+    DEFAULT_VEHICLE_PRICING
+  );
+  assert.equal(ewrSedan.formatted, "$155.97");
+  assert.ok(ewrSedan.totalCents >= 13500 && ewrSedan.totalCents <= 16000);
+
+  const ewrSuv = calculateVehicleFare(
+    "luxury_suv",
+    55.1 * 1.609344,
+    75,
+    {},
+    DEFAULT_VEHICLE_PRICING
+  );
+  assert.equal(ewrSuv.formatted, "$183.04");
+  assert.ok(ewrSuv.totalCents >= 15500 && ewrSuv.totalCents <= 19000);
+
+  // 4. Intercity long-haul trip (235 miles, 220 minutes, Orlando MCO -> Miami MIA)
+  // Uber Black: $695.98, Uber Black SUV: $911.95
+  const miaSedan = calculateVehicleFare(
+    "executive_sedan",
+    235 * 1.609344,
+    220,
+    { isAirport: true, tollFeeDollars: 25 },
+    DEFAULT_VEHICLE_PRICING
+  );
+  assert.equal(miaSedan.formatted, "$640.75");
+  assert.ok(miaSedan.totalCents >= 60000 && miaSedan.totalCents <= 71000);
+
+  const miaSuv = calculateVehicleFare(
+    "luxury_suv",
+    235 * 1.609344,
+    220,
+    { isAirport: true, tollFeeDollars: 25 },
+    DEFAULT_VEHICLE_PRICING
+  );
+  assert.equal(miaSuv.formatted, "$808.25");
+  assert.ok(miaSuv.totalCents >= 75000 && miaSuv.totalCents <= 95000);
+  assert.ok(miaSuv.driverEarningsCents > 50000); // Sustainable driver payout
+
+  // 5. Short-trip minimum fare protection (1.5 miles, 5 minutes)
+  const ultraShortSedan = calculateVehicleFare(
+    "executive_sedan",
+    1.5 * 1.609344,
+    5,
+    {},
+    DEFAULT_VEHICLE_PRICING
+  );
+  // Base $15 + 1.5 * 3.20 ($4.80) + 5 * 0.40 ($2.00) = $21.80, clamped to min fare $25.00 + $4 fee = $29.00
+  assert.equal(ultraShortSedan.formatted, "$29.00");
+  assert.ok(ultraShortSedan.totalCents >= 2500);
+
+  // 6. Surge pricing multiplier (1.5x)
+  const surgedSedan = calculateVehicleFare(
+    "executive_sedan",
+    14.3 * 1.609344,
+    40,
+    { customSurge: 1.5 },
+    DEFAULT_VEHICLE_PRICING
+  );
+  assert.ok(surgedSedan.totalCents > nycSedan.totalCents);
+  assert.equal(surgedSedan.surgeMultiplier, 1.5);
+});

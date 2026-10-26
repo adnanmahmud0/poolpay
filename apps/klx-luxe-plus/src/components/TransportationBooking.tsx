@@ -67,8 +67,18 @@ interface RoutesApiResponse {
   routes?: Array<{
     distanceMeters?: number;
     duration?: string;
+    staticDuration?: string;
     polyline?: {
       encodedPolyline?: string;
+    };
+    travelAdvisory?: {
+      tollInfo?: {
+        estimatedPrice?: Array<{
+          currencyCode?: string;
+          units?: string;
+          nanos?: number;
+        }>;
+      };
     };
   }>;
 }
@@ -118,63 +128,136 @@ type WindowWithMaps = Window & {
 
 export const DEFAULT_VEHICLE_PRICING: TransportationPricingConfig = {
   unit: "mile",
-  longDistanceThreshold: 10, // 10 miles
+  longDistanceThreshold: 10, // Tier 1: 0 - 10 miles local
+  longHaulThreshold: 50, // Tier 2: 10 - 50 miles regional, Tier 3: 50+ miles intercity
+  bookingFeeCents: 400, // $4.00 booking fee
+  airportFeeCents: 1500, // $15.00 airport regulatory fee
+  surgeMultiplier: 1.0, // baseline
+  driverPayoutPercent: 75, // 75% driver compensation
   tiers: {
     executive_sedan: {
-      basePriceCents: 2000,
-      pricePerKmCents: 450,
-      reducedPricePerKmCents: 155,
-      longDistanceDiscountPercent: 66
+      basePriceCents: 1500, // $15.00 base
+      pricePerKmCents: 320, // $3.20/mile (first 10 miles)
+      reducedPricePerKmCents: 160, // $1.60/mile (10 - 50 miles)
+      longDistanceDiscountPercent: 50,
+      longHaulPricePerKmCents: 215, // $2.15/mile (50+ miles, matches Uber Black intercity)
+      longHaulDiscountPercent: 33,
+      pricePerMinuteCents: 40, // $0.40/minute in traffic
+      minimumFareCents: 2500 // $25.00 minimum trip fare
     },
     luxury_suv: {
-      basePriceCents: 3000,
-      pricePerKmCents: 480,
-      reducedPricePerKmCents: 185,
-      longDistanceDiscountPercent: 61
+      basePriceCents: 2000, // $20.00 base
+      pricePerKmCents: 350, // $3.50/mile (first 10 miles)
+      reducedPricePerKmCents: 180, // $1.80/mile (10 - 50 miles)
+      longDistanceDiscountPercent: 49,
+      longHaulPricePerKmCents: 285, // $2.85/mile (50+ miles, matches Uber Black SUV intercity)
+      longHaulDiscountPercent: 19,
+      pricePerMinuteCents: 50, // $0.50/minute in traffic
+      minimumFareCents: 3500 // $35.00 minimum trip fare
     },
     vip_sprinter: {
-      basePriceCents: 5000,
-      pricePerKmCents: 600,
-      reducedPricePerKmCents: 250,
-      longDistanceDiscountPercent: 58
+      basePriceCents: 3500, // $35.00 base
+      pricePerKmCents: 450, // $4.50/mile (first 10 miles)
+      reducedPricePerKmCents: 240, // $2.40/mile (10 - 50 miles)
+      longDistanceDiscountPercent: 47,
+      longHaulPricePerKmCents: 350, // $3.50/mile (50+ miles)
+      longHaulDiscountPercent: 22,
+      pricePerMinuteCents: 75, // $0.75/minute in traffic
+      minimumFareCents: 6000 // $60.00 minimum trip fare
     }
   }
 };
 
-export function calculateVehicleFare(
-  tierId: string,
-  distanceKm: number,
-  config?: TransportationPricingConfig
-): {
+export interface FareCalculationOptions {
+  durationMinutes?: number;
+  isAirport?: boolean;
+  tollFeeDollars?: number;
+  customSurge?: number;
+}
+
+export interface FareCalculationResult {
   totalCents: number;
   formatted: string;
+  minRangeFormatted: string;
+  maxRangeFormatted: string;
   formula: string;
   baseFormatted: string;
   perKmFormatted: string;
   standardDistance: number;
   discountedDistance: number;
+  longHaulDistance: number;
+  durationMinutes: number;
+  timeCostDollars: number;
+  feesDollars: number;
   savingsDollars: number;
-} {
+  surgeMultiplier: number;
+  driverEarningsCents: number;
+  platformMarginCents: number;
+}
+
+export function isAirportLocation(address?: string): boolean {
+  if (!address) return false;
+  const lower = address.toLowerCase();
+  return (
+    lower.includes("airport") ||
+    lower.includes("aeropuerto") ||
+    lower.includes("terminal") ||
+    /\b(mco|mia|jfk|ewr|lga|fll|pbi|sfo|lax|ord|dfw|atl)\b/i.test(lower)
+  );
+}
+
+export function calculateVehicleFare(
+  tierId: string,
+  distanceKm: number,
+  durationOrConfig?: number | TransportationPricingConfig,
+  optionsOrConfig?: FareCalculationOptions | TransportationPricingConfig,
+  pricingConfig?: TransportationPricingConfig
+): FareCalculationResult {
+  let durationMinutes = 0;
+  let options: FareCalculationOptions = {};
+  let config: TransportationPricingConfig | undefined = undefined;
+
+  if (typeof durationOrConfig === "number") {
+    durationMinutes = durationOrConfig;
+    if (optionsOrConfig && typeof optionsOrConfig === "object") {
+      if ("tiers" in optionsOrConfig) {
+        config = optionsOrConfig as TransportationPricingConfig;
+      } else {
+        options = optionsOrConfig as FareCalculationOptions;
+        config = pricingConfig;
+      }
+    }
+  } else if (durationOrConfig && typeof durationOrConfig === "object") {
+    config = durationOrConfig as TransportationPricingConfig;
+  }
+
   const activeConfig = config || DEFAULT_VEHICLE_PRICING;
   const tiers = activeConfig.tiers || DEFAULT_VEHICLE_PRICING.tiers;
-  const key = tierId as keyof typeof tiers;
+  const key = tierId in tiers ? (tierId as keyof typeof tiers) : "executive_sedan";
   const tier = tiers[key] || DEFAULT_VEHICLE_PRICING.tiers.executive_sedan;
 
   const isMile = activeConfig.unit === "mile";
   const unitLabel = isMile ? "mi" : "km";
   const distanceInUnit = isMile ? distanceKm / 1.609344 : distanceKm;
 
-  // Threshold: default 10 miles if unit is miles, or 16 km (~10 miles) if unit is km
-  const defaultThreshold = isMile ? 10 : 16;
-  const threshold =
+  // Thresholds: Tier 1 (local base), Tier 2 (regional highway)
+  const defaultThreshold1 = isMile ? 10 : 16;
+  const threshold1 =
     typeof activeConfig.longDistanceThreshold === "number" && activeConfig.longDistanceThreshold > 0
       ? activeConfig.longDistanceThreshold
-      : defaultThreshold;
+      : defaultThreshold1;
+
+  const defaultThreshold2 = isMile ? 50 : 80;
+  const threshold2 =
+    typeof activeConfig.longHaulThreshold === "number" &&
+    activeConfig.longHaulThreshold > threshold1
+      ? activeConfig.longHaulThreshold
+      : defaultThreshold2;
 
   const baseDollars = tier.basePriceCents / 100;
   const standardRateDollars = tier.pricePerKmCents / 100;
 
-  // Determine reduced rate for distance beyond threshold
+  // Determine reduced rate for distance beyond threshold 1 (10 - 50 miles)
   let reducedRateDollars = standardRateDollars;
   if (typeof tier.reducedPricePerKmCents === "number" && tier.reducedPricePerKmCents > 0) {
     reducedRateDollars = tier.reducedPricePerKmCents / 100;
@@ -183,41 +266,95 @@ export function calculateVehicleFare(
     tier.longDistanceDiscountPercent > 0
   ) {
     reducedRateDollars = standardRateDollars * (1 - tier.longDistanceDiscountPercent / 100);
-  } else {
-    // Default 30% discount on miles/km beyond threshold
-    reducedRateDollars = standardRateDollars * 0.7;
   }
 
-  let totalDollars = baseDollars;
-  let standardDist = distanceInUnit;
-  let discountedDist = 0;
-
-  if (distanceInUnit <= threshold) {
-    totalDollars += distanceInUnit * standardRateDollars;
-  } else {
-    standardDist = threshold;
-    discountedDist = distanceInUnit - threshold;
-    totalDollars += standardDist * standardRateDollars + discountedDist * reducedRateDollars;
+  // Determine long-haul rate for distance beyond threshold 2 (50+ miles)
+  let longHaulRateDollars = reducedRateDollars;
+  if (typeof tier.longHaulPricePerKmCents === "number" && tier.longHaulPricePerKmCents > 0) {
+    longHaulRateDollars = tier.longHaulPricePerKmCents / 100;
+  } else if (typeof tier.longHaulDiscountPercent === "number" && tier.longHaulDiscountPercent > 0) {
+    longHaulRateDollars = standardRateDollars * (1 - tier.longHaulDiscountPercent / 100);
   }
 
-  const unadjustedTotal = baseDollars + distanceInUnit * standardRateDollars;
-  const savingsDollars = Math.max(0, unadjustedTotal - totalDollars);
+  const timeRateDollars =
+    typeof tier.pricePerMinuteCents === "number" ? tier.pricePerMinuteCents / 100 : 0;
+  const minFareDollars =
+    typeof tier.minimumFareCents === "number" ? tier.minimumFareCents / 100 : 0;
+
+  const d1 = Math.min(distanceInUnit, threshold1);
+  const d2 = Math.min(
+    Math.max(0, distanceInUnit - threshold1),
+    Math.max(0, threshold2 - threshold1)
+  );
+  const d3 = Math.max(0, distanceInUnit - threshold2);
+
+  const distanceCostDollars =
+    d1 * standardRateDollars + d2 * reducedRateDollars + d3 * longHaulRateDollars;
+  const timeCostDollars = durationMinutes * timeRateDollars;
+
+  const rawTrip = baseDollars + distanceCostDollars + timeCostDollars;
+  const subtotalDollars = Math.max(minFareDollars, rawTrip);
+
+  const surge = options.customSurge ?? activeConfig.surgeMultiplier ?? 1.0;
+  const surgedDollars = subtotalDollars * surge;
+
+  const bookingFeeDollars =
+    typeof activeConfig.bookingFeeCents === "number" ? activeConfig.bookingFeeCents / 100 : 0;
+  const airportFeeDollars =
+    options.isAirport && typeof activeConfig.airportFeeCents === "number"
+      ? activeConfig.airportFeeCents / 100
+      : 0;
+  const tollFeeDollars = options.tollFeeDollars ?? 0;
+  const feesDollars = bookingFeeDollars + airportFeeDollars + tollFeeDollars;
+
+  const totalDollars = surgedDollars + feesDollars;
   const totalCents = Math.round(totalDollars * 100);
 
-  const formula =
-    distanceInUnit <= threshold
-      ? `$${baseDollars.toFixed(0)} base + (${distanceInUnit.toFixed(1)} ${unitLabel} × $${standardRateDollars.toFixed(2)}/${unitLabel})`
-      : `$${baseDollars.toFixed(0)} base + (${standardDist.toFixed(1)} ${unitLabel} × $${standardRateDollars.toFixed(2)}) + (${discountedDist.toFixed(1)} ${unitLabel} × $${reducedRateDollars.toFixed(2)} [discounted])`;
+  const unadjustedTotal =
+    baseDollars + distanceInUnit * standardRateDollars + timeCostDollars + bookingFeeDollars;
+  const savingsDollars = Math.max(0, unadjustedTotal - totalDollars);
+
+  // Upfront estimated range (±6% to 8%)
+  const minRangeDollars = totalDollars * 0.96;
+  const maxRangeDollars = totalDollars * 1.08;
+
+  // Driver compensation & platform margin
+  const driverPayoutPercent = activeConfig.driverPayoutPercent ?? 75;
+  const driverEarningsDollars = (totalDollars - bookingFeeDollars) * (driverPayoutPercent / 100);
+  const platformMarginDollars = totalDollars - driverEarningsDollars;
+
+  let formula = `$${baseDollars.toFixed(0)} base + (${d1.toFixed(1)} ${unitLabel} × $${standardRateDollars.toFixed(2)}/${unitLabel})`;
+  if (d2 > 0) {
+    formula += ` + (${d2.toFixed(1)} ${unitLabel} × $${reducedRateDollars.toFixed(2)})`;
+  }
+  if (d3 > 0) {
+    formula += ` + (${d3.toFixed(1)} ${unitLabel} × $${longHaulRateDollars.toFixed(2)} [intercity])`;
+  }
+  if (timeCostDollars > 0) {
+    formula += ` + (${durationMinutes}m × $${timeRateDollars.toFixed(2)}/min)`;
+  }
+  if (feesDollars > 0) {
+    formula += ` + $${feesDollars.toFixed(2)} fees`;
+  }
 
   return {
     totalCents,
     formatted: `$${totalDollars.toFixed(2)}`,
+    minRangeFormatted: `$${minRangeDollars.toFixed(2)}`,
+    maxRangeFormatted: `$${maxRangeDollars.toFixed(2)}`,
     formula,
     baseFormatted: `$${baseDollars.toFixed(0)}`,
     perKmFormatted: `$${standardRateDollars.toFixed(2)}/${unitLabel}`,
-    standardDistance: standardDist,
-    discountedDistance: discountedDist,
-    savingsDollars
+    standardDistance: d1,
+    discountedDistance: d2,
+    longHaulDistance: d3,
+    durationMinutes,
+    timeCostDollars,
+    feesDollars,
+    savingsDollars,
+    surgeMultiplier: surge,
+    driverEarningsCents: Math.round(driverEarningsDollars * 100),
+    platformMarginCents: Math.round(platformMarginDollars * 100)
   };
 }
 
@@ -345,6 +482,8 @@ export function TransportationBooking({
     distance: string;
     distanceKm: number;
     duration: string;
+    durationMinutes: number;
+    tollFeeDollars?: number;
   } | null>(null);
 
   const activePricing = pricing || DEFAULT_VEHICLE_PRICING;
@@ -736,12 +875,13 @@ export function TransportationBooking({
           "Content-Type": "application/json",
           "X-Goog-Api-Key": googleApiKey,
           "X-Goog-FieldMask":
-            "routes.duration,routes.distanceMeters,routes.polyline.encodedPolyline"
+            "routes.duration,routes.distanceMeters,routes.polyline.encodedPolyline,routes.travelAdvisory.tollInfo"
         },
         body: JSON.stringify({
           origin: { location: { latLng: { latitude: pLat, longitude: pLon } } },
           destination: { location: { latLng: { latitude: dLat, longitude: dLon } } },
-          travelMode: "DRIVE"
+          travelMode: "DRIVE",
+          routingPreference: "TRAFFIC_AWARE"
         })
       })
         .then((res) => (res.ok ? res.json() : Promise.reject(new Error("Routes API fail"))))
@@ -754,10 +894,24 @@ export function TransportationBooking({
             const distKm = parseFloat((meters / 1000).toFixed(1));
             const distMiles = (meters / 1609.34).toFixed(1);
             const durMins = Math.round(durSeconds / 60);
+
+            let tollFee = 0;
+            const tollPrices = data.routes[0].travelAdvisory?.tollInfo?.estimatedPrice;
+            if (Array.isArray(tollPrices) && tollPrices.length > 0) {
+              const usd = tollPrices.find((p) => p.currencyCode === "USD") || tollPrices[0];
+              if (usd) {
+                const units = parseInt(usd.units || "0", 10) || 0;
+                const nanos = (usd.nanos || 0) / 1e9;
+                tollFee = units + nanos;
+              }
+            }
+
             setRouteInfo({
               distance: `${distKm} km (${distMiles} mi)`,
               distanceKm: distKm,
-              duration: `${durMins} mins`
+              duration: `${durMins} mins`,
+              durationMinutes: durMins,
+              tollFeeDollars: tollFee
             });
             if (data.routes[0].polyline?.encodedPolyline) {
               const decoded = decodePolyline(data.routes[0].polyline.encodedPolyline);
@@ -780,7 +934,9 @@ export function TransportationBooking({
                 setRouteInfo({
                   distance: `${distKm} km (${distMiles} mi)`,
                   distanceKm: distKm,
-                  duration: `${durMins} mins`
+                  duration: `${durMins} mins`,
+                  durationMinutes: durMins,
+                  tollFeeDollars: 0
                 });
                 if (Array.isArray(d.routes[0].geometry?.coordinates)) {
                   const points = d.routes[0].geometry.coordinates.map(([lon, lat]) => ({
@@ -806,7 +962,9 @@ export function TransportationBooking({
             setRouteInfo({
               distance: `${distKm} km (${distMiles} mi)`,
               distanceKm: distKm,
-              duration: `${durMins} mins`
+              duration: `${durMins} mins`,
+              durationMinutes: durMins,
+              tollFeeDollars: 0
             });
             if (Array.isArray(d.routes[0].geometry?.coordinates)) {
               const points = d.routes[0].geometry.coordinates.map(([lon, lat]) => ({
@@ -992,6 +1150,7 @@ export function TransportationBooking({
   }, [useGoogle, mapLoaded, pickupCoords, dropoffCoords, routePoints]);
 
   const effectiveRouteInfo = pickupLocation && dropoffLocation ? routeInfo : null;
+  const isAirportTrip = isAirportLocation(pickupLocation) || isAirportLocation(dropoffLocation);
 
   // Sync estimated fare to parent whenever vehicle or route distance changes
   useEffect(() => {
@@ -999,13 +1158,18 @@ export function TransportationBooking({
       const { totalCents } = calculateVehicleFare(
         vehicleClass,
         effectiveRouteInfo.distanceKm,
+        effectiveRouteInfo.durationMinutes ?? 0,
+        {
+          isAirport: isAirportTrip,
+          tollFeeDollars: effectiveRouteInfo.tollFeeDollars ?? 0
+        },
         activePricing
       );
       onEstimatedFareChange?.(totalCents);
     } else {
       onEstimatedFareChange?.(0);
     }
-  }, [effectiveRouteInfo, vehicleClass, activePricing, onEstimatedFareChange]);
+  }, [effectiveRouteInfo, vehicleClass, activePricing, isAirportTrip, onEstimatedFareChange]);
 
   return (
     <div className="space-y-5 rounded-2xl border border-slate-200 bg-slate-50/70 p-3 sm:p-6">
@@ -1175,22 +1339,38 @@ export function TransportationBooking({
               </div>
             )}
 
-            {effectiveRouteInfo.distanceKm > 0 && (
-              <div className="text-right">
-                <span className="block text-[10px] font-medium tracking-wider text-slate-500 uppercase">
-                  Total Price
-                </span>
-                <p className="text-xs font-bold text-sky-700 sm:text-sm">
-                  {
-                    calculateVehicleFare(
-                      selectedVehicle.id,
-                      effectiveRouteInfo.distanceKm,
-                      activePricing
-                    ).formatted
-                  }
-                </p>
-              </div>
+            {isAirportTrip && (
+              <span className="hidden rounded-full bg-amber-100 px-2 py-0.5 text-[10px] font-semibold text-amber-800 md:inline-block">
+                ✈ Airport Surcharge Included
+              </span>
             )}
+
+            {effectiveRouteInfo.distanceKm > 0 &&
+              (() => {
+                const selectedFare = calculateVehicleFare(
+                  selectedVehicle.id,
+                  effectiveRouteInfo.distanceKm,
+                  effectiveRouteInfo.durationMinutes ?? 0,
+                  {
+                    isAirport: isAirportTrip,
+                    tollFeeDollars: effectiveRouteInfo.tollFeeDollars ?? 0
+                  },
+                  activePricing
+                );
+                return (
+                  <div className="text-right">
+                    <span className="block text-[10px] font-medium tracking-wider text-slate-500 uppercase">
+                      Total Price
+                    </span>
+                    <p className="text-xs font-bold text-sky-700 sm:text-sm">
+                      {selectedFare.formatted}
+                    </p>
+                    <span className="block text-[9px] text-slate-500">
+                      Est. {selectedFare.minRangeFormatted}–{selectedFare.maxRangeFormatted}
+                    </span>
+                  </div>
+                );
+              })()}
           </div>
         )}
       </div>
@@ -1204,7 +1384,16 @@ export function TransportationBooking({
           {VEHICLE_TIERS.map((tier) => {
             const isSelected = selectedVehicle.id === tier.id;
             const fareDetails = effectiveRouteInfo?.distanceKm
-              ? calculateVehicleFare(tier.id, effectiveRouteInfo.distanceKm, activePricing)
+              ? calculateVehicleFare(
+                  tier.id,
+                  effectiveRouteInfo.distanceKm,
+                  effectiveRouteInfo.durationMinutes ?? 0,
+                  {
+                    isAirport: isAirportTrip,
+                    tollFeeDollars: effectiveRouteInfo.tollFeeDollars ?? 0
+                  },
+                  activePricing
+                )
               : null;
             const tierPricing = activePricing.tiers[tier.id as keyof typeof activePricing.tiers];
             const baseD = tierPricing ? (tierPricing.basePriceCents / 100).toFixed(0) : "50";
@@ -1237,7 +1426,9 @@ export function TransportationBooking({
                     <span className="text-xs font-bold text-sky-700 sm:text-sm">
                       {fareDetails.formatted}
                     </span>
-                    <span className="text-[8px] text-slate-400 sm:text-[9px]">Total Price</span>
+                    <span className="text-[8px] text-slate-500 sm:text-[9px]">
+                      {fareDetails.minRangeFormatted}–{fareDetails.maxRangeFormatted}
+                    </span>
                   </div>
                 ) : (
                   <div className="mt-1.5 flex flex-col items-center sm:mt-2">

@@ -157,6 +157,7 @@ export interface KlxAppointment {
   vehicleClass?: string;
   passengers?: number;
   estimatedFareCents?: number;
+  fareBreakdown?: Record<string, unknown>;
   payNow?: boolean;
   realEstateTransactionType?: string;
   realEstatePropertyType?: string;
@@ -316,16 +317,40 @@ export interface KlxSettings {
   updatedAt: Date;
 }
 
+export interface FareBreakdownSnapshot {
+  basePriceCents: number;
+  distanceFareCents: number;
+  timeFareCents: number;
+  bookingFeeCents: number;
+  airportFeeCents: number;
+  tollFeeCents: number;
+  surgeMultiplier: number;
+  distanceMiles: number;
+  durationMinutes: number;
+  driverEarningsCents: number;
+  platformMarginCents: number;
+  totalCents: number;
+}
+
 export interface VehiclePricingConfig {
   basePriceCents: number;
   pricePerKmCents: number;
   reducedPricePerKmCents?: number;
   longDistanceDiscountPercent?: number;
+  longHaulPricePerKmCents?: number;
+  longHaulDiscountPercent?: number;
+  pricePerMinuteCents?: number;
+  minimumFareCents?: number;
 }
 
 export interface TransportationPricingConfig {
   unit: "km" | "mile";
   longDistanceThreshold?: number;
+  longHaulThreshold?: number;
+  bookingFeeCents?: number;
+  airportFeeCents?: number;
+  surgeMultiplier?: number;
+  driverPayoutPercent?: number;
   tiers: {
     executive_sedan: VehiclePricingConfig;
     luxury_suv: VehiclePricingConfig;
