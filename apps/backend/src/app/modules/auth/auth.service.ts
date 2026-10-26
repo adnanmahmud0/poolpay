@@ -1,7 +1,7 @@
 import bcryptjs from "bcryptjs";
 import crypto from "crypto";
 import httpStatus from "http-status-codes";
-import { JwtPayload } from "jsonwebtoken";
+import jwt, { JwtPayload } from "jsonwebtoken";
 import { envVars } from "../../config/env";
 import AppError from "../../errorHelpers/AppError";
 import { sendEmail } from "../../utils/sendEmail";
@@ -32,6 +32,9 @@ import {
   Notification,
   NotificationType,
 } from "../notification/notification.model";
+import { PaymentMethod } from "../paymentMethod/paymentMethod.model";
+import { DeletionRequest } from "../deletionRequest/deletionRequest.model";
+import { GroupMember } from "../groupMember/groupMember.model";
 
 const checkPhoneConflict = (user: IUser) => {
   if (user && user.phoneConflict) {
@@ -808,6 +811,267 @@ const forgotPassword = async (identifier: string) => {
   });
 };
 
+const maskEmail = (email: string) => {
+  const parts = email.split("@");
+  if (parts.length !== 2) return email;
+  const [local, domain] = parts;
+  const maskedLocal =
+    local.length > 2
+      ? `${local[0]}***${local[local.length - 1]}`
+      : `${local[0]}***`;
+  return `${maskedLocal}@${domain}`;
+};
+
+const maskPhone = (phone?: string) => {
+  if (!phone || phone.length < 5) return undefined;
+  return `${phone.slice(0, 3)}***${phone.slice(-3)}`;
+};
+
+const requestDataDeletionOtp = async (payload: {
+  identifier: string;
+  password: string;
+}) => {
+  const { identifier, password } = payload;
+  const trimmed = identifier.trim();
+
+  const identifierHash = crypto
+    .createHash("sha256")
+    .update(trimmed)
+    .digest("hex");
+
+  const normalized = normalizePhone(trimmed);
+  const phoneH = generatePhoneHash(normalized);
+
+  const user = await User.findOne({
+    $or: [
+      { email: trimmed.toLowerCase() },
+      { phoneHash: identifierHash },
+      { phoneHash: phoneH },
+      { phone: trimmed },
+    ],
+  }).select("+password +deletionOtp +deletionOtpExpires");
+
+  if (!user) {
+    throw new AppError(
+      httpStatus.NOT_FOUND,
+      "No account found with this email or phone number."
+    );
+  }
+
+  if (!user.password) {
+    throw new AppError(
+      httpStatus.BAD_REQUEST,
+      "No password is set on this account. Please use set password in the app first or contact support."
+    );
+  }
+
+  const isPasswordValid = await bcryptjs.compare(password, user.password);
+  if (!isPasswordValid) {
+    throw new AppError(httpStatus.UNAUTHORIZED, "Invalid password.");
+  }
+
+  // Generate 6-digit OTP
+  const otpCode = Math.floor(100000 + Math.random() * 900000).toString();
+  user.deletionOtp = otpCode;
+  user.deletionOtpExpires = new Date(Date.now() + 10 * 60 * 1000); // 10 minutes
+  await user.save();
+
+  // Send email
+  await sendEmail({
+    to: user.email,
+    subject: "Your PoolPay Account Deletion Code",
+    templateName: "otp",
+    templateData: {
+      name:
+        user.fullName ||
+        `${user.firstName || ""} ${user.lastName || ""}`.trim() ||
+        "User",
+      otp: otpCode,
+    },
+  });
+
+  // Send SMS
+  if (user.phone) {
+    await sendSMS(
+      user.phone,
+      `Your PoolPay account deletion verification code is: ${otpCode}. Expire in 10 minutes.`
+    );
+  }
+
+  await AuditLog.create({
+    entityType: EntityType.USER,
+    entityId: user._id,
+    action: AuditAction.ADMIN_ACTION,
+    metadata: {
+      action: "DATA_DELETION_OTP_SENT",
+      email: user.email,
+      channel: user.phone ? "EMAIL_AND_SMS" : "EMAIL",
+    },
+  });
+
+  return {
+    maskedEmail: maskEmail(user.email),
+    maskedPhone: maskPhone(user.phone),
+  };
+};
+
+const verifyDataDeletionOtp = async (payload: {
+  identifier: string;
+  code: string;
+}) => {
+  const { identifier, code } = payload;
+  const trimmed = identifier.trim();
+
+  const identifierHash = crypto
+    .createHash("sha256")
+    .update(trimmed)
+    .digest("hex");
+
+  const normalized = normalizePhone(trimmed);
+  const phoneH = generatePhoneHash(normalized);
+
+  const user = await User.findOne({
+    $or: [
+      { email: trimmed.toLowerCase() },
+      { phoneHash: identifierHash },
+      { phoneHash: phoneH },
+      { phone: trimmed },
+    ],
+  }).select("+deletionOtp +deletionOtpExpires");
+
+  if (!user) {
+    throw new AppError(
+      httpStatus.NOT_FOUND,
+      "No account found with this email or phone number."
+    );
+  }
+
+  if (!user.deletionOtp || !user.deletionOtpExpires) {
+    throw new AppError(
+      httpStatus.BAD_REQUEST,
+      "No active deletion request found. Please request a verification code first."
+    );
+  }
+
+  if (user.deletionOtpExpires < new Date()) {
+    throw new AppError(
+      httpStatus.BAD_REQUEST,
+      "The verification code has expired. Please request a new one."
+    );
+  }
+
+  if (user.deletionOtp !== code.trim()) {
+    throw new AppError(httpStatus.BAD_REQUEST, "Invalid verification code.");
+  }
+
+  // Generate deletion authorization token valid for 15 minutes
+  const deletionToken = jwt.sign(
+    { userId: user._id.toString(), action: "ACCOUNT_DELETION" },
+    envVars.JWT_ACCESS_SECRET,
+    { expiresIn: "15m" }
+  );
+
+  // Clear OTP
+  user.deletionOtp = undefined;
+  user.deletionOtpExpires = undefined;
+  await user.save();
+
+  return {
+    deletionToken,
+    user: {
+      name:
+        user.fullName ||
+        `${user.firstName || ""} ${user.lastName || ""}`.trim() ||
+        "User",
+      email: user.email,
+      phone: user.phone,
+      joinedAt: user.createdAt,
+    },
+  };
+};
+
+const confirmDataDeletion = async (deletionToken: string) => {
+  let decoded: any;
+  try {
+    decoded = jwt.verify(deletionToken, envVars.JWT_ACCESS_SECRET);
+  } catch (_e) {
+    throw new AppError(
+      httpStatus.UNAUTHORIZED,
+      "Invalid or expired deletion authorization token. Please start over."
+    );
+  }
+
+  if (!decoded || decoded.action !== "ACCOUNT_DELETION" || !decoded.userId) {
+    throw new AppError(httpStatus.UNAUTHORIZED, "Unauthorized deletion token.");
+  }
+
+  const user = await User.findById(decoded.userId);
+  if (!user) {
+    throw new AppError(
+      httpStatus.NOT_FOUND,
+      "Account not found or already deleted."
+    );
+  }
+
+  // Prevent deleting Super Admin
+  if (user.role === Role.SUPER_ADMIN) {
+    throw new AppError(
+      httpStatus.FORBIDDEN,
+      "Super Admin account cannot be deleted via self-service."
+    );
+  }
+
+  const userId = user._id;
+  const userEmail = user.email;
+
+  // 1. Delete Payment Methods
+  await PaymentMethod.deleteMany({ userId });
+
+  // 2. Delete Notifications
+  await Notification.deleteMany({ userId });
+
+  // 3. Delete Deletion Requests
+  await DeletionRequest.deleteMany({ userId });
+
+  // 4. Clean up Group Memberships
+  await GroupMember.deleteMany({ userId });
+
+  // 5. Send confirmation email before deleting user
+  try {
+    await sendEmail({
+      to: userEmail,
+      subject: "PoolPay Account Deletion Confirmation",
+      templateName: "otp",
+      templateData: {
+        name: user.fullName || "User",
+        otp: "DELETED",
+      },
+    });
+  } catch (err) {
+    console.warn("Could not send deletion confirmation email:", err);
+  }
+
+  // 6. Delete User document permanently
+  await User.findByIdAndDelete(userId);
+
+  // 7. Audit Log
+  await AuditLog.create({
+    entityType: EntityType.USER,
+    entityId: userId,
+    action: AuditAction.ADMIN_ACTION,
+    metadata: {
+      action: "SELF_SERVICE_ACCOUNT_DELETED",
+      email: userEmail,
+      timestamp: new Date().toISOString(),
+    },
+  });
+
+  return {
+    deleted: true,
+    email: userEmail,
+  };
+};
+
 export const AuthServices = {
   register,
   verifyEmail,
@@ -819,4 +1083,7 @@ export const AuthServices = {
   resetPassword,
   setPassword,
   forgotPassword,
+  requestDataDeletionOtp,
+  verifyDataDeletionOtp,
+  confirmDataDeletion,
 };
