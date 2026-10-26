@@ -259,47 +259,6 @@ const forgotPassword = catchAsync(async (req: Request, res: Response) => {
   });
 });
 
-const requestDataDeletionOtp = catchAsync(
-  async (req: Request, res: Response) => {
-    const result = await AuthServices.requestDataDeletionOtp(req.body);
-
-    sendResponse(res, {
-      success: true,
-      statusCode: httpStatus.OK,
-      message:
-        "Verification code sent to your registered email and phone number.",
-      data: result,
-    });
-  }
-);
-
-const verifyDataDeletionOtp = catchAsync(
-  async (req: Request, res: Response) => {
-    const result = await AuthServices.verifyDataDeletionOtp(req.body);
-
-    sendResponse(res, {
-      success: true,
-      statusCode: httpStatus.OK,
-      message:
-        "Identity verified successfully. You may now confirm account deletion.",
-      data: result,
-    });
-  }
-);
-
-const confirmDataDeletion = catchAsync(async (req: Request, res: Response) => {
-  const { deletionToken } = req.body;
-  const result = await AuthServices.confirmDataDeletion(deletionToken);
-
-  sendResponse(res, {
-    success: true,
-    statusCode: httpStatus.OK,
-    message:
-      "Your account and all associated personal data have been permanently deleted.",
-    data: result,
-  });
-});
-
 export const AuthControllers = {
   register,
   verifyEmail,
@@ -312,7 +271,4 @@ export const AuthControllers = {
   resetPassword,
   setPassword,
   forgotPassword,
-  requestDataDeletionOtp,
-  verifyDataDeletionOtp,
-  confirmDataDeletion,
 };

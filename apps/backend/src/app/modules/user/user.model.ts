@@ -183,8 +183,6 @@ const userSchema = new Schema<IUserDocument>(
 
     passwordResetCode: { type: String, select: false },
     passwordResetCodeExpires: { type: Date, select: false },
-    deletionOtp: { type: String, select: false },
-    deletionOtpExpires: { type: Date, select: false },
     failedLoginAttempts: { type: Number, default: 0 },
     lockoutUntil: { type: Date },
     phoneHash: { type: String, unique: true, sparse: true, index: true },
@@ -208,8 +206,6 @@ const userSchema = new Schema<IUserDocument>(
         delete ret.twoFactorEmailCodeExpires;
         delete ret.passwordResetCode;
         delete ret.passwordResetCodeExpires;
-        delete ret.deletionOtp;
-        delete ret.deletionOtpExpires;
         delete ret.stripeCustomerId;
         delete ret.stripeCustomerIdHash;
         delete ret.stripeConnectedAccountId;
@@ -231,8 +227,6 @@ const userSchema = new Schema<IUserDocument>(
         delete ret.twoFactorEmailCodeExpires;
         delete ret.passwordResetCode;
         delete ret.passwordResetCodeExpires;
-        delete ret.deletionOtp;
-        delete ret.deletionOtpExpires;
         delete ret.stripeCustomerId;
         delete ret.stripeCustomerIdHash;
         delete ret.stripeConnectedAccountId;

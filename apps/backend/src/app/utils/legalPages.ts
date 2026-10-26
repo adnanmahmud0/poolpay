@@ -265,775 +265,132 @@ export const getDataDeletionInstructionsHTML = () => `
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Account & Data Deletion - PoolPay</title>
-    <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <title>Data Deletion Instructions - PoolPay</title>
     <style>
         :root {
-            --primary: #1A227F;
-            --primary-dark: #121858;
-            --danger: #ef4444;
-            --danger-hover: #dc2626;
-            --danger-light: #fef2f2;
-            --success: #10b981;
-            --text-main: #0f172a;
-            --text-muted: #64748b;
-            --bg-page: #f8fafc;
-            --border-color: #e2e8f0;
+            --primary: #ef4444;
+            --primary-dark: #dc2626;
+            --text-main: #1f2937;
+            --text-light: #6b7280;
+            --bg: #f9fafb;
         }
-        * {
-            box-sizing: border-box;
+        body {
+            font-family: 'Inter', -apple-system, sans-serif;
+            line-height: 1.6;
+            color: var(--text-main);
+            background-color: var(--bg);
             margin: 0;
             padding: 0;
         }
-        body {
-            font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
-            line-height: 1.6;
-            color: var(--text-main);
-            background-color: var(--bg-page);
-            min-height: 100vh;
-            padding: 24px 16px;
-        }
         .container {
-            max-width: 720px;
-            margin: 20px auto 60px;
-        }
-        .brand-header {
-            text-align: center;
-            margin-bottom: 28px;
-        }
-        .brand-badge {
-            display: inline-flex;
-            align-items: center;
-            gap: 8px;
-            background: #eef2ff;
-            color: var(--primary);
-            font-weight: 700;
-            font-size: 0.85rem;
-            letter-spacing: 0.05em;
-            text-transform: uppercase;
-            padding: 6px 14px;
-            border-radius: 9999px;
-            margin-bottom: 12px;
-        }
-        .brand-header h1 {
-            font-size: 2.1rem;
-            font-weight: 800;
-            color: var(--text-main);
-            letter-spacing: -0.025em;
-            margin-bottom: 8px;
-        }
-        .brand-header p {
-            color: var(--text-muted);
-            font-size: 1rem;
-        }
-        .card {
+            max-width: 800px;
+            margin: 40px auto;
+            padding: 40px;
             background: white;
-            border: 1px solid var(--border-color);
-            border-radius: 20px;
-            box-shadow: 0 10px 25px -5px rgba(15, 23, 42, 0.05), 0 8px 10px -6px rgba(15, 23, 42, 0.02);
-            padding: 32px;
-            margin-bottom: 28px;
-        }
-        .step-progress {
-            display: flex;
-            align-items: center;
-            justify-content: space-between;
-            position: relative;
-            margin-bottom: 32px;
-        }
-        .step-progress::before {
-            content: '';
-            position: absolute;
-            top: 18px;
-            left: 20px;
-            right: 20px;
-            height: 2px;
-            background: var(--border-color);
-            z-index: 1;
-        }
-        .step-item {
-            position: relative;
-            z-index: 2;
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            gap: 6px;
-            background: white;
-            padding: 0 8px;
-        }
-        .step-circle {
-            width: 36px;
-            height: 36px;
-            border-radius: 50%;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            font-size: 0.875rem;
-            font-weight: 700;
-            background: #f1f5f9;
-            color: var(--text-muted);
-            border: 2px solid #e2e8f0;
-            transition: all 0.25s ease;
-        }
-        .step-item.active .step-circle {
-            background: var(--primary);
-            color: white;
-            border-color: var(--primary);
-        }
-        .step-item.completed .step-circle {
-            background: #10b981;
-            color: white;
-            border-color: #10b981;
-        }
-        .step-label {
-            font-size: 0.75rem;
-            font-weight: 600;
-            color: var(--text-muted);
-        }
-        .step-item.active .step-label {
-            color: var(--primary);
-        }
-        .form-group {
-            margin-bottom: 20px;
-        }
-        .form-group label {
-            display: block;
-            font-size: 0.9rem;
-            font-weight: 600;
-            color: var(--text-main);
-            margin-bottom: 8px;
-        }
-        .form-control {
-            width: 100%;
-            padding: 13px 16px;
-            font-size: 0.95rem;
-            border: 1.5px solid var(--border-color);
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
             border-radius: 12px;
-            background: #fdfdfd;
-            transition: all 0.2s ease;
-            outline: none;
-            font-family: inherit;
         }
-        .form-control:focus {
-            border-color: var(--primary);
-            background: white;
-            box-shadow: 0 0 0 4px rgba(26, 34, 127, 0.08);
+        header {
+            border-bottom: 2px solid #f3f4f6;
+            margin-bottom: 30px;
+            padding-bottom: 20px;
         }
-        .otp-input-group {
-            display: flex;
-            justify-content: center;
-            gap: 10px;
-            margin: 24px 0 16px;
+        h1 {
+            color: var(--primary);
+            margin: 0;
+            font-size: 2.5rem;
+            font-weight: 800;
         }
-        .otp-digit {
-            width: 48px;
-            height: 56px;
+        h2 {
+            color: var(--text-main);
+            margin-top: 30px;
             font-size: 1.5rem;
-            font-weight: 700;
-            text-align: center;
-            border: 2px solid var(--border-color);
-            border-radius: 12px;
-            outline: none;
-            transition: all 0.2s;
+            border-left: 4px solid var(--primary);
+            padding-left: 15px;
         }
-        .otp-digit:focus {
-            border-color: var(--primary);
-            box-shadow: 0 0 0 3px rgba(26, 34, 127, 0.12);
-        }
-        .btn {
-            display: inline-flex;
-            align-items: center;
-            justify-content: center;
-            gap: 8px;
-            width: 100%;
-            padding: 14px 20px;
-            font-size: 0.98rem;
-            font-weight: 600;
-            border-radius: 12px;
-            border: none;
-            cursor: pointer;
-            transition: all 0.2s;
-            font-family: inherit;
-        }
-        .btn-primary {
-            background: var(--primary);
-            color: white;
-        }
-        .btn-primary:hover:not(:disabled) {
-            background: var(--primary-dark);
-            transform: translateY(-1px);
-        }
-        .btn-danger {
-            background: var(--danger);
-            color: white;
-        }
-        .btn-danger:hover:not(:disabled) {
-            background: var(--danger-hover);
-            transform: translateY(-1px);
-        }
-        .btn-secondary {
-            background: #f1f5f9;
-            color: #475569;
-        }
-        .btn-secondary:hover:not(:disabled) {
-            background: #e2e8f0;
-        }
-        .btn:disabled {
-            opacity: 0.6;
-            cursor: not-allowed;
-            transform: none !important;
-        }
-        .alert {
-            padding: 14px 16px;
-            border-radius: 12px;
-            font-size: 0.9rem;
-            margin-bottom: 20px;
-            display: none;
-            align-items: flex-start;
-            gap: 10px;
-        }
-        .alert-error {
-            background: #fef2f2;
-            color: #b91c1c;
-            border: 1px solid #fecaca;
-        }
-        .alert-info {
-            background: #eff6ff;
-            color: #1d4ed8;
-            border: 1px solid #bfdbfe;
-        }
-        .user-preview-card {
-            background: #f8fafc;
-            border: 1px solid var(--border-color);
-            border-radius: 14px;
-            padding: 20px;
-            margin-bottom: 24px;
-        }
-        .user-preview-row {
-            display: flex;
-            justify-content: space-between;
-            padding: 8px 0;
-            border-bottom: 1px dashed #e2e8f0;
-            font-size: 0.92rem;
-        }
-        .user-preview-row:last-child {
-            border-bottom: none;
-        }
-        .user-preview-row .label {
-            color: var(--text-muted);
-            font-weight: 500;
-        }
-        .user-preview-row .value {
-            font-weight: 600;
-            color: var(--text-main);
-        }
-        .warning-callout {
-            background: #fef2f2;
-            border-left: 4px solid var(--danger);
-            border-radius: 8px;
-            padding: 16px;
-            margin-bottom: 24px;
-        }
-        .warning-callout h4 {
-            color: #991b1b;
-            font-size: 0.95rem;
-            font-weight: 700;
-            margin-bottom: 6px;
-        }
-        .warning-callout ul {
+        ol {
             padding-left: 20px;
-            color: #7f1d1d;
-            font-size: 0.88rem;
         }
-        .warning-callout li {
-            margin-bottom: 4px;
-        }
-        /* Modal */
-        .modal-overlay {
-            position: fixed;
-            top: 0;
-            left: 0;
-            right: 0;
-            bottom: 0;
-            background: rgba(15, 23, 42, 0.6);
-            backdrop-filter: blur(4px);
-            display: none;
-            align-items: center;
-            justify-content: center;
-            z-index: 9999;
-            padding: 16px;
-        }
-        .modal-box {
-            background: white;
-            border-radius: 20px;
-            max-width: 460px;
-            width: 100%;
-            padding: 28px;
-            box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25);
-            text-align: center;
-            animation: modalPop 0.2s ease-out;
-        }
-        @keyframes modalPop {
-            from { transform: scale(0.95); opacity: 0; }
-            to { transform: scale(1); opacity: 1; }
-        }
-        .modal-icon {
-            width: 56px;
-            height: 56px;
-            background: #fee2e2;
-            color: var(--danger);
-            border-radius: 50%;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            margin: 0 auto 16px;
-            font-size: 28px;
-        }
-        .modal-title {
-            font-size: 1.35rem;
-            font-weight: 800;
-            color: var(--text-main);
+        p, li {
+            font-size: 1.1rem;
+            color: var(--text-light);
             margin-bottom: 10px;
         }
-        .modal-desc {
-            font-size: 0.92rem;
-            color: var(--text-muted);
-            margin-bottom: 24px;
-            line-height: 1.5;
-        }
-        .modal-actions {
-            display: flex;
-            gap: 12px;
-        }
-        .modal-actions .btn {
-            flex: 1;
-        }
-        /* Success Screen */
-        .success-box {
-            text-align: center;
-            padding: 24px 8px;
-        }
-        .success-icon {
-            width: 72px;
-            height: 72px;
-            background: #ecfdf5;
-            color: var(--success);
-            border-radius: 50%;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            margin: 0 auto 20px;
-        }
-        .success-title {
-            font-size: 1.6rem;
-            font-weight: 800;
-            color: var(--text-main);
-            margin-bottom: 12px;
-        }
-        .success-desc {
-            color: var(--text-muted);
-            font-size: 0.95rem;
-            margin-bottom: 24px;
-            max-width: 480px;
-            margin-left: auto;
-            margin-right: auto;
-        }
-        .policy-section {
-            background: white;
-            border: 1px solid var(--border-color);
-            border-radius: 20px;
-            padding: 32px;
-        }
-        .policy-section h2 {
-            font-size: 1.25rem;
-            font-weight: 700;
-            color: var(--text-main);
-            margin-bottom: 16px;
+        .step-card {
+            background: #fef2f2;
             border-left: 4px solid var(--primary);
-            padding-left: 12px;
-        }
-        .policy-section p, .policy-section li {
-            color: var(--text-muted);
-            font-size: 0.92rem;
-            line-height: 1.6;
-        }
-        .policy-section ul {
-            padding-left: 20px;
-            margin: 12px 0;
-        }
-        .policy-section li {
-            margin-bottom: 6px;
-        }
-        .spinner {
-            border: 2px solid rgba(255, 255, 255, 0.3);
-            border-top: 2px solid white;
-            border-radius: 50%;
-            width: 18px;
-            height: 18px;
-            animation: spin 0.8s linear infinite;
-            display: inline-block;
-        }
-        @keyframes spin {
-            0% { transform: rotate(0deg); }
-            100% { transform: rotate(360deg); }
+            padding: 15px;
+            border-radius: 8px;
+            margin-bottom: 15px;
         }
         footer {
+            margin-top: 50px;
             text-align: center;
-            font-size: 0.85rem;
-            color: var(--text-muted);
-            margin-top: 36px;
+            font-size: 0.9rem;
+            color: var(--text-light);
+            border-top: 1px solid #eee;
+            padding-top: 20px;
+        }
+        @media (max-width: 640px) {
+            .container { margin: 10px; padding: 20px; }
+            h1 { font-size: 1.8rem; }
+            h2 { font-size: 1.3rem; }
         }
     </style>
 </head>
 <body>
     <div class="container">
-        <div class="brand-header">
-            <div class="brand-badge">PoolPay Privacy Portal</div>
-            <h1>Account & Data Deletion</h1>
-            <p>Request permanent deletion of your PoolPay account and associated personal data.</p>
+        <header>
+            <h1>Data Deletion Instructions</h1>
+            <p>How to request the deletion of your account and personal data.</p>
+        </header>
+
+        <p>At PoolPay, we value your privacy and are committed to protecting your personal data. If you want to delete your activities or account associated with our application, you can easily request its deletion. Below are the step-by-step instructions on how to do this:</p>
+
+        <h2>Method 1: Request Deletion via App Settings</h2>
+        <div class="step-card">
+            <ol>
+                <li>Open the <strong>PoolPay</strong> app on your device.</li>
+                <li>Log in to your account.</li>
+                <li>Go to your <strong>Profile</strong> or <strong>Settings</strong> screen.</li>
+                <li>Tap on <strong>Account Settings</strong>.</li>
+                <li>Select <strong>Delete Account</strong>.</li>
+                <li>Confirm your request. Your account and all associated data will be permanently deleted immediately.</li>
+            </ol>
         </div>
 
-        <div class="card">
-            <!-- Progress indicator -->
-            <div class="step-progress" id="stepProgress">
-                <div class="step-item active" id="prog-1">
-                    <div class="step-circle">1</div>
-                    <span class="step-label">Login</span>
-                </div>
-                <div class="step-item" id="prog-2">
-                    <div class="step-circle">2</div>
-                    <span class="step-label">OTP</span>
-                </div>
-                <div class="step-item" id="prog-3">
-                    <div class="step-circle">3</div>
-                    <span class="step-label">Delete</span>
-                </div>
-                <div class="step-item" id="prog-4">
-                    <div class="step-circle">4</div>
-                    <span class="step-label">Done</span>
-                </div>
-            </div>
-
-            <!-- Global Error Banner -->
-            <div class="alert alert-error" id="errorBanner">
-                <span id="errorMessage"></span>
-            </div>
-
-            <!-- STEP 1: Login & Credentials -->
-            <div id="step1View">
-                <div class="form-group">
-                    <label for="identifier">Email Address or Phone Number</label>
-                    <input type="text" id="identifier" class="form-control" placeholder="user@example.com or +1234567890" autocomplete="username">
-                </div>
-                <div class="form-group">
-                    <label for="password">Account Password</label>
-                    <input type="password" id="password" class="form-control" placeholder="Enter your account password" autocomplete="current-password">
-                </div>
-                <button type="button" class="btn btn-primary" id="btnSendOtp" onclick="handleSendOtp()">
-                    <span id="btnSendOtpText">Send Verification Code</span>
-                </button>
-            </div>
-
-            <!-- STEP 2: OTP Verification -->
-            <div id="step2View" style="display: none;">
-                <div class="alert alert-info" style="display: flex;">
-                    <span>A 6-digit verification code has been sent to your registered email and phone number. Code expires in 10 minutes.</span>
-                </div>
-                <div class="form-group" style="text-align: center;">
-                    <label>Enter 6-Digit Code</label>
-                    <div class="otp-input-group">
-                        <input type="text" maxlength="1" class="otp-digit" inputmode="numeric" autofocus>
-                        <input type="text" maxlength="1" class="otp-digit" inputmode="numeric">
-                        <input type="text" maxlength="1" class="otp-digit" inputmode="numeric">
-                        <input type="text" maxlength="1" class="otp-digit" inputmode="numeric">
-                        <input type="text" maxlength="1" class="otp-digit" inputmode="numeric">
-                        <input type="text" maxlength="1" class="otp-digit" inputmode="numeric">
-                    </div>
-                </div>
-                <button type="button" class="btn btn-primary" id="btnVerifyOtp" onclick="handleVerifyOtp()">
-                    <span id="btnVerifyOtpText">Verify Identity</span>
-                </button>
-                <div style="display: flex; justify-content: space-between; margin-top: 16px; font-size: 0.88rem;">
-                    <a href="javascript:void(0)" onclick="handleSendOtp()" style="color: var(--primary); text-decoration: none; font-weight: 600;">Resend Code</a>
-                    <a href="javascript:void(0)" onclick="goToStep(1)" style="color: var(--text-muted); text-decoration: none;">Change Login Info</a>
-                </div>
-            </div>
-
-            <!-- STEP 3: Confirm Account Deletion Action -->
-            <div id="step3View" style="display: none;">
-                <div class="user-preview-card">
-                    <div class="user-preview-row">
-                        <span class="label">Account Name:</span>
-                        <span class="value" id="previewName">-</span>
-                    </div>
-                    <div class="user-preview-row">
-                        <span class="label">Registered Email:</span>
-                        <span class="value" id="previewEmail">-</span>
-                    </div>
-                    <div class="user-preview-row">
-                        <span class="label">Verification Status:</span>
-                        <span class="value" style="color: var(--success);">&#10003; Identity Verified</span>
-                    </div>
-                </div>
-
-                <div class="warning-callout">
-                    <h4>Permanent Data Erasure Notice</h4>
-                    <ul>
-                        <li>Your account credentials, name, email, and phone number will be erased.</li>
-                        <li>All linked payment methods and saved cards will be permanently detached and removed.</li>
-                        <li>Your notification history, preferences, and group memberships will be deleted.</li>
-                        <li><strong>This action is immediate, permanent, and cannot be undone.</strong></li>
-                    </ul>
-                </div>
-
-                <button type="button" class="btn btn-danger" onclick="openConfirmModal()">
-                    <span>Delete Account</span>
-                </button>
-            </div>
-
-            <!-- STEP 4: Success Screen -->
-            <div id="step4View" style="display: none;">
-                <div class="success-box">
-                    <div class="success-icon">
-                        <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
-                            <polyline points="20 6 9 17 4 12"></polyline>
-                        </svg>
-                    </div>
-                    <h2 class="success-title">Account Successfully Deleted</h2>
-                    <p class="success-desc">
-                        Your PoolPay account and all associated personal data have been permanently deleted from our servers. A confirmation has been logged and sent to your email.
-                    </p>
-                    <a href="/" class="btn btn-secondary" style="text-decoration: none; display: inline-flex; width: auto; padding: 12px 28px;">
-                        Back to Home
-                    </a>
-                </div>
-            </div>
+        <h2>Method 2: Remove App via Facebook Settings</h2>
+        <p>If you signed up using Facebook, you can also remove PoolPay's access to your Facebook account and request data deletion through Facebook:</p>
+        <div class="step-card">
+            <ol>
+                <li>Go to your Facebook Profile's <strong>Settings & Privacy</strong> > <strong>Settings</strong>.</li>
+                <li>Scroll down and click on <strong>Apps and Websites</strong>.</li>
+                <li>Find and select <strong>PoolPay</strong>.</li>
+                <li>Click the <strong>Remove</strong> button.</li>
+                <li>Check the box that asks to delete all posts, videos, or events PoolPay posted on your timeline (optional).</li>
+                <li>Click <strong>Remove</strong> again to confirm.</li>
+            </ol>
         </div>
 
-        <!-- Confirmation Modal -->
-        <div class="modal-overlay" id="confirmModal">
-            <div class="modal-box">
-                <div class="modal-icon">&#9888;</div>
-                <h3 class="modal-title">Are you sure?</h3>
-                <p class="modal-desc">
-                    Are you sure you want to permanently delete your PoolPay account? All your transaction records, profile data, and payment methods will be erased forever. This action cannot be reversed.
-                </p>
-                <div class="modal-actions">
-                    <button type="button" class="btn btn-secondary" onclick="closeConfirmModal()">Cancel</button>
-                    <button type="button" class="btn btn-danger" id="btnConfirmDelete" onclick="handleConfirmDelete()">
-                        <span id="btnConfirmDeleteText">Yes, Delete Account</span>
-                    </button>
-                </div>
-            </div>
-        </div>
-
-        <!-- Google Play & Privacy Policy Standards Section -->
-        <div class="policy-section">
-            <h2>Data Deletion & Retention Policy</h2>
-            <p>
-                In compliance with Google Play Data Safety policies, the GDPR, and CCPA, users have the absolute right to request the deletion of their accounts and associated personal data at any time without retaining the mobile application.
-            </p>
+        <h2>Method 3: Contact Support (Alternative)</h2>
+        <p>If you cannot access the app or prefer to request data deletion manually, you can contact our support team:</p>
+        <div class="step-card">
+            <p>Send an email to <strong>support@poolpay.com</strong> with the subject line <strong>"Data Deletion Request"</strong>.</p>
+            <p>Please include the following details so we can verify your identity:</p>
             <ul>
-                <li><strong>Data Permanently Deleted:</strong> User profile, contact information, authentication credentials, payment methods/cards, device notification tokens, and in-app communications.</li>
-                <li><strong>Regulatory Retention Exceptions:</strong> PoolPay may retain minimal transaction logs strictly required by applicable banking, anti-money laundering (AML), and financial compliance laws for statutory retention periods.</li>
-                <li><strong>In-App Deletion Alternative:</strong> You may also delete your account directly inside the PoolPay app by navigating to <em>Profile &gt; Delete Account</em>.</li>
+                <li>Your full name as registered on your account</li>
+                <li>The email address or phone number associated with your PoolPay account</li>
             </ul>
+            <p>Our support team will process your request and delete all your personal data from our servers within 24 to 48 hours of verification.</p>
         </div>
+
+        <h2>What happens to my data?</h2>
+        <p>Once your account is deleted, all personal information, transaction history (except as required to be retained by financial regulations or law), linked bank accounts/cards, and settings will be permanently erased and cannot be recovered.</p>
 
         <footer>
-            &copy; 2026 PoolPay Inc. All rights reserved. &bull; <a href="/privacy-policy" style="color: inherit;">Privacy Policy</a> &bull; <a href="/terms-and-conditions" style="color: inherit;">Terms & Conditions</a>
+            &copy; 2026 PoolPay. All rights reserved.
         </footer>
     </div>
-
-    <script>
-        let currentDeletionToken = null;
-        let storedIdentifier = '';
-
-        // OTP inputs auto-advance
-        const otpDigits = document.querySelectorAll('.otp-digit');
-        otpDigits.forEach((digit, index) => {
-            digit.addEventListener('input', (e) => {
-                if (e.target.value.length === 1 && index < otpDigits.length - 1) {
-                    otpDigits[index + 1].focus();
-                }
-            });
-            digit.addEventListener('keydown', (e) => {
-                if (e.key === 'Backspace' && !e.target.value && index > 0) {
-                    otpDigits[index - 1].focus();
-                }
-            });
-            digit.addEventListener('paste', (e) => {
-                e.preventDefault();
-                const pasteData = (e.clipboardData || window.clipboardData).getData('text').trim();
-                if (/^\\d{6}$/.test(pasteData)) {
-                    pasteData.split('').forEach((char, i) => {
-                        if (otpDigits[i]) otpDigits[i].value = char;
-                    });
-                    otpDigits[otpDigits.length - 1].focus();
-                }
-            });
-        });
-
-        function getOtpValue() {
-            let code = '';
-            otpDigits.forEach(d => code += d.value.trim());
-            return code;
-        }
-
-        function showError(msg) {
-            const banner = document.getElementById('errorBanner');
-            const messageEl = document.getElementById('errorMessage');
-            if (msg) {
-                messageEl.textContent = msg;
-                banner.style.display = 'flex';
-            } else {
-                banner.style.display = 'none';
-            }
-        }
-
-        function goToStep(step) {
-            showError(null);
-            document.getElementById('step1View').style.display = step === 1 ? 'block' : 'none';
-            document.getElementById('step2View').style.display = step === 2 ? 'block' : 'none';
-            document.getElementById('step3View').style.display = step === 3 ? 'block' : 'none';
-            document.getElementById('step4View').style.display = step === 4 ? 'block' : 'none';
-
-            for (let i = 1; i <= 4; i++) {
-                const el = document.getElementById('prog-' + i);
-                el.classList.remove('active', 'completed');
-                if (i < step) {
-                    el.classList.add('completed');
-                } else if (i === step) {
-                    el.classList.add('active');
-                }
-            }
-
-            if (step === 2) {
-                setTimeout(() => { if (otpDigits[0]) otpDigits[0].focus(); }, 150);
-            }
-        }
-
-        async function handleSendOtp() {
-            showError(null);
-            const identifier = document.getElementById('identifier').value.trim();
-            const password = document.getElementById('password').value;
-
-            if (!identifier) {
-                showError("Please enter your email address or phone number.");
-                return;
-            }
-            if (!password) {
-                showError("Please enter your account password.");
-                return;
-            }
-
-            storedIdentifier = identifier;
-            const btn = document.getElementById('btnSendOtp');
-            const btnText = document.getElementById('btnSendOtpText');
-            btn.disabled = true;
-            btnText.innerHTML = '<span class="spinner"></span> Sending Code...';
-
-            try {
-                const res = await fetch('/api/v1/auth/data-deletion/request-otp', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ identifier, password })
-                });
-                const data = await res.json();
-                if (!res.ok || !data.success) {
-                    throw new Error(data.message || 'Failed to send verification code.');
-                }
-                goToStep(2);
-            } catch (err) {
-                showError(err.message || 'An unexpected error occurred. Please try again.');
-            } finally {
-                btn.disabled = false;
-                btnText.textContent = 'Send Verification Code';
-            }
-        }
-
-        async function handleVerifyOtp() {
-            showError(null);
-            const code = getOtpValue();
-            if (code.length < 6) {
-                showError("Please enter the complete 6-digit verification code.");
-                return;
-            }
-
-            const btn = document.getElementById('btnVerifyOtp');
-            const btnText = document.getElementById('btnVerifyOtpText');
-            btn.disabled = true;
-            btnText.innerHTML = '<span class="spinner"></span> Verifying...';
-
-            try {
-                const res = await fetch('/api/v1/auth/data-deletion/verify-otp', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ identifier: storedIdentifier, code })
-                });
-                const data = await res.json();
-                if (!res.ok || !data.success) {
-                    throw new Error(data.message || 'Invalid or expired code.');
-                }
-
-                currentDeletionToken = data.data.deletionToken;
-                document.getElementById('previewName').textContent = data.data.user.name || 'Account Holder';
-                document.getElementById('previewEmail').textContent = data.data.user.email || storedIdentifier;
-
-                goToStep(3);
-            } catch (err) {
-                showError(err.message || 'Verification failed. Please check the code.');
-            } finally {
-                btn.disabled = false;
-                btnText.textContent = 'Verify Identity';
-            }
-        }
-
-        function openConfirmModal() {
-            document.getElementById('confirmModal').style.display = 'flex';
-        }
-
-        function closeConfirmModal() {
-            document.getElementById('confirmModal').style.display = 'none';
-        }
-
-        async function handleConfirmDelete() {
-            if (!currentDeletionToken) {
-                showError("Session expired. Please start over.");
-                closeConfirmModal();
-                goToStep(1);
-                return;
-            }
-
-            const btn = document.getElementById('btnConfirmDelete');
-            const btnText = document.getElementById('btnConfirmDeleteText');
-            btn.disabled = true;
-            btnText.innerHTML = '<span class="spinner"></span> Deleting Account...';
-
-            try {
-                const res = await fetch('/api/v1/auth/data-deletion/confirm', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ deletionToken: currentDeletionToken })
-                });
-                const data = await res.json();
-                if (!res.ok || !data.success) {
-                    throw new Error(data.message || 'Failed to delete account. Please try again.');
-                }
-
-                closeConfirmModal();
-                goToStep(4);
-            } catch (err) {
-                closeConfirmModal();
-                showError(err.message || 'Failed to process account deletion.');
-            } finally {
-                btn.disabled = false;
-                btnText.textContent = 'Yes, Delete Account';
-            }
-        }
-    </script>
 </body>
 </html>
 `;

@@ -98,10 +98,6 @@ export interface IUser {
   failedLoginAttempts?: number;
   lockoutUntil?: Date;
 
-  // Account Deletion Verification
-  deletionOtp?: string;
-  deletionOtpExpires?: Date;
-
   stripeCustomerId?: string;
   stripeCustomerIdHash?: string;
   stripeConnectedAccountId?: string;

@@ -79,26 +79,4 @@ router.post(
   AuthControllers.resendVerificationCode
 );
 
-// Self-Service Data & Account Deletion (Google Play & Privacy Compliance)
-router.post(
-  "/data-deletion/request-otp",
-  authLimiter,
-  validateRequest(AuthValidation.requestDeletionOtpSchema),
-  AuthControllers.requestDataDeletionOtp
-);
-
-router.post(
-  "/data-deletion/verify-otp",
-  authLimiter,
-  validateRequest(AuthValidation.verifyDeletionOtpSchema),
-  AuthControllers.verifyDataDeletionOtp
-);
-
-router.post(
-  "/data-deletion/confirm",
-  authLimiter,
-  validateRequest(AuthValidation.confirmDeletionSchema),
-  AuthControllers.confirmDataDeletion
-);
-
 export const AuthRoutes = router;

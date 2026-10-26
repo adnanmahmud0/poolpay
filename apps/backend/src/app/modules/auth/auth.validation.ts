@@ -109,28 +109,6 @@ const setPasswordSchema = z.object({
   }),
 });
 
-const requestDeletionOtpSchema = z.object({
-  body: z.object({
-    identifier: z.string().min(1, "Email or phone number is required"),
-    password: z.string().min(1, "Password is required"),
-  }),
-});
-
-const verifyDeletionOtpSchema = z.object({
-  body: z.object({
-    identifier: z.string().min(1, "Email or phone number is required"),
-    code: z.string().min(4, "Verification code is required"),
-  }),
-});
-
-const confirmDeletionSchema = z.object({
-  body: z.object({
-    deletionToken: z
-      .string()
-      .min(1, "Deletion authorization token is required"),
-  }),
-});
-
 export const AuthValidation = {
   registerValidationSchema,
   loginValidationSchema,
@@ -142,7 +120,4 @@ export const AuthValidation = {
   resendVerificationCodeSchema,
   refreshTokenSchema,
   setPasswordSchema,
-  requestDeletionOtpSchema,
-  verifyDeletionOtpSchema,
-  confirmDeletionSchema,
 };
