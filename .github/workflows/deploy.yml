@@ -707,8 +707,8 @@ jobs:
           KLX_EMAIL_PROVIDER: "smtp"
           SMTP_HOST: ${{ secrets.SMTP_HOST || 'email-smtp.eu-north-1.amazonaws.com' }}
           SMTP_PORT: "587"
-          SMTP_USER: ${{ secrets.SMTP_USER || 'AKIAT2GVA6EUOOJU25Y3' }}
-          SMTP_PASS: ${{ secrets.SMTP_PASS || 'BEeqWPyxX2WhWjR3gXCbMkblc6VlALS9rXZwk6bOVHaw' }}
+          SMTP_USER: ${{ secrets.SMTP_USER }}
+          SMTP_PASS: ${{ secrets.SMTP_PASS }}
         run: |
           python3 - << 'EOF'
           import os, re
