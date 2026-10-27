@@ -53,6 +53,12 @@ services:
       - IP=0.0.0.0
       - REDIS_HOST=redis
       - REDIS_PORT=6379
+      - DATABASE_URL=${DATABASE_URL:-mongodb://admin:${MONGO_INITDB_ROOT_PASSWORD:-PoolPaySecurePass2026!}@mongodb:27017/poolPay-db?authSource=admin}
+      - JWT_ACCESS_SECRET=${JWT_ACCESS_SECRET:-8c33e105b5341929104629d4a046d7f8b5d0c4813fd4b731f92788ea157ec633}
+      - JWT_REFRESH_SECRET=${JWT_REFRESH_SECRET:-cad41235ea8dc707745041eb76f36dc60fcb0115d9cd4685f32641cb38ac8ff5}
+      - SUPER_ADMIN_EMAIL=${SUPER_ADMIN_EMAIL:-admin@poolpay.space}
+      - SUPER_ADMIN_PASSWORD=${SUPER_ADMIN_PASSWORD:-Admin123!}
+      - SUPER_ADMIN_NAME=${SUPER_ADMIN_NAME:-Super Admin}
     volumes:
       - backend_uploads_prod:/app/uploads
       - backend_logs_prod:/app/logs

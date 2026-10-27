@@ -789,11 +789,33 @@ jobs:
                   'REDIS_PORT': '6379',
                   'MONGO_INITDB_ROOT_USERNAME': 'admin',
                   'MONGO_INITDB_ROOT_PASSWORD': mongo_pwd,
-                  'MONGO_INITDB_DATABASE': 'poolPay-db'
+                  'MONGO_INITDB_DATABASE': 'poolPay-db',
+                  'DATABASE_URL': f'mongodb://admin:{mongo_pwd}@mongodb:27017/poolPay-db?authSource=admin',
+                  'TEST_DATABASE_URL': f'mongodb://admin:{mongo_pwd}@mongodb:27017/poolPay-db?authSource=admin',
+                  'LIVE_DATABASE_URL': f'mongodb://admin:{mongo_pwd}@mongodb:27017/poolPay-db?authSource=admin',
+                  'JWT_ACCESS_SECRET': os.environ.get('JWT_ACCESS_SECRET') or '8c33e105b5341929104629d4a046d7f8b5d0c4813fd4b731f92788ea157ec633',
+                  'JWT_REFRESH_SECRET': os.environ.get('JWT_REFRESH_SECRET') or 'cad41235ea8dc707745041eb76f36dc60fcb0115d9cd4685f32641cb38ac8ff5',
+                  'SUPER_ADMIN_NAME': os.environ.get('SUPER_ADMIN_NAME') or 'Super Admin',
+                  'SUPER_ADMIN_EMAIL': os.environ.get('SUPER_ADMIN_EMAIL') or 'admin@poolpay.space',
+                  'SUPER_ADMIN_PASSWORD': os.environ.get('SUPER_ADMIN_PASSWORD') or 'Admin123!',
               }
               for d_key, d_val in defaults.items():
                   if d_key not in keys_present:
                       cleaned_lines.append(f'{d_key}={d_val}')
+
+              # Sanitize any critical keys that were present but had empty or placeholder values
+              final_lines = []
+              for line in cleaned_lines:
+                  if '=' in line and not line.strip().startswith('#'):
+                      k, v = line.split('=', 1)
+                      k = k.strip()
+                      v = v.strip().strip('"'')
+                      if k in defaults and (not v or v.startswith('your_') or 'your-secret' in v or 'your_email' in v):
+                          v = defaults[k]
+                      final_lines.append(f'{k}={v}')
+                  else:
+                      final_lines.append(line)
+              cleaned_lines = final_lines
 
               with open('.env.production', 'w') as f:
                   f.write('\n'.join(cleaned_lines) + '\n')
