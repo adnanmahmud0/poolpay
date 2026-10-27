@@ -553,7 +553,7 @@ export async function getSettings(): Promise<KlxSettings> {
       ) {
         transportationPricing = DEFAULT_SETTINGS.transportationPricing;
       }
-      let supportEmail = doc.supportEmail;
+      let supportEmail = doc.supportEmail || DEFAULT_SETTINGS.supportEmail;
       if (
         supportEmail === "support@poolpay.space" &&
         env.KLX_SUPPORT_EMAIL &&
@@ -561,7 +561,26 @@ export async function getSettings(): Promise<KlxSettings> {
       ) {
         supportEmail = env.KLX_SUPPORT_EMAIL;
       }
-      return { ...DEFAULT_SETTINGS, ...doc, transportationPricing, supportEmail };
+      let ownerEmail =
+        doc.ownerEmail ||
+        env.KLX_OWNER_EMAIL ||
+        DEFAULT_SETTINGS.ownerEmail ||
+        "klxluxeplus@gmail.com";
+      if (ownerEmail === "support@poolpay.space" || ownerEmail === "admin@poolpay.space") {
+        ownerEmail = env.KLX_OWNER_EMAIL || "klxluxeplus@gmail.com";
+      }
+      const notificationSettings = {
+        ...DEFAULT_SETTINGS.notificationSettings,
+        ...(doc.notificationSettings || {})
+      };
+      return {
+        ...DEFAULT_SETTINGS,
+        ...doc,
+        notificationSettings,
+        transportationPricing,
+        supportEmail,
+        ownerEmail
+      };
     }
   } catch (err) {
     console.warn("Could not get settings from DB, returning defaults:", err);

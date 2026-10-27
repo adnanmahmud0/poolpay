@@ -1713,8 +1713,10 @@ export function AdminDashboard({
               <div className="rounded-2xl border border-slate-200 bg-white p-7">
                 <h3 className="font-semibold">Business settings</h3>
                 <dl className="mt-6 grid gap-4 text-sm sm:grid-cols-2">
-                  <dt>Support email</dt>
+                  <dt>Support email (public)</dt>
                   <dd>{data.settings.supportEmail}</dd>
+                  <dt>Admin notification email</dt>
+                  <dd>{data.settings.ownerEmail || "klxluxeplus@gmail.com"}</dd>
                   <dt>Phone</dt>
                   <dd>{data.settings.phone}</dd>
                   <dt>Business timezone</dt>

@@ -456,7 +456,9 @@ test("interpreter service appointment records languages, setting, and dual notif
   assert.ok(customerEmail.bodyText.includes("Haitian Creole (Kreyòl) → English"));
   assert.ok(customerEmail.bodyText.includes("USCIS Asylum Interview"));
 
-  const adminEmail = notifications.find((n) => n.recipient === "support@poolpay.space");
+  const adminEmail = notifications.find(
+    (n) => n.recipient === "support@poolpay.space" || n.recipient === "klxluxeplus@gmail.com"
+  );
   assert.ok(adminEmail);
   assert.ok(adminEmail.bodyHtml.includes("Haitian Creole (Kreyòl) → English"));
   assert.ok(adminEmail.bodyHtml.includes("USCIS Asylum Interview"));
@@ -507,7 +509,9 @@ test("real estate service appointment records transaction type, property type, l
   assert.ok(customerEmail.bodyText.includes("Buying (Purchasing a property)"));
   assert.ok(customerEmail.bodyText.includes("Binghamton, NY 13905"));
 
-  const adminEmail = notifications.find((n) => n.recipient === "support@poolpay.space");
+  const adminEmail = notifications.find(
+    (n) => n.recipient === "support@poolpay.space" || n.recipient === "klxluxeplus@gmail.com"
+  );
   assert.ok(adminEmail);
   assert.ok(adminEmail.bodyHtml.includes("Buying (Purchasing a property)"));
   assert.ok(adminEmail.bodyHtml.includes("Binghamton, NY 13905"));
@@ -560,7 +564,9 @@ test("translation service appointment records documents, reason, and download li
       notificationIntents: Array<{ recipient: string; bodyText: string; bodyHtml: string }>;
     }
   ).notificationIntents;
-  const adminEmail = notifications.find((n) => n.recipient === "support@poolpay.space");
+  const adminEmail = notifications.find(
+    (n) => n.recipient === "support@poolpay.space" || n.recipient === "klxluxeplus@gmail.com"
+  );
   assert.ok(adminEmail);
   assert.ok(adminEmail.bodyText.includes("acta_nacimiento_carlos.pdf"));
   assert.ok(adminEmail.bodyHtml.includes("/api/documents/"));
@@ -608,7 +614,9 @@ test("transportation service records ride route, vehicle tier, and generates che
       notificationIntents: Array<{ recipient: string; bodyText: string; bodyHtml: string }>;
     }
   ).notificationIntents;
-  const adminEmail = notifications.find((n) => n.recipient === "support@poolpay.space");
+  const adminEmail = notifications.find(
+    (n) => n.recipient === "support@poolpay.space" || n.recipient === "klxluxeplus@gmail.com"
+  );
   assert.ok(adminEmail);
   assert.ok(adminEmail.bodyText.includes("JFK Airport, Terminal 4"));
   assert.ok(adminEmail.bodyText.includes("Midtown Manhattan Hotel, NY"));
@@ -652,7 +660,9 @@ test("admin appointment request email blocks direct replies and includes one-cli
       }>;
     }
   ).notificationIntents;
-  const adminEmail = notifications.find((n) => n.recipient === "support@poolpay.space");
+  const adminEmail = notifications.find(
+    (n) => n.recipient === "support@poolpay.space" || n.recipient === "klxluxeplus@gmail.com"
+  );
   assert.ok(adminEmail);
   assert.equal(adminEmail.replyTo, "no-reply");
   assert.equal(adminEmail.noReply, true);

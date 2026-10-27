@@ -224,17 +224,27 @@ export async function requestAppointment(input: unknown) {
       bodyText: customerEmail.text
     }
   ];
-  if (settings.notificationSettings.emailOnRequest)
+  if (settings.notificationSettings.emailOnRequest) {
+    const adminRecipient =
+      (settings.ownerEmail && !settings.ownerEmail.endsWith("@poolpay.space")
+        ? settings.ownerEmail
+        : null) ||
+      (env.KLX_OWNER_EMAIL && !env.KLX_OWNER_EMAIL.endsWith("@poolpay.space")
+        ? env.KLX_OWNER_EMAIL
+        : null) ||
+      "klxluxeplus@gmail.com";
+
     notificationIntents.push({
       id: `appointment-${id}-business`,
       type: "appointment_requested",
-      recipient: settings.supportEmail,
+      recipient: adminRecipient,
       replyTo: "no-reply",
       noReply: true,
       subject: adminEmail.subject,
       bodyHtml: adminEmail.html,
       bodyText: adminEmail.text
     });
+  }
   try {
     await db.collection(COLLECTIONS.APPOINTMENTS).updateOne(
       { id },

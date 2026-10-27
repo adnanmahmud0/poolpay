@@ -104,6 +104,9 @@ services:
       - KLX_DATABASE_URL=${KLX_DATABASE_URL:-mongodb://admin:password123@mongodb:27017/klx_luxe_plus?authSource=admin}
       - KLX_DB_NAME=klx_luxe_plus
       - KLX_MEDIA_DIR=/app/media
+      - KLX_OWNER_EMAIL=${KLX_OWNER_EMAIL:-klxluxeplus@gmail.com}
+      - KLX_SUPPORT_EMAIL=${KLX_SUPPORT_EMAIL:-support@klxluxeplus.poolpay.space}
+      - KLX_EMAIL_FROM=${KLX_EMAIL_FROM:-support@klxluxeplus.poolpay.space}
     volumes:
       - klx_media_prod:/app/media
     ports:

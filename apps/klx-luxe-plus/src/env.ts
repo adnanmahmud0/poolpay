@@ -19,7 +19,10 @@ for (const path of envCandidates) {
 const schema = z.object({
   NODE_ENV: z.string().default("development"),
   KLX_SITE_URL: z.string().url().default("https://klxluxeplus.poolpay.space"),
-  KLX_OWNER_EMAIL: z.string().email().optional(),
+  KLX_OWNER_EMAIL: z
+    .string()
+    .email()
+    .default(process.env.KLX_OWNER_EMAIL || "klxluxeplus@gmail.com"),
   KLX_OWNER_PASSWORD: z.string().optional(),
   SUPER_ADMIN_EMAIL: z.string().email().optional(),
   SUPER_ADMIN_PASSWORD: z.string().optional(),

@@ -798,6 +798,9 @@ jobs:
                   'SUPER_ADMIN_NAME': os.environ.get('SUPER_ADMIN_NAME') or 'Super Admin',
                   'SUPER_ADMIN_EMAIL': os.environ.get('SUPER_ADMIN_EMAIL') or 'admin@poolpay.space',
                   'SUPER_ADMIN_PASSWORD': os.environ.get('SUPER_ADMIN_PASSWORD') or 'Admin123!',
+                  'KLX_EMAIL_FROM': os.environ.get('KLX_EMAIL_FROM') or 'support@klxluxeplus.poolpay.space',
+                  'KLX_SUPPORT_EMAIL': os.environ.get('KLX_SUPPORT_EMAIL') or 'support@klxluxeplus.poolpay.space',
+                  'KLX_OWNER_EMAIL': os.environ.get('KLX_OWNER_EMAIL') or 'klxluxeplus@gmail.com',
               }
               for d_key, d_val in defaults.items():
                   if d_key not in keys_present:

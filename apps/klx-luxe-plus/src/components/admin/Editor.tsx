@@ -146,7 +146,6 @@ function Fields({
                 "requestId",
                 "serviceId",
                 "number",
-                "ownerEmail",
                 "createdAt",
                 "updatedAt",
                 "publishedAt",
