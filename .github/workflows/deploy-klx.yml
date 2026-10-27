@@ -52,7 +52,7 @@ jobs:
       - name: Resolve existing server credentials
         id: ssh
         env:
-          ENV_VER: ${{ secrets.ENV_VER || secrets.ENV_FILE }}
+          ENV_VER: ${{ secrets.ENV_VER || secrets.ENV_FILE || secrets.ENV_VAR || secrets.ENV || secrets.DOTENV }}
           SEC_HOST: ${{ secrets.EC2_HOST }}
           SEC_USER: ${{ secrets.EC2_USER }}
           SEC_KEY: ${{ secrets.EC2_SSH_KEY }}

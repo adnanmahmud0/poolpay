@@ -1,5 +1,7 @@
 import crypto from "node:crypto";
 
+import { env } from "@/env";
+
 import { COLLECTIONS, getDb } from "./client";
 import {
   DEFAULT_ADVERTISEMENTS,
@@ -551,7 +553,15 @@ export async function getSettings(): Promise<KlxSettings> {
       ) {
         transportationPricing = DEFAULT_SETTINGS.transportationPricing;
       }
-      return { ...DEFAULT_SETTINGS, ...doc, transportationPricing };
+      let supportEmail = doc.supportEmail;
+      if (
+        supportEmail === "support@poolpay.space" &&
+        env.KLX_SUPPORT_EMAIL &&
+        env.KLX_SUPPORT_EMAIL !== "support@poolpay.space"
+      ) {
+        supportEmail = env.KLX_SUPPORT_EMAIL;
+      }
+      return { ...DEFAULT_SETTINGS, ...doc, transportationPricing, supportEmail };
     }
   } catch (err) {
     console.warn("Could not get settings from DB, returning defaults:", err);

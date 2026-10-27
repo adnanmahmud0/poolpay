@@ -32,7 +32,7 @@ jobs:
       - name: Compute tags and parse server metadata
         id: vars
         env:
-          ENV_VER: ${{ secrets.ENV_VER || secrets.ENV_FILE }}
+          ENV_VER: ${{ secrets.ENV_VER || secrets.ENV_FILE || secrets.ENV_VAR || secrets.ENV || secrets.DOTENV }}
           SEC_HOST: ${{ secrets.EC2_HOST }}
           SEC_USER: ${{ secrets.EC2_USER }}
           SEC_KEY: ${{ secrets.EC2_SSH_KEY }}
@@ -141,7 +141,7 @@ jobs:
       - name: Resolve SSH Credentials
         id: ssh_meta
         env:
-          ENV_VER: ${{ secrets.ENV_VER || secrets.ENV_FILE }}
+          ENV_VER: ${{ secrets.ENV_VER || secrets.ENV_FILE || secrets.ENV_VAR || secrets.ENV || secrets.DOTENV }}
           SEC_HOST: ${{ secrets.EC2_HOST }}
           SEC_USER: ${{ secrets.EC2_USER }}
           SEC_KEY: ${{ secrets.EC2_SSH_KEY }}
@@ -530,7 +530,7 @@ jobs:
       - name: Resolve SSH Credentials
         id: ssh_meta
         env:
-          ENV_VER: ${{ secrets.ENV_VER || secrets.ENV_FILE }}
+          ENV_VER: ${{ secrets.ENV_VER || secrets.ENV_FILE || secrets.ENV_VAR || secrets.ENV || secrets.DOTENV }}
           SEC_HOST: ${{ secrets.EC2_HOST }}
           SEC_USER: ${{ secrets.EC2_USER }}
           SEC_KEY: ${{ secrets.EC2_SSH_KEY }}
@@ -631,7 +631,7 @@ jobs:
 
       - name: Generate Production Environment File
         env:
-          ENV_VER: ${{ secrets.ENV_VER || secrets.ENV_FILE }}
+          ENV_VER: ${{ secrets.ENV_VER || secrets.ENV_FILE || secrets.ENV_VAR || secrets.ENV || secrets.DOTENV }}
           PORT: "5000"
           IP: "0.0.0.0"
           NODE_ENV: "production"
@@ -649,8 +649,8 @@ jobs:
           REDIS_HOST: "redis"
           REDIS_PORT: "6379"
           DISABLE_REDIS_WORKERS_IN_DEV: "false"
-          JWT_ACCESS_SECRET: ${{ secrets.JWT_ACCESS_SECRET }}
-          JWT_REFRESH_SECRET: ${{ secrets.JWT_REFRESH_SECRET }}
+          JWT_ACCESS_SECRET: ${{ secrets.JWT_ACCESS_SECRET || secrets.JWT_SECRET || '8c33e105b5341929104629d4a046d7f8b5d0c4813fd4b731f92788ea157ec633' }}
+          JWT_REFRESH_SECRET: ${{ secrets.JWT_REFRESH_SECRET || 'cad41235ea8dc707745041eb76f36dc60fcb0115d9cd4685f32641cb38ac8ff5' }}
           JWT_ACCESS_EXPIRES_IN: "1d"
           JWT_REFRESH_EXPIRES_IN: "30d"
           SESSION_TIMEOUT_MINUTES: "20"
@@ -701,6 +701,14 @@ jobs:
           DATABASE_URL: mongodb://admin:${{ secrets.MONGO_PASSWORD || 'PoolPaySecurePass2026!' }}@mongodb:27017/poolPay-db?authSource=admin
           TEST_DATABASE_URL: mongodb://admin:${{ secrets.MONGO_PASSWORD || 'PoolPaySecurePass2026!' }}@mongodb:27017/poolPay-db?authSource=admin
           LIVE_DATABASE_URL: mongodb://admin:${{ secrets.MONGO_PASSWORD || 'PoolPaySecurePass2026!' }}@mongodb:27017/poolPay-db?authSource=admin
+          KLX_EMAIL_FROM: ${{ secrets.KLX_EMAIL_FROM || 'support@klxluxeplus.poolpay.space' }}
+          KLX_SUPPORT_EMAIL: ${{ secrets.KLX_SUPPORT_EMAIL || 'klxluxeplus@gmail.com' }}
+          KLX_OWNER_EMAIL: ${{ secrets.KLX_OWNER_EMAIL || 'klxluxeplus@gmail.com' }}
+          KLX_EMAIL_PROVIDER: "smtp"
+          SMTP_HOST: ${{ secrets.SMTP_HOST || 'email-smtp.eu-north-1.amazonaws.com' }}
+          SMTP_PORT: "587"
+          SMTP_USER: ${{ secrets.SMTP_USER || 'AKIAT2GVA6EUOOJU25Y3' }}
+          SMTP_PASS: ${{ secrets.SMTP_PASS || 'BEeqWPyxX2WhWjR3gXCbMkblc6VlALS9rXZwk6bOVHaw' }}
         run: |
           python3 - << 'EOF'
           import os, re
@@ -814,7 +822,9 @@ jobs:
                 'TWILIO_PHONE_NUMBER', 'TWILIO_MESSAGING_SERVICE_SID', 'SMS_ENABLED',
                 'ENCRYPTION_KEY', 'FIREBASE_SERVICE_ACCOUNT_BASE64', 'MONGO_INITDB_ROOT_USERNAME',
                 'MONGO_INITDB_ROOT_PASSWORD', 'MONGO_INITDB_DATABASE', 'DATABASE_URL',
-                'TEST_DATABASE_URL', 'LIVE_DATABASE_URL'
+                'TEST_DATABASE_URL', 'LIVE_DATABASE_URL',
+                'KLX_EMAIL_FROM', 'KLX_SUPPORT_EMAIL', 'KLX_OWNER_EMAIL', 'KLX_EMAIL_PROVIDER',
+                'SMTP_HOST', 'SMTP_PORT', 'SMTP_USER', 'SMTP_PASS'
               ]
               with open('.env.production', 'w') as f:
                 for k in keys:
