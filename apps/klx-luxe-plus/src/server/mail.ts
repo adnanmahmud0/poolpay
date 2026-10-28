@@ -17,6 +17,23 @@ export async function processOutbox() {
     for (const record of records) await queueIntents(collection, String(record.id));
   }
   let sent = 0;
+
+  // Auto-cancel simulated/test recipients (e.g. @example.com) to protect Amazon SES sender reputation
+  await db.collection(COLLECTIONS.OUTBOX).updateMany(
+    {
+      recipient: { $regex: /@(example\.(com|org|net)|test\.com|invalid|sample\.com)$/i },
+      status: { $in: ["pending", "failed"] }
+    },
+    {
+      $set: {
+        status: "cancelled",
+        lastError: "Skipped simulated/test recipient.",
+        processedAt: new Date()
+      },
+      $unset: { leaseUntil: "" }
+    }
+  );
+
   for (let i = 0; i < 20; i++) {
     const item = await db
       .collection<KlxOutbox & { leaseUntil?: Date }>(COLLECTIONS.OUTBOX)
@@ -30,6 +47,23 @@ export async function processOutbox() {
         { returnDocument: "after" }
       );
     if (!item) break;
+
+    // Safety guard: Never send real emails to dummy/test domains (e.g. @example.com)
+    if (/@(example\.(com|org|net)|test\.com|invalid|sample\.com)$/i.test(item.recipient.trim())) {
+      await db.collection(COLLECTIONS.OUTBOX).updateOne(
+        { id: item.id },
+        {
+          $set: {
+            status: "cancelled",
+            lastError: "Skipped simulated/test recipient.",
+            processedAt: new Date()
+          },
+          $unset: { leaseUntil: "" }
+        }
+      );
+      continue;
+    }
+
     try {
       const useSmtp =
         env.KLX_EMAIL_PROVIDER === "smtp" ||
